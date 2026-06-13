@@ -88,33 +88,68 @@ button {
 }
 
 .top-bar {
+  position: relative;
+  z-index: 6;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 4px;
 }
 
 .quest-top-bar {
   align-items: stretch;
+  min-height: 74px;
 }
 
 .quest-top-bar .title-block {
   flex: 1 1 auto;
+  padding: 9px 12px 7px;
 }
 
 .quest-resource-row {
   flex: 0 0 132px;
-  align-content: stretch;
+  align-content: start;
   gap: 6px;
 }
 
 .quest-resource-row .resource {
   width: 100%;
   min-width: 0;
-  padding: 7px 8px;
+  min-height: 74px;
+  padding: 9px 8px;
+}
+
+.quest-title-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+.quest-floor-badge {
+  display: grid;
+  min-width: 96px;
+  padding: 5px 8px;
+  text-align: right;
+  background: rgba(1, 7, 8, 0.52);
+}
+
+.quest-floor-badge small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.quest-floor-badge strong {
+  font-size: 17px;
 }
 
 .quest-material-button {
   color: var(--text);
   cursor: pointer;
+}
+
+.quest-top-bar .title-en {
+  margin-top: 0;
+  line-height: 1.05;
 }
 
 .quest-material-button:active {
@@ -134,7 +169,7 @@ button {
 .title-ja {
   display: block;
   font-size: 27px;
-  line-height: 1;
+  line-height: 0.95;
   letter-spacing: 0;
 }
 
@@ -869,7 +904,7 @@ button {
 .quest-readout {
   display: grid;
   gap: 8px;
-  margin-top: -18px;
+  margin-top: -34px;
   margin-bottom: 10px;
   position: relative;
   z-index: 4;
@@ -989,17 +1024,17 @@ button {
   grid-column: 1 / -1;
   min-height: 36px;
   display: grid;
-  grid-template-columns: 88px 1fr;
+  grid-template-columns: 1fr;
   align-items: center;
   padding: 3px 10px;
-  text-align: left;
+  text-align: center;
 }
 
 .quest-search-button .cmd-icon {
   margin-bottom: 0;
   text-align: center;
   font-size: 24px;
-  padding: 5px 0;
+  padding: 0;
   background: transparent;
 }
 
@@ -1057,6 +1092,7 @@ button {
 
 .cockpit-view {
   min-height: 300px;
+  margin-top: -18px;
   margin-left: -12px;
   margin-right: -12px;
 }

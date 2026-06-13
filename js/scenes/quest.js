@@ -266,11 +266,13 @@ function renderQuestHeader(planet, quest) {
   return `
     <div class="top-bar quest-top-bar">
       <div class="title-block">
-        <span class="title-ja">${planet.name}</span>
+        <div class="quest-title-row">
+          <span class="title-ja">${planet.name}</span>
+          <span class="quest-floor-badge"><small>階層</small><strong>${quest.floor}F / ${planet.maxFloor}F</strong></span>
+        </div>
         <span class="title-en">EXPLORE</span>
       </div>
       <div class="resource-row quest-resource-row">
-        <div class="resource"><small>階層</small><strong>${quest.floor}F / ${planet.maxFloor}F</strong></div>
         <button class="resource quest-material-button" data-action="open-quest-materials" type="button"><small>所持素材</small><strong>${totalMaterials()} / 100</strong></button>
       </div>
     </div>

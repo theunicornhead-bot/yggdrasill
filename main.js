@@ -38,6 +38,7 @@ document.addEventListener("click", (event) => {
   }
   if (action === "hire") window.hirePilot(target.dataset.pilot);
   if (action === "sell-material") window.sellMaterial(target.dataset.material);
+  if (action === "sell-mech") window.sellMech(target.dataset.mech);
   if (action === "select-mech") {
     window.GameState.selectedMechId = target.dataset.mech;
     window.renderCurrentScene();

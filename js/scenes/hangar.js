@@ -49,13 +49,14 @@ window.renderHangar = function renderHangar() {
 
 function renderMechCard(mech, index) {
   const pilot = displayPilot(mech.pilotId);
+  const salePrice = getMechSalePrice(mech);
   return `
     <article class="mech-card panel ${window.GameState.selectedMechId === mech.id ? "selected" : ""}" data-action="select-mech" data-mech="${mech.id}">
       <div class="section-head"><h3>${String(index + 1).padStart(2, "0")} ${mech.name}</h3><span class="tag">${mech.size}</span></div>
       ${renderMechThumb(mech)}
       <div class="tag-row">
         <span class="tag">${mech.type || "hybrid"}</span>
-        <span class="tag">RANK ${mech.rank || "-"}</span>
+        <span class="tag">RANK ${mech.rank || mech.rarity || "-"}</span>
       </div>
       <div>HP ${formatNumber(mech.hp)} / ${formatNumber(mech.maxHp)}</div>
       <div class="bar" style="--value:${(mech.hp / mech.maxHp) * 100}%"><span></span></div>
@@ -64,6 +65,7 @@ function renderMechCard(mech, index) {
       <div class="stat-row"><span>MOBILITY</span><strong>${mech.mobility}</strong></div>
       <div class="material-row"><span>搭乗者</span><strong>${pilot.name}</strong></div>
       <button class="button" data-action="select-mech" data-mech="${mech.id}" style="width:100%">詳細</button>
+      <button class="button danger" data-action="sell-mech" data-mech="${mech.id}" ${canSellMech(mech.id) ? "" : "disabled"} style="width:100%;margin-top:6px">売却 ${formatNumber(salePrice)} G</button>
     </article>
   `;
 }
@@ -84,8 +86,8 @@ function renderMechDetail(mech) {
       ${renderMechThumb(mech)}
       <div class="tag-row">
         <span class="tag">SIZE ${mech.size}</span>
-        <span class="tag">${mech.type}</span>
-        <span class="tag">RANK ${mech.rank}</span>
+        <span class="tag">${mech.type || "-"}</span>
+        <span class="tag">RANK ${mech.rank || mech.rarity || "-"}</span>
       </div>
       <div class="stat-row"><span>HP</span><strong>${formatNumber(mech.hp)} / ${formatNumber(mech.maxHp)}</strong></div>
       <div class="stat-row"><span>ATK</span><strong>${mech.atk}</strong></div>
@@ -103,10 +105,48 @@ function renderMechDetail(mech) {
       ${compatibility ? `<div class="material-row"><span>${compatibility.label}</span><strong>${compatibility.bonusText}</strong></div>` : ""}
       <div class="section-head" style="margin-top:10px"><h3>パーツスロット</h3></div>
       <div class="compact-list">${renderPartSlots(mech)}</div>
+      <div class="section-head" style="margin-top:10px"><h3>売却</h3></div>
+      <div class="material-row"><span>売却価格</span><strong>${formatNumber(getMechSalePrice(mech))} G</strong></div>
+      <button class="button danger" data-action="sell-mech" data-mech="${mech.id}" ${canSellMech(mech.id) ? "" : "disabled"} style="width:100%;margin-top:8px">この機体を売却</button>
       <p class="muted">${mech.description || ""}</p>
     </div>
   `;
 }
+
+function getMechSalePrice(mech) {
+  const rarityRates = { N: 1, R: 1.4, SR: 2, SSR: 3, UR: 4, E: 0.7, D: 1, C: 1.2, B: 1.6, A: 2.2, S: 3 };
+  const rank = mech.rarity || mech.rank || "D";
+  const statValue = Number(mech.maxHp || mech.hp || 0) * 0.5 + Number(mech.atk || 0) * 8 + Number(mech.def || 0) * 7 + Number(mech.mobility || 0) * 5;
+  const generatedBonus = mech.coreId ? 500 : 0;
+  return Math.max(100, Math.round((statValue + generatedBonus) * (rarityRates[rank] || 1)));
+}
+
+function canSellMech(mechId) {
+  const state = window.GameState;
+  return Boolean(getMech(mechId)) && state.mechs.length > 1;
+}
+
+window.sellMech = function sellMech(mechId) {
+  const state = window.GameState;
+  const mech = getMech(mechId);
+  if (!mech) return;
+  if (!canSellMech(mechId)) {
+    logMessage("bar", "最後の1機は売却できません。", "danger");
+    renderCurrentScene();
+    return;
+  }
+  const salePrice = getMechSalePrice(mech);
+  const confirmed = window.confirm ? window.confirm(`${mech.name}を${formatNumber(salePrice)}Gで売却しますか？`) : true;
+  if (!confirmed) return;
+
+  state.mechs = state.mechs.filter((item) => item.id !== mechId);
+  state.money += salePrice;
+  if (state.selectedMechId === mechId) {
+    state.selectedMechId = state.mechs[0]?.id || null;
+  }
+  logMessage("bar", `${mech.name}を${formatNumber(salePrice)}Gで売却しました。`, "good");
+  renderCurrentScene();
+};
 
 function renderGeneratedStatRows(mech) {
   if (!mech.stats) return "";

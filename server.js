@@ -23,16 +23,43 @@ function loadDotEnv(filePath) {
     if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
       value = value.slice(1, -1);
     }
-    if (!process.env[key]) process.env[key] = value;
+    if (!process.env[key]) process.env[key] = value.trim();
   });
+}
+
+function getOpenAiApiKey() {
+  loadDotEnv(path.join(ROOT, ".env"));
+  return String(process.env.OPENAI_API_KEY || "").trim();
 }
 
 function sendJson(response, status, payload) {
   response.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
-    "Cache-Control": "no-store"
+    "Cache-Control": "no-store",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type,Authorization"
   });
   response.end(JSON.stringify(payload));
+}
+
+function sendNoContent(response) {
+  response.writeHead(204, {
+    "Cache-Control": "no-store",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type,Authorization"
+  });
+  response.end();
+}
+
+function sendHealth(response) {
+  sendJson(response, 200, {
+    ok: true,
+    cwd: ROOT,
+    hasOpenAiApiKey: Boolean(getOpenAiApiKey()),
+    generatedDir: GENERATED_DIR
+  });
 }
 
 function readRequestJson(request) {
@@ -63,7 +90,8 @@ function safeUnitId(unitId) {
 }
 
 async function generateMechImage(request, response) {
-  if (!process.env.OPENAI_API_KEY) {
+  const apiKey = getOpenAiApiKey();
+  if (!apiKey) {
     sendJson(response, 500, { ok: false, error: "OPENAI_API_KEY is not configured on the server" });
     return;
   }
@@ -80,7 +108,7 @@ async function generateMechImage(request, response) {
     const openaiResponse = await fetch("https://api.openai.com/v1/images/generations", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+        "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -153,7 +181,20 @@ function contentType(filePath) {
 }
 
 const server = http.createServer((request, response) => {
-  if (request.method === "POST" && request.url === "/api/generate-mech-image") {
+  const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
+  if (request.method === "GET" && url.pathname === "/api/health") {
+    sendHealth(response);
+    return;
+  }
+  if (request.method === "GET" && url.pathname === "/favicon.ico") {
+    sendNoContent(response);
+    return;
+  }
+  if (request.method === "OPTIONS" && url.pathname === "/api/generate-mech-image") {
+    sendNoContent(response);
+    return;
+  }
+  if (request.method === "POST" && url.pathname === "/api/generate-mech-image") {
     generateMechImage(request, response);
     return;
   }
