@@ -29,7 +29,7 @@ window.renderBattle = function renderBattle() {
     <section class="battle-view panel">
       <div class="cockpit-background-layer"></div>
       <div class="enemy-shape"></div>
-      <img class="cockpit-frame-layer" src="ui/cockpit.jpeg" alt="" aria-hidden="true">
+      <img class="cockpit-frame-layer" src="ui/cockpit_frame.png" alt="" aria-hidden="true">
       <div class="enemy-card panel panel-pad">
         <div class="section-head"><h2>${enemy.name}</h2><span>Lv. ${enemy.level}</span></div>
         <div>HP ${formatNumber(enemy.hp)} / ${formatNumber(enemy.maxHp)}</div>

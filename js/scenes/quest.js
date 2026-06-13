@@ -8,6 +8,12 @@ const QUEST_DIRS = {
 };
 
 const QUEST_EVENT_LABELS = { empty: ".", enemy: "E", fuel: "F", treasure: "T", trap: "!", stairs: "S", wall: "#" };
+const QUEST_BACKGROUND_ASSETS = {
+  planet_001: {
+    open: "ui/gaea_001.png",
+    blocked: "ui/gaea_002.png"
+  }
+};
 
 window.PlanetMaster = [
   { id: "planet_001", name: "ガイア", description: "森林平原と岩場が広がる標準探索惑星。初期探索に適している。", difficulty: 1, recommendedRank: "E", maxFloor: 20, availableTerrains: ["plain", "forest", "rocky"], enemyPool: ["shell", "wing"], materialPool: ["broken_shell", "thin_membrane", "brittle_bone", "aged_scale"], fuelModifier: 1.0, unlockCondition: null, promptThemes: ["organic armor", "natural frame"] },
@@ -297,7 +303,7 @@ function renderQuestCommands() {
           <button class="button quest-command-button" data-action="quest-left"><span class="cmd-icon">↶</span>左旋回</button>
           <button class="button quest-command-button primary" data-action="quest-forward"><span class="cmd-icon">↑</span>前進<br><span class="muted">🔥-1</span></button>
           <button class="button quest-command-button" data-action="quest-right"><span class="cmd-icon">↷</span>右旋回</button>
-          <button class="button quest-command-button quest-search-button" data-action="quest-search"><span class="cmd-icon">◇</span>調べる<br><span class="muted">🔥-1</span></button>
+          <button class="button quest-command-button quest-search-button" data-action="quest-search"><span class="cmd-icon">◇</span><span>調べる<br><span class="muted">🔥-1</span></span></button>
         </div>
       </div>
     </section>
@@ -388,14 +394,26 @@ window.startSelectedPlanetQuest = function startSelectedPlanetQuest() {
 };
 window.renderCockpitView = function renderCockpitView() {
   const quest = window.GameState.quest;
+  const backgroundSrc = getQuestBackgroundImage();
   return `
     <section class="cockpit-view panel">
-      <div class="cockpit-background-layer"></div>
-      <img class="cockpit-frame-layer" src="ui/cockpit.jpeg" alt="" aria-hidden="true">
+      ${backgroundSrc
+        ? `<img class="cockpit-background-layer" src="${backgroundSrc}" alt="" aria-hidden="true">`
+        : `<div class="cockpit-background-layer"></div>`}
+      <img class="cockpit-frame-layer" src="ui/cockpit_frame.png" alt="" aria-hidden="true">
       ${renderMiniMapButton()}
     </section>
   `;
 };
+
+function getQuestBackgroundImage() {
+  const quest = window.GameState.quest;
+  const planetId = quest?.currentPlanetId || quest?.planetId || quest?.selectedPlanetId || window.GameState.selectedPlanetId;
+  const assets = QUEST_BACKGROUND_ASSETS[planetId];
+  if (!assets) return "";
+  const front = window.getFrontCell();
+  return (!front || front.type === "wall" || front.outOfBounds) ? assets.blocked : assets.open;
+}
 
 function renderMiniMapButton() {
   return `
