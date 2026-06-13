@@ -105,7 +105,7 @@ window.generateDungeonFloor = function generateDungeonFloor(floor, planetId = nu
   const size = window.rollDungeonSizeByFloor(floor);
   const terrain = rollTerrainForPlanet(planet, floor);
   const dimension = window.getMapDimension(size);
-  const startPosition = { x: 0, y: 0 };
+  const startPosition = { x: Math.floor(dimension / 2), y: dimension - 1 };
   let map = null;
   let reachable = [];
 
@@ -153,9 +153,11 @@ window.generateDungeonFloor = function generateDungeonFloor(floor, planetId = nu
 
 window.createRandomMap = function createRandomMap(width, height, terrain = "plain") {
   const terrainConfig = window.getTerrainConfig(terrain);
+  const startX = Math.floor(width / 2);
+  const startY = height - 1;
   return Array.from({ length: height }, (_, y) => (
     Array.from({ length: width }, (_, x) => {
-      const edgeStartSafe = x <= 1 && y <= 1;
+      const edgeStartSafe = Math.abs(x - startX) <= 1 && y >= startY - 1;
       return createCell(!edgeStartSafe && Math.random() < terrainConfig.wallChance ? "wall" : "empty");
     })
   ));
@@ -170,8 +172,8 @@ function createCell(type) {
 }
 
 function clearStartArea(map, start) {
-  for (let y = start.y; y <= Math.min(map.length - 1, start.y + 1); y += 1) {
-    for (let x = start.x; x <= Math.min(map[0].length - 1, start.x + 1); x += 1) {
+  for (let y = Math.max(0, start.y - 1); y <= Math.min(map.length - 1, start.y + 1); y += 1) {
+    for (let x = Math.max(0, start.x - 1); x <= Math.min(map[0].length - 1, start.x + 1); x += 1) {
       map[y][x] = createCell("empty");
     }
   }
@@ -239,31 +241,12 @@ window.renderQuest = function renderQuest() {
   const quest = state.quest;
   const planet = window.getSelectedPlanet();
   const terrain = window.getTerrainConfig(quest.terrain);
-  const fuelTone = quest.fuel <= 15 ? "log-danger" : quest.fuel <= 30 ? "log-warn" : "";
   window.App.root.innerHTML = `
-    ${renderHeader("惑星探索", "EXPLORE", `
-      <div class="resource"><small>惑星</small><strong>${planet.name}</strong></div>
-      <div class="resource"><small>階層</small><strong>${quest.floor}F / ${planet.maxFloor}F</strong></div>
-      <div class="resource"><small>地形</small><strong>${terrain.label}</strong></div>
-    `)}
+    ${renderQuestHeader(planet, quest)}
     ${renderCockpitView()}
+    ${renderQuestReadout(terrain)}
     ${renderQuestCommands()}
     <section class="explore-lower">
-      <div class="panel panel-pad">
-        <div class="section-head"><h2>探索ログ</h2><span class="${fuelTone}">燃料 ${quest.fuel.toFixed(1)} / ${quest.maxFuel}</span></div>
-        <div class="bar" style="--value:${Math.max(0, quest.fuel)}%"><span></span></div>
-        <div class="log-panel">${questLogHtml()}</div>
-      </div>
-      <div class="panel panel-pad">
-        <div class="section-head"><h2>惑星HUD</h2><span>${quest.width} x ${quest.height}</span></div>
-        <div class="material-row"><span>惑星</span><strong>${planet.name}</strong></div>
-        <div class="material-row"><span>現在階層</span><strong>${quest.floor}F</strong></div>
-        <div class="material-row"><span>地形</span><strong>${terrain.label}</strong></div>
-        <div class="material-row"><span>燃料</span><strong>${quest.fuel.toFixed(1)}</strong></div>
-        <div class="material-row"><span>座標</span><strong>${quest.player.x}, ${quest.player.y}</strong></div>
-        <div class="material-row"><span>方角</span><strong>${QUEST_DIRS[quest.player.direction].label}</strong></div>
-        <div class="material-row"><span>燃料倍率</span><strong>x${window.getTerrainFuelRate(quest.terrain).toFixed(2)}</strong></div>
-      </div>
       <div class="panel panel-pad">
         <div class="section-head"><h2>パーティ</h2><span>${state.mechs.length} / 4</span></div>
         <div class="party-list">${state.mechs.map(renderPartyUnit).join("")}</div>
@@ -273,15 +256,45 @@ window.renderQuest = function renderQuest() {
   `;
 };
 
+function renderQuestHeader(planet, quest) {
+  return `
+    <div class="top-bar quest-top-bar">
+      <div class="title-block">
+        <span class="title-ja">${planet.name}</span>
+        <span class="title-en">EXPLORE</span>
+      </div>
+      <div class="resource-row quest-resource-row">
+        <div class="resource"><small>階層</small><strong>${quest.floor}F / ${planet.maxFloor}F</strong></div>
+        <div class="resource"><small>所持素材</small><strong>${totalMaterials()} / 100</strong></div>
+      </div>
+    </div>
+  `;
+}
+
+function renderQuestReadout(terrain) {
+  const front = getFrontCell();
+  const currentCell = window.GameState.quest.map[window.GameState.quest.player.y][window.GameState.quest.player.x];
+  return `
+    <section class="quest-readout panel panel-pad">
+      <div class="quest-flavor">${terrain.text}</div>
+      <div class="quest-sensor-line">${describeFrontCell(front)} <span class="muted">${describeCurrentCell(currentCell)}</span></div>
+      <div class="quest-log-scroll">${questLogHtml()}</div>
+    </section>
+  `;
+}
+
 function renderQuestCommands() {
   const quest = window.GameState.quest;
   return `
     <section class="quest-command-panel panel panel-pad">
-      <div class="quest-command-main">
-        <button class="button quest-command-button" data-action="quest-left"><span class="cmd-icon">↶</span>左旋回<br><span class="muted">燃料 -0.5</span></button>
-        <button class="button quest-command-button primary" data-action="quest-forward"><span class="cmd-icon">↑</span>前進<br><span class="muted">燃料 -1</span></button>
-        <button class="button quest-command-button" data-action="quest-right"><span class="cmd-icon">↷</span>右旋回<br><span class="muted">燃料 -0.5</span></button>
-        <button class="button quest-command-button quest-search-button" data-action="quest-search"><span class="cmd-icon">◇</span>調べる<br><span class="muted">燃料 -1</span></button>
+      <div class="quest-command-layout">
+        ${renderFuelMeter(quest)}
+        <div class="quest-command-main">
+          <button class="button quest-command-button" data-action="quest-left"><span class="cmd-icon">↶</span>左旋回<br><span class="muted">燃料消費なし</span></button>
+          <button class="button quest-command-button primary" data-action="quest-forward"><span class="cmd-icon">↑</span>前進<br><span class="muted">燃料 -1</span></button>
+          <button class="button quest-command-button" data-action="quest-right"><span class="cmd-icon">↷</span>右旋回<br><span class="muted">燃料消費なし</span></button>
+          <button class="button quest-command-button quest-search-button" data-action="quest-search"><span class="cmd-icon">◇</span>調べる<br><span class="muted">燃料 -1</span></button>
+        </div>
       </div>
       <div class="quest-special-title">特殊操作</div>
       <div class="quest-command-special">
@@ -291,6 +304,21 @@ function renderQuestCommands() {
     </section>
   `;
 }
+
+function renderFuelMeter(quest) {
+  const fuelPercent = Math.max(0, Math.min(100, (quest.fuel / quest.maxFuel) * 100));
+  const fuelTone = quest.fuel <= 15 ? "log-danger" : quest.fuel <= 30 ? "log-warn" : "";
+  return `
+    <div class="quest-fuel-meter">
+      <span>燃料</span>
+      <strong class="${fuelTone}">${quest.fuel.toFixed(1)}</strong>
+      <small>現在</small>
+      <div class="bar" style="--value:${fuelPercent}%"><span></span></div>
+      <small>最大 ${quest.maxFuel}</small>
+    </div>
+  `;
+}
+
 
 function renderPlanetSelect() {
   const state = window.GameState;
@@ -361,36 +389,18 @@ window.startSelectedPlanetQuest = function startSelectedPlanetQuest() {
 };
 window.renderCockpitView = function renderCockpitView() {
   const quest = window.GameState.quest;
-  const planet = window.getSelectedPlanet();
-  const terrain = window.getTerrainConfig(quest.terrain);
-  const front = getFrontCell();
-  const currentCell = quest.map[quest.player.y][quest.player.x];
   return `
     <section class="cockpit-view panel">
       ${renderMiniMapButton()}
-      <div class="env-panel panel panel-pad">
-        <strong>惑星HUD</strong><br>
-        <span class="muted">惑星: ${planet.name}</span><br>
-        <span class="muted">階層: ${quest.floor}F</span><br>
-        <span class="muted">地形: ${terrain.label}</span><br>
-        <span class="muted">燃料: ${quest.fuel.toFixed(1)}</span><br>
-        <span class="muted">座標: ${quest.player.x}, ${quest.player.y}</span><br>
-        <span class="muted">方角: ${QUEST_DIRS[quest.player.direction].label}</span>
-      </div>
       <div class="reticle"></div>
-      <div class="scan-readout panel panel-pad">
-        <strong>${terrain.text}</strong><br>
-        <span>${describeFrontCell(front)}</span><br>
-        <span class="muted">${describeCurrentCell(currentCell)}</span>
-      </div>
     </section>
   `;
 };
 
 function renderMiniMapButton() {
   return `
-    <button class="button mini-map-button" data-action="open-mini-map" type="button">
-      <span class="cmd-icon">□</span>MAP
+    <button class="mini-map mini-map-button panel panel-pad" data-action="open-mini-map" type="button" aria-label="ミニマップを開く">
+      ${renderMiniMap()}
     </button>
   `;
 }
@@ -434,13 +444,14 @@ function describeCurrentCell(cell) {
 function renderMiniMap() {
   const quest = window.GameState.quest;
   const cells = [];
+  const directionMarkers = { N: "↑", E: "→", S: "↓", W: "←" };
   for (let y = 0; y < quest.height; y += 1) {
     for (let x = 0; x < quest.width; x += 1) {
       const key = cellKey(x, y);
       const isPlayer = quest.player.x === x && quest.player.y === y;
       const discovered = quest.discovered[key];
       const cell = quest.map[y][x];
-      const label = isPlayer ? "P" : discovered ? QUEST_EVENT_LABELS[cell.type] || "." : "?";
+      const label = isPlayer ? directionMarkers[quest.player.direction] : discovered ? QUEST_EVENT_LABELS[cell.type] || "." : "?";
       cells.push(`<div class="quest-map-cell ${isPlayer ? "current" : ""} ${discovered ? `known ${cell.type}` : "unknown"}">${label}</div>`);
     }
   }
@@ -544,7 +555,6 @@ window.moveForward = function moveForward() {
 
 window.turnLeft = function turnLeft() {
   window.ensureQuestFloor();
-  if (!window.consumeFuel(0.5)) return;
   const quest = window.GameState.quest;
   quest.player.direction = QUEST_DIRS[quest.player.direction].left;
   discoverAround(quest.player.x, quest.player.y);
@@ -554,7 +564,6 @@ window.turnLeft = function turnLeft() {
 
 window.turnRight = function turnRight() {
   window.ensureQuestFloor();
-  if (!window.consumeFuel(0.5)) return;
   const quest = window.GameState.quest;
   quest.player.direction = QUEST_DIRS[quest.player.direction].right;
   discoverAround(quest.player.x, quest.player.y);
