@@ -15,6 +15,11 @@ document.addEventListener("click", (event) => {
     window.savePlayerData();
     return;
   }
+  if (event.target.classList?.contains("quest-materials-modal-backdrop")) {
+    window.closeQuestMaterialsModal();
+    window.savePlayerData();
+    return;
+  }
 
   const target = event.target.closest("button, [data-action]");
   if (!target) return;
@@ -49,6 +54,8 @@ document.addEventListener("click", (event) => {
   if (action === "quest-next-floor") window.goToNextFloor();
   if (action === "open-mini-map") window.openMiniMapModal();
   if (action === "close-mini-map") window.closeMiniMapModal();
+  if (action === "open-quest-materials") window.openQuestMaterialsModal();
+  if (action === "close-quest-materials") window.closeQuestMaterialsModal();
   if (action === "select-planet") window.selectPlanet(target.dataset.planet);
   if (action === "start-selected-planet-quest") window.startSelectedPlanetQuest();
   if (action === "return-base") window.returnBase();

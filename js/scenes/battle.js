@@ -27,14 +27,15 @@ window.renderBattle = function renderBattle() {
   window.App.root.innerHTML = `
     ${renderHeader("BATTLE", "戦闘中", `<div class="resource"><small>燃料残量</small><strong>${state.fuel.toFixed(1)} / 100</strong></div>`)}
     <section class="battle-view panel">
+      <div class="cockpit-background-layer"></div>
+      <div class="enemy-shape"></div>
+      <img class="cockpit-frame-layer" src="ui/cockpit.jpeg" alt="" aria-hidden="true">
       <div class="enemy-card panel panel-pad">
         <div class="section-head"><h2>${enemy.name}</h2><span>Lv. ${enemy.level}</span></div>
         <div>HP ${formatNumber(enemy.hp)} / ${formatNumber(enemy.maxHp)}</div>
         <div class="bar" style="--value:${enemyHpPercent}%"><span></span></div>
         <div class="tag-row" style="margin-top:8px"><span class="tag">${enemy.type}</span><span class="tag">単体</span></div>
       </div>
-      <div class="enemy-shape"></div>
-      <div class="reticle"></div>
     </section>
     <section class="battle-side">
       <div class="panel panel-pad">

@@ -248,11 +248,12 @@ window.renderQuest = function renderQuest() {
     ${renderQuestCommands()}
     <section class="explore-lower">
       <div class="panel panel-pad">
-        <div class="section-head"><h2>パーティ</h2><span>${state.mechs.length} / 4</span></div>
-        <div class="party-list">${state.mechs.map(renderPartyUnit).join("")}</div>
+        <div class="section-head quest-party-head"><h2>パーティ</h2></div>
+        <div class="party-list quest-party-grid">${state.mechs.map(renderPartyUnit).join("")}</div>
       </div>
     </section>
     ${renderMiniMapModal()}
+    ${renderQuestMaterialsModal()}
   `;
 };
 
@@ -265,7 +266,7 @@ function renderQuestHeader(planet, quest) {
       </div>
       <div class="resource-row quest-resource-row">
         <div class="resource"><small>階層</small><strong>${quest.floor}F / ${planet.maxFloor}F</strong></div>
-        <div class="resource"><small>所持素材</small><strong>${totalMaterials()} / 100</strong></div>
+        <button class="resource quest-material-button" data-action="open-quest-materials" type="button"><small>所持素材</small><strong>${totalMaterials()} / 100</strong></button>
       </div>
     </div>
   `;
@@ -287,6 +288,10 @@ function renderQuestCommands() {
   const quest = window.GameState.quest;
   return `
     <section class="quest-command-panel panel panel-pad">
+      <div class="quest-special-row">
+        <button class="button quest-utility-button" data-action="quest-next-floor" ${quest.foundStairs ? "" : "disabled"}>↓ 下の階へ</button>
+        <button class="button quest-utility-button subdued danger" data-action="return-base">⌂ 帰還</button>
+      </div>
       <div class="quest-command-layout">
         ${renderFuelMeter(quest)}
         <div class="quest-command-main">
@@ -295,11 +300,6 @@ function renderQuestCommands() {
           <button class="button quest-command-button" data-action="quest-right"><span class="cmd-icon">↷</span>右旋回<br><span class="muted">燃料消費なし</span></button>
           <button class="button quest-command-button quest-search-button" data-action="quest-search"><span class="cmd-icon">◇</span>調べる<br><span class="muted">燃料 -1</span></button>
         </div>
-      </div>
-      <div class="quest-special-title">特殊操作</div>
-      <div class="quest-command-special">
-        <button class="button quest-special-button" data-action="quest-next-floor" ${quest.foundStairs ? "" : "disabled"}><span class="cmd-icon">↓</span>下の階<br><span class="muted">${quest.foundStairs ? "進入可能" : "未発見"}</span></button>
-        <button class="button quest-special-button subdued danger" data-action="return-base"><span class="cmd-icon">⌂</span>帰還<br><span class="muted">拠点へ戻る</span></button>
       </div>
     </section>
   `;
@@ -391,8 +391,9 @@ window.renderCockpitView = function renderCockpitView() {
   const quest = window.GameState.quest;
   return `
     <section class="cockpit-view panel">
+      <div class="cockpit-background-layer"></div>
+      <img class="cockpit-frame-layer" src="ui/cockpit.jpeg" alt="" aria-hidden="true">
       ${renderMiniMapButton()}
-      <div class="reticle"></div>
     </section>
   `;
 };
@@ -413,6 +414,17 @@ window.openMiniMapModal = function openMiniMapModal() {
 
 window.closeMiniMapModal = function closeMiniMapModal() {
   if (window.GameState.quest) window.GameState.quest.miniMapOpen = false;
+  window.renderCurrentScene();
+};
+
+window.openQuestMaterialsModal = function openQuestMaterialsModal() {
+  if (!window.GameState.quest) return;
+  window.GameState.quest.materialsOpen = true;
+  window.renderCurrentScene();
+};
+
+window.closeQuestMaterialsModal = function closeQuestMaterialsModal() {
+  if (window.GameState.quest) window.GameState.quest.materialsOpen = false;
   window.renderCurrentScene();
 };
 
@@ -444,7 +456,7 @@ function describeCurrentCell(cell) {
 function renderMiniMap() {
   const quest = window.GameState.quest;
   const cells = [];
-  const directionMarkers = { N: "↑", E: "→", S: "↓", W: "←" };
+  const directionMarkers = { N: "▲", E: "▶", S: "▼", W: "◀" };
   for (let y = 0; y < quest.height; y += 1) {
     for (let x = 0; x < quest.width; x += 1) {
       const key = cellKey(x, y);
@@ -476,17 +488,48 @@ function renderMiniMapModal() {
   `;
 }
 
+function renderQuestMaterialsModal() {
+  const quest = window.GameState.quest;
+  if (!quest?.materialsOpen) return "";
+  return `
+    <div class="modal-backdrop quest-materials-modal-backdrop">
+      <section class="quest-materials-modal panel panel-pad" role="dialog" aria-modal="true" aria-label="所持素材">
+        <div class="section-head">
+          <h2>所持素材</h2>
+          <button class="button mini-map-close" data-action="close-quest-materials" type="button">閉じる</button>
+        </div>
+        <div class="quest-material-list">${renderQuestMaterialList()}</div>
+      </section>
+    </div>
+  `;
+}
+
+function renderQuestMaterialList() {
+  const entries = Object.entries(allMaterialCounts()).filter(([, count]) => count > 0);
+  if (!entries.length) return `<div class="muted">所持素材はありません。</div>`;
+  return entries.map(([id, count]) => {
+    const material = getMaterial(id);
+    if (!material) return "";
+    return `
+      <div class="material-row">
+        <div class="material-icon"></div>
+        <span style="flex:1">${material.name}<br><span class="muted">RANK ${material.rank} / ${material.category}</span></span>
+        <strong>x${count}</strong>
+      </div>
+    `;
+  }).join("");
+}
+
 function renderPartyUnit(mech) {
   const pilot = displayPilot(mech.pilotId);
   return `
     <div class="party-unit">
       <div class="mech-thumb"></div>
-      <div>
-        <div class="stat-row"><strong>${mech.name}</strong><span class="tag">${mech.size}</span></div>
-        <div class="muted">${pilot.name} / RANK ${pilot.rank}</div>
-        <div>HP ${formatNumber(mech.hp)} / ${formatNumber(mech.maxHp)}</div>
+      <div class="party-unit-body">
+        <strong>${mech.name}</strong>
+        <span class="muted">${pilot.name}</span>
+        <div>HP ${formatNumber(mech.hp)}</div>
         <div class="bar" style="--value:${Math.max(0, (mech.hp / mech.maxHp) * 100)}%"><span></span></div>
-        <div class="muted">燃費 ${Number(mech.fuelCostRate || 1).toFixed(1)}</div>
       </div>
     </div>
   `;
