@@ -65,6 +65,16 @@ document.addEventListener("click", (event) => {
     window.GameState.hangarView = "list";
     window.renderCurrentScene();
   }
+  if (action === "open-pilot-detail") {
+    window.GameState.selectedPilotId = target.dataset.pilot;
+    window.GameState.hangarTab = "pilots";
+    window.GameState.hangarView = "pilot-detail";
+    window.renderCurrentScene();
+  }
+  if (action === "close-pilot-detail") {
+    window.GameState.hangarView = "list";
+    window.renderCurrentScene();
+  }
   if (action === "assign-pilot") window.assignPilotToMech(target.dataset.mech, target.dataset.pilot);
   if (action === "unassign-pilot") window.unassignPilotFromMech(target.dataset.mech);
   if (action === "select-mech") {

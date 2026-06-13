@@ -46,9 +46,10 @@ window.renderMechImage = function renderMechImage(mech, variant = "card") {
 window.renderHangar = function renderHangar() {
   const state = window.GameState;
   if (!["party", "mechs", "pilots"].includes(state.hangarTab)) state.hangarTab = "party";
-  if (!["list", "mech-detail", "pilot-assign"].includes(state.hangarView)) state.hangarView = "list";
+  if (!["list", "mech-detail", "pilot-assign", "pilot-detail"].includes(state.hangarView)) state.hangarView = "list";
   if (state.hangarTab !== "mechs" && state.hangarView === "mech-detail") state.hangarView = "list";
   if (state.hangarTab !== "party" && state.hangarView === "pilot-assign") state.hangarView = "list";
+  if (state.hangarTab !== "pilots" && state.hangarView === "pilot-detail") state.hangarView = "list";
   if (state.hangarView === "pilot-assign" && !getMech(state.assigningMechId)) {
     state.hangarView = "list";
     state.assigningMechId = null;
@@ -80,10 +81,12 @@ window.renderHangar = function renderHangar() {
       `}
     ` : ""}
     ${state.hangarTab === "pilots" ? `
-      <section class="panel panel-pad">
-        <div class="section-head"><h2>パイロット</h2><span>雇用中 ${state.pilots.length} / 4</span></div>
-        <div class="storage-grid">${state.pilots.map(renderStoredPilot).join("")}</div>
-      </section>
+      ${state.hangarView === "pilot-detail" && getPilot(state.selectedPilotId) ? renderPilotDetailView(getPilot(state.selectedPilotId)) : `
+        <section class="panel panel-pad">
+          <div class="section-head"><h2>パイロット</h2><span>雇用中 ${state.pilots.length} / 4</span></div>
+          <div class="storage-grid">${state.pilots.map(renderStoredPilot).join("")}</div>
+        </section>
+      `}
     ` : ""}
   `;
 };
@@ -237,16 +240,45 @@ function renderPartSlots(mech) {
 }
 
 function renderStoredPilot(pilot) {
-  const classMaster = getClassById(pilot.classId) || { class_name: pilot.classId };
   const traitMaster = getTraitById(pilot.traitId) || { trait_name: pilot.traitId };
+  const className = window.getPilotClassDisplayName(pilot.classId);
   return `
-    <div class="storage-card panel">
-      <div class="portrait" ${pilotPortraitStyle(pilot)}>${window.renderPilotPortraitImage(pilot, "pilot-portrait--card")}</div>
-      ${pilot.name}<br>
+    <button class="storage-card pilot-storage-card panel" data-action="open-pilot-detail" data-pilot="${pilot.id}" type="button">
+      <div class="pilot-face-frame">${window.renderPilotPortraitImage(pilot, "pilot-portrait--face")}</div>
+      <strong>${pilot.name}</strong><br>
       <span class="muted">RANK ${pilot.rank}</span><br>
-      <span class="muted">${classMaster.class_name}</span><br>
+      <span class="muted">${className}</span><br>
       <span class="muted">${traitMaster.trait_name} ${pilot.traitRank || ""}</span>
-    </div>
+    </button>
+  `;
+}
+
+function renderPilotDetailView(pilot) {
+  const traitMaster = getTraitById(pilot.traitId) || { trait_name: pilot.traitId };
+  const className = window.getPilotClassDisplayName(pilot.classId);
+  const classRole = window.getPilotClassRole(pilot.classId);
+  const skills = pilot.learnedSkills.map((id) => window.GameState.masters.skills.find((item) => item.skill_id === id)?.skill_name || id);
+  const assignedMech = window.GameState.mechs.find((mech) => mech.pilotId === pilot.id);
+  return `
+    <section class="panel panel-pad pilot-detail-panel">
+      <div class="section-head">
+        <h2>${pilot.name}</h2>
+        <button class="button" data-action="close-pilot-detail" type="button">戻る</button>
+      </div>
+      <div class="pilot-detail-layout">
+        <div class="pilot-detail-portrait">${window.renderPilotPortraitImage(pilot, "pilot-portrait--detail")}</div>
+        <div class="compact-list">
+          <div class="material-row"><span>RANK</span><strong>${pilot.rank}</strong></div>
+          <div class="material-row"><span>CLASS</span><strong>${className}</strong></div>
+          <div class="material-row"><span>ROLE</span><strong>${classRole || "-"}</strong></div>
+          <div class="material-row"><span>LEVEL</span><strong>${pilot.level || 1}</strong></div>
+          <div class="material-row"><span>TRAIT</span><strong>${traitMaster.trait_name} ${pilot.traitRank || ""}</strong></div>
+          <div class="material-row"><span>MECH</span><strong>${assignedMech?.name || "未搭乗"}</strong></div>
+        </div>
+      </div>
+      <div class="section-head" style="margin-top:10px"><h3>skills</h3></div>
+      <div class="tag-row">${skills.length ? skills.map((skill) => `<span class="tag">${skill}</span>`).join("") : `<span class="tag">初期スキルなし</span>`}</div>
+    </section>
   `;
 }
 
@@ -266,7 +298,6 @@ function renderPartySlot(mech, index) {
         ${realPilot ? window.renderPilotPortraitImage(realPilot, "pilot-portrait--hangar") : ""}
       </div>
       <div class="hangar-party-pilot">
-        ${realPilot ? `<div class="portrait" ${pilotPortraitStyle(pilot)}>${window.renderPilotPortraitImage(realPilot, "pilot-portrait--card")}</div>` : `<div class="hangar-no-pilot">未搭乗</div>`}
         <strong>${pilot.name}</strong>
       </div>
       <div class="hangar-party-rank">
@@ -299,14 +330,14 @@ function renderPilotAssignCandidate(pilot, mech) {
   const currentMech = window.GameState.mechs.find((item) => item.pilotId === pilot.id);
   const isCurrent = mech.pilotId === pilot.id;
   const compatibility = getPilotMechCompatibility(pilot, mech);
-  const classMaster = getClassById(pilot.classId) || { class_name: pilot.classId };
+  const className = window.getPilotClassDisplayName(pilot.classId);
   const status = isCurrent ? "搭乗中" : currentMech ? "別機体に搭乗中" : "待機中";
   return `
     <article class="pilot-card panel">
       <div class="portrait" ${pilotPortraitStyle(pilot)}>${window.renderPilotPortraitImage(pilot, "pilot-portrait--card")}</div>
       <div class="pilot-meta">
         <h3>${pilot.name}</h3>
-        <div>RANK <strong>${pilot.rank}</strong> / ${classMaster.class_name}</div>
+        <div>RANK <strong>${pilot.rank}</strong> / ${className}</div>
         <div class="tag-row"><span class="tag">${status}</span><span class="tag">${compatibility.label}</span></div>
         <div class="muted">${compatibility.bonusText}</div>
       </div>

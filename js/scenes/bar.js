@@ -110,17 +110,16 @@ window.renderBar = function renderBar() {
 };
 
 function renderCandidateCard(pilot) {
-  const classMaster = getClassById(pilot.classId) || { class_name: pilot.classId, role: "" };
   const traitMaster = getTraitById(pilot.traitId) || { trait_name: pilot.traitId };
   const skill = pilot.learnedSkills.map((id) => window.GameState.masters.skills.find((item) => item.skill_id === id)?.skill_name || id).join(", ");
+  const className = window.getPilotClassDisplayName(pilot.classId);
   return `
     <article class="pilot-card panel">
-      <div class="portrait" ${pilotPortraitStyle(pilot)}>${window.renderPilotPortraitImage(pilot, "pilot-portrait--card")}</div>
+      <div class="pilot-card-portrait">${window.renderPilotPortraitImage(pilot, "pilot-portrait--tavern-card")}</div>
       <div class="pilot-meta">
         <h3>${pilot.name}</h3>
-        <div>RANK <strong>${pilot.rank}</strong> / ${pilot.gender}</div>
-        <div class="muted">CLASS: ${classMaster.class_name} / ${classMaster.role}</div>
-        <div class="muted">外観ID: ${pilot.appearanceId}</div>
+        <div>RANK <strong>${pilot.rank}</strong></div>
+        <div class="muted">${className}</div>
         <div class="tag-row">
           <span class="tag">${traitMaster.trait_name} ${pilot.traitRank}</span>
           <span class="tag">${skill || "初期スキルなし"}</span>

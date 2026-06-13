@@ -4,7 +4,7 @@ const PILOT_CLASS_IMAGE_MAP = {
   striker: {
     classId: "striker",
     className: "ストライカー",
-    role: "近接",
+    role: "近接攻撃特化",
     maleImage: "character/character_0000.png",
     femaleImage: "character/character_0001.png",
     imageIndexMale: 0,
@@ -13,7 +13,7 @@ const PILOT_CLASS_IMAGE_MAP = {
   gunner: {
     classId: "gunner",
     className: "ガンナー",
-    role: "射撃",
+    role: "遠距離攻撃特化",
     maleImage: "character/character_0002.png",
     femaleImage: "character/character_0003.png",
     imageIndexMale: 2,
@@ -22,7 +22,7 @@ const PILOT_CLASS_IMAGE_MAP = {
   engineer: {
     classId: "engineer",
     className: "エンジニア",
-    role: "整備",
+    role: "回復特化",
     maleImage: "character/character_0004.png",
     femaleImage: "character/character_0005.png",
     imageIndexMale: 4,
@@ -31,7 +31,7 @@ const PILOT_CLASS_IMAGE_MAP = {
   defender: {
     classId: "defender",
     className: "ディフェンダー",
-    role: "防御",
+    role: "防御特化",
     maleImage: "character/character_0006.png",
     femaleImage: "character/character_0007.png",
     imageIndexMale: 6,
@@ -40,7 +40,7 @@ const PILOT_CLASS_IMAGE_MAP = {
   wizard: {
     classId: "wizard",
     className: "ウィザード",
-    role: "術式",
+    role: "砲撃特化",
     maleImage: "character/character_0008.png",
     femaleImage: "character/character_0009.png",
     imageIndexMale: 8,
@@ -49,7 +49,7 @@ const PILOT_CLASS_IMAGE_MAP = {
   commander: {
     classId: "commander",
     className: "コマンダー",
-    role: "指揮",
+    role: "バフ特化",
     maleImage: "character/character_0010.png",
     femaleImage: "character/character_0011.png",
     imageIndexMale: 10,
@@ -58,7 +58,7 @@ const PILOT_CLASS_IMAGE_MAP = {
   jammer: {
     classId: "jammer",
     className: "ジャマー",
-    role: "妨害",
+    role: "デバフ特化",
     maleImage: "character/character_0012.png",
     femaleImage: "character/character_0013.png",
     imageIndexMale: 12,
@@ -67,7 +67,7 @@ const PILOT_CLASS_IMAGE_MAP = {
   scout: {
     classId: "scout",
     className: "スカウト",
-    role: "偵察",
+    role: "探索特化",
     maleImage: "character/character_0014.png",
     femaleImage: "character/character_0015.png",
     imageIndexMale: 14,
@@ -87,9 +87,23 @@ const PILOT_CLASS_IMAGE_ALIASES = {
 
 window.PILOT_CLASS_IMAGE_MAP = PILOT_CLASS_IMAGE_MAP;
 
-window.getPilotPortraitImage = function getPilotPortraitImage(classId, gender = "male") {
+window.getPilotClassImageDefinition = function getPilotClassImageDefinition(classId) {
   const normalizedClassId = PILOT_CLASS_IMAGE_ALIASES[classId] || classId;
-  const imageSet = PILOT_CLASS_IMAGE_MAP[normalizedClassId];
+  return PILOT_CLASS_IMAGE_MAP[normalizedClassId] || null;
+};
+
+window.getPilotClassDisplayName = function getPilotClassDisplayName(classId) {
+  const imageSet = window.getPilotClassImageDefinition(classId);
+  return imageSet?.className || classId || "";
+};
+
+window.getPilotClassRole = function getPilotClassRole(classId) {
+  const imageSet = window.getPilotClassImageDefinition(classId);
+  return imageSet?.role || "";
+};
+
+window.getPilotPortraitImage = function getPilotPortraitImage(classId, gender = "male") {
+  const imageSet = window.getPilotClassImageDefinition(classId);
   if (!imageSet) return null;
   return gender === "female" ? imageSet.femaleImage : imageSet.maleImage;
 };

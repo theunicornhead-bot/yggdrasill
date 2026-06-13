@@ -418,8 +418,8 @@ button {
 
 .pilot-card {
   display: grid;
-  grid-template-columns: 64px 1fr 76px;
-  gap: 9px;
+  grid-template-columns: 118px 1fr 76px;
+  gap: 10px;
   align-items: center;
   padding: 8px;
 }
@@ -502,6 +502,57 @@ button {
   z-index: 3;
   padding: 2px;
   object-position: center bottom;
+}
+
+.pilot-card-portrait {
+  position: relative;
+  align-self: stretch;
+  min-height: 154px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.pilot-portrait--tavern-card {
+  height: 164px;
+  object-position: center bottom;
+  filter: drop-shadow(0 7px 10px rgba(0, 0, 0, 0.58));
+}
+
+.pilot-face-frame {
+  position: relative;
+  width: 100%;
+  height: 118px;
+  overflow: hidden;
+  background: rgba(1, 7, 8, 0.42);
+}
+
+.pilot-portrait--face {
+  width: 150%;
+  height: 150%;
+  max-width: none;
+  transform: translate(-16%, -8%) scale(1.08);
+  object-position: center top;
+}
+
+.pilot-detail-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.pilot-detail-portrait {
+  position: relative;
+  height: 280px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(103, 232, 249, 0.14), transparent 28%),
+    rgba(1, 7, 8, 0.36);
+}
+
+.pilot-portrait--detail {
+  height: 310px;
+  object-position: center top;
+  filter: drop-shadow(0 9px 14px rgba(0, 0, 0, 0.6));
 }
 
 .pilot-portrait--hangar {
@@ -663,7 +714,7 @@ button {
 .hangar-party-pilot {
   display: grid;
   justify-items: center;
-  gap: 4px;
+  min-height: 18px;
   text-align: center;
 }
 
@@ -691,6 +742,18 @@ button {
   border: 1px solid rgba(126, 222, 236, 0.18);
   background: rgba(1, 7, 8, 0.52);
   font-size: 12px;
+}
+
+.pilot-storage-card {
+  width: 100%;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.pilot-storage-card:active,
+.pilot-storage-card.active {
+  border-color: rgba(103, 232, 249, 0.68);
 }
 
 .hangar-party-rank {
@@ -1520,23 +1583,54 @@ button {
 }
 
 .nav-btn {
-  color: #8ea1a5;
-  border: 1px solid rgba(126, 222, 236, 0.1);
-  background: linear-gradient(180deg, rgba(10, 24, 27, 0.82), rgba(2, 7, 8, 0.98));
-  font-size: 11px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 1px;
+  min-width: 0;
+  padding: 3px 1px 5px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: #b9d4d9;
 }
 
 .nav-btn.active {
-  color: #9df6ff;
-  border-color: rgba(103, 232, 249, 0.48);
-  box-shadow: inset 0 0 24px rgba(103, 232, 249, 0.12);
+  color: #e9fcff;
+  filter: drop-shadow(0 0 10px rgba(103, 232, 249, 0.55));
 }
 
-.nav-icon {
+.nav-img {
   display: block;
-  margin-bottom: 3px;
-  font-size: 18px;
+  width: min(100%, 58px);
+  height: 54px;
+  object-fit: contain;
+  transition: transform 120ms ease, filter 120ms ease, opacity 120ms ease;
+}
+
+.nav-label {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 10px;
   font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
+}
+
+.nav-btn:not(.active) .nav-img {
+  opacity: 0.76;
+}
+
+.nav-btn:active .nav-img {
+  transform: translateY(1px) scale(0.97);
+}
+
+.nav-btn:focus-visible {
+  outline: 2px solid rgba(103, 232, 249, 0.8);
+  outline-offset: -4px;
 }
 
 .placeholder-screen {
@@ -1566,7 +1660,15 @@ button {
   }
 
   .pilot-card {
-    grid-template-columns: 56px 1fr;
+    grid-template-columns: 96px 1fr;
+  }
+
+  .pilot-card-portrait {
+    min-height: 140px;
+  }
+
+  .pilot-portrait--tavern-card {
+    height: 150px;
   }
 
   .pilot-card .cost-box {
