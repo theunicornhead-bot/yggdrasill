@@ -84,6 +84,9 @@ window.renderBar = function renderBar() {
   window.App.root.innerHTML = `
     ${renderHeader("酒場", "TAVERN")}
     <section class="hero-visual panel">
+      <div class="pilot-overlay-anchor pilot-overlay-anchor--tavern">
+        ${window.renderPilotPortraitImage(window.getDefaultPilotForPortrait(), "pilot-portrait--tavern")}
+      </div>
       <div class="speech">優秀なパイロットを揃えると探索が有利になるよ。</div>
     </section>
     <section class="panel panel-pad">
@@ -112,7 +115,7 @@ function renderCandidateCard(pilot) {
   const skill = pilot.learnedSkills.map((id) => window.GameState.masters.skills.find((item) => item.skill_id === id)?.skill_name || id).join(", ");
   return `
     <article class="pilot-card panel">
-      <div class="portrait" ${pilotPortraitStyle(pilot)}></div>
+      <div class="portrait" ${pilotPortraitStyle(pilot)}>${window.renderPilotPortraitImage(pilot, "pilot-portrait--card")}</div>
       <div class="pilot-meta">
         <h3>${pilot.name}</h3>
         <div>RANK <strong>${pilot.rank}</strong> / ${pilot.gender}</div>

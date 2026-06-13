@@ -541,9 +541,16 @@ function renderQuestMaterialList() {
 
 function renderPartyUnit(mech) {
   const pilot = displayPilot(mech.pilotId);
+  const realPilot = getPilot(mech.pilotId);
+  const mechImage = typeof window.renderMechImage === "function"
+    ? window.renderMechImage(mech, "quest")
+    : `<div class="mech-thumb"></div>`;
   return `
     <div class="party-unit">
-      <div class="mech-thumb"></div>
+      <div class="pilot-overlay-anchor pilot-overlay-anchor--exploration">
+        ${mechImage}
+        ${realPilot ? window.renderPilotPortraitImage(realPilot, "pilot-portrait--exploration") : ""}
+      </div>
       <div class="party-unit-body">
         <strong>${mech.name}</strong>
         <span class="muted">${pilot.name}</span>

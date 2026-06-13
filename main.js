@@ -39,6 +39,34 @@ document.addEventListener("click", (event) => {
   if (action === "hire") window.hirePilot(target.dataset.pilot);
   if (action === "sell-material") window.sellMaterial(target.dataset.material);
   if (action === "sell-mech") window.sellMech(target.dataset.mech);
+  if (action === "change-hangar-tab") {
+    window.GameState.hangarTab = target.dataset.tab || "party";
+    window.GameState.hangarView = "list";
+    window.GameState.assigningMechId = null;
+    window.renderCurrentScene();
+  }
+  if (action === "open-mech-detail") {
+    window.GameState.selectedMechId = target.dataset.mech;
+    window.GameState.hangarTab = "mechs";
+    window.GameState.hangarView = "mech-detail";
+    window.renderCurrentScene();
+  }
+  if (action === "close-mech-detail") {
+    window.GameState.hangarView = "list";
+    window.renderCurrentScene();
+  }
+  if (action === "open-pilot-assign") {
+    window.GameState.assigningMechId = target.dataset.mech;
+    window.GameState.hangarView = "pilot-assign";
+    window.renderCurrentScene();
+  }
+  if (action === "close-pilot-assign") {
+    window.GameState.assigningMechId = null;
+    window.GameState.hangarView = "list";
+    window.renderCurrentScene();
+  }
+  if (action === "assign-pilot") window.assignPilotToMech(target.dataset.mech, target.dataset.pilot);
+  if (action === "unassign-pilot") window.unassignPilotFromMech(target.dataset.mech);
   if (action === "select-mech") {
     window.GameState.selectedMechId = target.dataset.mech;
     window.renderCurrentScene();
