@@ -10,6 +10,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 document.addEventListener("click", (event) => {
+  if (event.target.classList?.contains("mini-map-modal-backdrop")) {
+    window.closeMiniMapModal();
+    window.savePlayerData();
+    return;
+  }
+
   const target = event.target.closest("button, [data-action]");
   if (!target) return;
 
@@ -41,7 +47,10 @@ document.addEventListener("click", (event) => {
   if (action === "quest-right") window.questAction("右へ旋回した。", 0.5);
   if (action === "quest-search") window.questAction("周囲を調べた。", 1);
   if (action === "quest-next-floor") window.goToNextFloor();
+  if (action === "open-mini-map") window.openMiniMapModal();
+  if (action === "close-mini-map") window.closeMiniMapModal();
   if (action === "select-planet") window.selectPlanet(target.dataset.planet);
+  if (action === "start-selected-planet-quest") window.startSelectedPlanetQuest();
   if (action === "return-base") window.returnBase();
   if (action === "battle-attack") window.battleCommand("attack");
   if (action === "battle-skill") window.battleCommand("skill");

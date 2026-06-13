@@ -477,6 +477,69 @@ button {
   box-shadow: 0 0 20px var(--shadow), inset 0 0 20px rgba(103, 232, 249, 0.06);
 }
 
+.planet-select {
+  display: grid;
+  gap: 10px;
+}
+
+.planet-card-scroll {
+  display: flex;
+  gap: 8px;
+  margin: 0 -10px;
+  padding: 2px 10px 8px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+}
+
+.planet-card {
+  flex: 0 0 min(76vw, 250px);
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-height: 230px;
+  padding: 10px;
+  color: var(--text);
+  text-align: left;
+  scroll-snap-align: start;
+}
+
+.planet-card.selected {
+  border-color: rgba(103, 232, 249, 0.9);
+  box-shadow: 0 0 22px var(--shadow), inset 0 0 24px rgba(103, 232, 249, 0.1);
+}
+
+.planet-card.locked,
+.planet-card[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.planet-card h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.planet-card .muted {
+  margin: 0;
+  font-size: 13px;
+}
+
+.planet-detail {
+  display: grid;
+  gap: 8px;
+  background: rgba(1, 7, 8, 0.42);
+}
+
+.planet-detail .muted {
+  margin: 0;
+}
+
+.planet-start-button {
+  width: 100%;
+  min-height: 52px;
+}
+
 .mech-thumb {
   height: 114px;
   margin: 7px 0;
@@ -630,6 +693,20 @@ button {
   padding: 9px;
 }
 
+.mini-map-button {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 74px;
+  min-height: 54px;
+  padding: 6px;
+  font-size: 12px;
+  letter-spacing: 0;
+}
+
 .map-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -717,6 +794,102 @@ button {
   z-index: 2;
   text-align: center;
   background: rgba(3, 13, 15, 0.78);
+}
+
+.quest-command-panel {
+  display: grid;
+  gap: 9px;
+  margin-bottom: 10px;
+}
+
+.quest-command-main {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.quest-command-button {
+  min-height: 66px;
+  padding: 7px 4px;
+  font-size: 13px;
+}
+
+.quest-command-button.primary {
+  border-color: rgba(103, 232, 249, 0.62);
+  box-shadow: 0 0 16px rgba(103, 232, 249, 0.12), inset 0 0 18px rgba(103, 232, 249, 0.12);
+}
+
+.quest-search-button {
+  grid-column: 1 / -1;
+  min-height: 56px;
+}
+
+.quest-special-title {
+  padding-top: 4px;
+  color: var(--muted);
+  border-top: 1px solid rgba(126, 222, 236, 0.14);
+  font-size: 12px;
+  text-align: center;
+}
+
+.quest-command-special {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.quest-special-button {
+  min-height: 54px;
+  padding: 7px 6px;
+  font-size: 12px;
+}
+
+.quest-special-button.subdued {
+  color: #c4d6d9;
+  border-color: rgba(255, 101, 101, 0.28);
+  background: linear-gradient(180deg, rgba(28, 28, 30, 0.9), rgba(9, 11, 12, 0.95));
+  box-shadow: inset 0 0 10px rgba(255, 101, 101, 0.04);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.68);
+}
+
+.mini-map-modal {
+  width: min(92vw, 390px);
+  max-height: min(84vh, 620px);
+  overflow: auto;
+}
+
+.mini-map-close {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.mini-map-modal-body {
+  display: grid;
+  place-items: center;
+  min-height: 280px;
+}
+
+.mini-map-modal .quest-map-grid {
+  max-width: min(78vw, 340px);
+  gap: 3px;
+}
+
+.mini-map-modal .quest-map-cell {
+  font-size: 12px;
+}
+
+.cockpit-view {
+  min-height: 260px;
 }
 
 .command-grid {
@@ -916,6 +1089,20 @@ button {
   }
 
   .command-grid .button {
+    font-size: 12px;
+  }
+
+  .cockpit-view {
+    min-height: 238px;
+  }
+
+  .env-panel {
+    width: 112px;
+    font-size: 12px;
+  }
+
+  .quest-command-button {
+    min-height: 60px;
     font-size: 12px;
   }
 }

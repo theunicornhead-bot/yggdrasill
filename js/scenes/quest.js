@@ -44,7 +44,7 @@ window.getPlanetById = function getPlanetById(planetId) {
 
 window.getSelectedPlanet = function getSelectedPlanet() {
   const state = window.GameState;
-  return window.getPlanetById(state.quest?.planetId || state.selectedPlanetId) || null;
+  return window.getPlanetById(state.quest?.currentPlanetId || state.quest?.planetId || state.quest?.selectedPlanetId || state.selectedPlanetId) || null;
 };
 
 window.isPlanetUnlocked = function isPlanetUnlocked(planet) {
@@ -89,9 +89,9 @@ function rollTerrainForPlanet(planet, floor) {
 
 window.ensureQuestFloor = function ensureQuestFloor() {
   const state = window.GameState;
-  if (!state.selectedPlanetId && !state.quest?.planetId) return;
+  if (!state.quest?.currentPlanetId && !state.quest?.planetId) return;
   if (!state.quest || !state.quest.map || !state.quest.map.length) {
-    window.generateDungeonFloor(state.quest?.floor || 1, state.selectedPlanetId || state.quest?.planetId);
+    window.generateDungeonFloor(state.quest?.floor || 1, state.quest?.currentPlanetId || state.quest?.planetId);
   }
   state.quest.terrain = state.quest.terrain || "plain";
   state.fuel = state.quest.fuel;
@@ -99,7 +99,7 @@ window.ensureQuestFloor = function ensureQuestFloor() {
 
 window.generateDungeonFloor = function generateDungeonFloor(floor, planetId = null) {
   const state = window.GameState;
-  const planet = window.getPlanetById(planetId || state.selectedPlanetId || state.quest?.planetId) || window.PlanetMaster[0];
+  const planet = window.getPlanetById(planetId || state.quest?.currentPlanetId || state.quest?.selectedPlanetId || state.selectedPlanetId || state.quest?.planetId) || window.PlanetMaster[0];
   state.selectedPlanetId = planet.id;
   state.maxFloor = planet.maxFloor;
   const size = window.rollDungeonSizeByFloor(floor);
@@ -124,6 +124,8 @@ window.generateDungeonFloor = function generateDungeonFloor(floor, planetId = nu
   placeEvents(map, reachable, startPosition, floor, terrain, planet);
   const stairsPosition = window.placeStairs(map, startPosition);
   state.quest = {
+    selectedPlanetId: state.quest?.selectedPlanetId || planet.id,
+    currentPlanetId: planet.id,
     planetId: planet.id,
     planetName: planet.name,
     floor,
@@ -229,7 +231,7 @@ function isInside(x, y, width, height) {
 
 window.renderQuest = function renderQuest() {
   const state = window.GameState;
-  if (!state.selectedPlanetId && !state.quest?.planetId) {
+  if (!state.quest?.currentPlanetId && !state.quest?.planetId) {
     renderPlanetSelect();
     return;
   }
@@ -245,14 +247,7 @@ window.renderQuest = function renderQuest() {
       <div class="resource"><small>地形</small><strong>${terrain.label}</strong></div>
     `)}
     ${renderCockpitView()}
-    <div class="command-grid">
-      <button class="button" data-action="quest-forward"><span class="cmd-icon">↑</span>前進<br><span class="muted">燃料 -1</span></button>
-      <button class="button" data-action="quest-left"><span class="cmd-icon">↶</span>左旋回<br><span class="muted">燃料 -0.5</span></button>
-      <button class="button" data-action="quest-search"><span class="cmd-icon">◇</span>調べる<br><span class="muted">燃料 -1</span></button>
-      <button class="button" data-action="quest-right"><span class="cmd-icon">↷</span>右旋回<br><span class="muted">燃料 -0.5</span></button>
-      <button class="button" data-action="quest-next-floor" ${quest.foundStairs ? "" : "disabled"}><span class="cmd-icon">↓</span>下の階<br><span class="muted">${quest.foundStairs ? "進入可能" : "未発見"}</span></button>
-      <button class="button" data-action="return-base"><span class="cmd-icon">⌂</span>帰還<br><span class="muted">拠点へ戻る</span></button>
-    </div>
+    ${renderQuestCommands()}
     <section class="explore-lower">
       <div class="panel panel-pad">
         <div class="section-head"><h2>探索ログ</h2><span class="${fuelTone}">燃料 ${quest.fuel.toFixed(1)} / ${quest.maxFuel}</span></div>
@@ -270,40 +265,72 @@ window.renderQuest = function renderQuest() {
         <div class="material-row"><span>燃料倍率</span><strong>x${window.getTerrainFuelRate(quest.terrain).toFixed(2)}</strong></div>
       </div>
       <div class="panel panel-pad">
-        <div class="section-head"><h2>ミニマップ</h2><span>${quest.size}</span></div>
-        ${renderMiniMap()}
-      </div>
-      <div class="panel panel-pad">
         <div class="section-head"><h2>パーティ</h2><span>${state.mechs.length} / 4</span></div>
         <div class="party-list">${state.mechs.map(renderPartyUnit).join("")}</div>
       </div>
     </section>
+    ${renderMiniMapModal()}
   `;
 };
 
+function renderQuestCommands() {
+  const quest = window.GameState.quest;
+  return `
+    <section class="quest-command-panel panel panel-pad">
+      <div class="quest-command-main">
+        <button class="button quest-command-button" data-action="quest-left"><span class="cmd-icon">↶</span>左旋回<br><span class="muted">燃料 -0.5</span></button>
+        <button class="button quest-command-button primary" data-action="quest-forward"><span class="cmd-icon">↑</span>前進<br><span class="muted">燃料 -1</span></button>
+        <button class="button quest-command-button" data-action="quest-right"><span class="cmd-icon">↷</span>右旋回<br><span class="muted">燃料 -0.5</span></button>
+        <button class="button quest-command-button quest-search-button" data-action="quest-search"><span class="cmd-icon">◇</span>調べる<br><span class="muted">燃料 -1</span></button>
+      </div>
+      <div class="quest-special-title">特殊操作</div>
+      <div class="quest-command-special">
+        <button class="button quest-special-button" data-action="quest-next-floor" ${quest.foundStairs ? "" : "disabled"}><span class="cmd-icon">↓</span>下の階<br><span class="muted">${quest.foundStairs ? "進入可能" : "未発見"}</span></button>
+        <button class="button quest-special-button subdued danger" data-action="return-base"><span class="cmd-icon">⌂</span>帰還<br><span class="muted">拠点へ戻る</span></button>
+      </div>
+    </section>
+  `;
+}
+
 function renderPlanetSelect() {
+  const state = window.GameState;
+  const fallbackPlanet = window.PlanetMaster.find((planet) => window.isPlanetUnlocked(planet)) || window.PlanetMaster[0];
+  const selectedId = state.quest?.selectedPlanetId || state.selectedPlanetId || fallbackPlanet?.id || null;
+  if (state.quest && selectedId) state.quest.selectedPlanetId = selectedId;
+  if (selectedId) state.selectedPlanetId = selectedId;
+  const selectedPlanet = window.getPlanetById(selectedId) || fallbackPlanet;
+  const terrains = (selectedPlanet?.availableTerrains || []).map((terrain) => window.getTerrainConfig(terrain).label).join(" / ");
+  const unlocked = window.isPlanetUnlocked(selectedPlanet);
   window.App.root.innerHTML = `
     ${renderHeader("惑星選択", "PLANET SELECT")}
-    <section class="panel panel-pad">
-      <div class="section-head"><h2>探索対象</h2><span>惑星を選択</span></div>
-      <div class="mech-list">${window.PlanetMaster.map(renderPlanetCard).join("")}</div>
+    <section class="planet-select panel panel-pad">
+      <div class="section-head"><h2>惑星選択</h2><span>PLANET SELECT</span></div>
+      <div class="planet-card-scroll">${window.PlanetMaster.map(renderPlanetCard).join("")}</div>
+      <div class="planet-detail panel panel-pad">
+        <div class="section-head"><h2>${selectedPlanet.name}</h2><span class="tag">難易度 ${selectedPlanet.difficulty}</span></div>
+        <div class="material-row"><span>地形</span><strong>${terrains}</strong></div>
+        <div class="material-row"><span>推奨ランク</span><strong>${selectedPlanet.recommendedRank}</strong></div>
+        <p class="muted">${selectedPlanet.description}</p>
+      </div>
+      <button class="button planet-start-button" data-action="start-selected-planet-quest" ${unlocked ? "" : "disabled"}>探索開始</button>
     </section>
   `;
 }
 
 function renderPlanetCard(planet) {
   const unlocked = window.isPlanetUnlocked(planet);
+  const selected = (window.GameState.quest?.selectedPlanetId || window.GameState.selectedPlanetId) === planet.id;
   const terrains = planet.availableTerrains.map((terrain) => window.getTerrainConfig(terrain).label).join(" / ");
   const unlockText = planet.unlockCondition ? `到達 ${planet.unlockCondition.maxReachedFloor}F` : "初期開放";
   return `
-    <article class="mech-card panel">
+    <button class="planet-card panel ${selected ? "selected" : ""} ${unlocked ? "" : "locked"}" data-action="select-planet" data-planet="${planet.id}" ${unlocked ? "" : "disabled"} type="button">
       <div class="section-head"><h3>${planet.name}</h3><span class="tag">難易度 ${planet.difficulty}</span></div>
       <p class="muted">${planet.description}</p>
       <div class="tag-row"><span class="tag">推奨 ${planet.recommendedRank}</span><span class="tag">${planet.maxFloor}F</span></div>
       <div class="material-row"><span>地形</span><strong>${terrains}</strong></div>
-      <div class="material-row"><span>開放条件</span><strong>${unlockText}</strong></div>
-      <button class="button" data-action="select-planet" data-planet="${planet.id}" ${unlocked ? "" : "disabled"} style="width:100%">${unlocked ? "探索開始" : "未開放"}</button>
-    </article>
+      <div class="material-row"><span>状態</span><strong>${unlocked ? "OPEN" : unlockText}</strong></div>
+      <span class="tag">${unlocked ? "選択可能" : "LOCKED"}</span>
+    </button>
   `;
 }
 
@@ -312,7 +339,19 @@ window.selectPlanet = function selectPlanet(planetId) {
   if (!planet || !window.isPlanetUnlocked(planet)) return;
   const state = window.GameState;
   state.selectedPlanetId = planet.id;
+  if (state.quest) state.quest.selectedPlanetId = planet.id;
+  window.renderCurrentScene();
+};
+
+window.startSelectedPlanetQuest = function startSelectedPlanetQuest() {
+  const state = window.GameState;
+  const planet = window.getPlanetById(state.quest?.selectedPlanetId || state.selectedPlanetId);
+  if (!planet || !window.isPlanetUnlocked(planet)) return;
+  state.selectedPlanetId = planet.id;
   if (state.quest) {
+    state.quest.selectedPlanetId = planet.id;
+    state.quest.currentPlanetId = planet.id;
+    state.quest.planetId = planet.id;
     state.quest.map = [];
     state.quest.floor = 1;
     state.quest.fuel = state.quest.maxFuel || 100;
@@ -320,7 +359,6 @@ window.selectPlanet = function selectPlanet(planetId) {
   window.generateDungeonFloor(1, planet.id);
   window.renderCurrentScene();
 };
-
 window.renderCockpitView = function renderCockpitView() {
   const quest = window.GameState.quest;
   const planet = window.getSelectedPlanet();
@@ -329,7 +367,7 @@ window.renderCockpitView = function renderCockpitView() {
   const currentCell = quest.map[quest.player.y][quest.player.x];
   return `
     <section class="cockpit-view panel">
-      <div class="mini-map panel panel-pad">${renderMiniMap()}</div>
+      ${renderMiniMapButton()}
       <div class="env-panel panel panel-pad">
         <strong>惑星HUD</strong><br>
         <span class="muted">惑星: ${planet.name}</span><br>
@@ -347,6 +385,25 @@ window.renderCockpitView = function renderCockpitView() {
       </div>
     </section>
   `;
+};
+
+function renderMiniMapButton() {
+  return `
+    <button class="button mini-map-button" data-action="open-mini-map" type="button">
+      <span class="cmd-icon">□</span>MAP
+    </button>
+  `;
+}
+
+window.openMiniMapModal = function openMiniMapModal() {
+  if (!window.GameState.quest) return;
+  window.GameState.quest.miniMapOpen = true;
+  window.renderCurrentScene();
+};
+
+window.closeMiniMapModal = function closeMiniMapModal() {
+  if (window.GameState.quest) window.GameState.quest.miniMapOpen = false;
+  window.renderCurrentScene();
 };
 
 window.getFrontCell = function getFrontCell() {
@@ -388,6 +445,24 @@ function renderMiniMap() {
     }
   }
   return `<div class="quest-map-grid" style="grid-template-columns:repeat(${quest.width},1fr)">${cells.join("")}</div>`;
+}
+
+function renderMiniMapModal() {
+  const quest = window.GameState.quest;
+  if (!quest?.miniMapOpen) return "";
+  return `
+    <div class="modal-backdrop mini-map-modal-backdrop">
+      <section class="mini-map-modal panel panel-pad" role="dialog" aria-modal="true" aria-label="ミニマップ">
+        <div class="section-head">
+          <h2>ミニマップ</h2>
+          <button class="button mini-map-close" data-action="close-mini-map" type="button">閉じる</button>
+        </div>
+        <div class="mini-map-modal-body">
+          ${renderMiniMap()}
+        </div>
+      </section>
+    </div>
+  `;
 }
 
 function renderPartyUnit(mech) {
@@ -623,12 +698,12 @@ window.returnBase = function returnBase() {
     state.quest.map = [];
     state.quest.foundStairs = false;
     state.quest.discovered = {};
+    state.quest.currentPlanetId = null;
     state.quest.planetId = null;
     state.quest.planetName = "";
   }
-  state.selectedPlanetId = null;
   state.fuel = 100;
-  state.currentScene = "bar";
+  state.currentScene = "quest";
   logMessage("bar", "探索から帰還し、素材を格納した。", "good");
   window.renderCurrentScene();
 };
@@ -648,13 +723,13 @@ window.forceReturn = function forceReturn(message, loseMaterials) {
     state.quest.map = [];
     state.quest.foundStairs = false;
     state.quest.discovered = {};
+    state.quest.currentPlanetId = null;
     state.quest.planetId = null;
     state.quest.planetName = "";
   }
-  state.selectedPlanetId = null;
   state.fuel = 100;
   state.battle = null;
-  state.currentScene = "bar";
+  state.currentScene = "quest";
   logMessage("bar", `${message}${loseMaterials ? " 入手素材の一部を失った。" : ""}`, "danger");
   window.renderCurrentScene();
 };

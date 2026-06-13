@@ -32,9 +32,10 @@ window.syncPlayerFromRuntimeState = function syncPlayerFromRuntimeState() {
   state.exploration.fuel = state.quest?.fuel ?? state.fuel ?? state.exploration.fuel;
   state.exploration.maxFuel = state.quest?.maxFuel ?? state.exploration.maxFuel ?? 100;
   state.exploration.currentFloor = state.quest?.floor ?? state.exploration.currentFloor ?? 1;
-  state.exploration.planetId = state.quest?.planetId ?? state.selectedPlanetId ?? state.exploration.planetId ?? null;
+  state.exploration.planetId = state.quest?.currentPlanetId ?? state.quest?.planetId ?? state.exploration.planetId ?? null;
+  state.exploration.selectedPlanetId = state.quest?.selectedPlanetId ?? state.selectedPlanetId ?? state.exploration.selectedPlanetId ?? null;
   state.exploration.temporaryMaterials = clonePlain(state.runMaterials || {});
-  state.exploration.isExploring = state.currentScene === "quest" || state.currentScene === "battle";
+  state.exploration.isExploring = Boolean(state.quest?.currentPlanetId || state.quest?.planetId) && (state.currentScene === "quest" || state.currentScene === "battle");
 };
 
 window.syncRuntimeStateFromPlayer = function syncRuntimeStateFromPlayer() {
@@ -49,8 +50,10 @@ window.syncRuntimeStateFromPlayer = function syncRuntimeStateFromPlayer() {
       state.quest.floor = Number(state.exploration.currentFloor || state.quest.floor || 1);
       state.quest.fuel = Number(state.exploration.fuel ?? state.quest.fuel ?? 100);
       state.quest.maxFuel = Number(state.exploration.maxFuel ?? state.quest.maxFuel ?? 100);
-      state.quest.planetId = state.exploration.planetId || state.quest.planetId || null;
-      state.selectedPlanetId = state.quest.planetId || state.selectedPlanetId || null;
+      state.quest.currentPlanetId = state.exploration.isExploring ? (state.exploration.planetId || state.quest.currentPlanetId || null) : null;
+      state.quest.planetId = state.quest.currentPlanetId;
+      state.quest.selectedPlanetId = state.exploration.selectedPlanetId || state.selectedPlanetId || state.quest.selectedPlanetId || state.quest.currentPlanetId || null;
+      state.selectedPlanetId = state.quest.selectedPlanetId;
     }
   }
 };

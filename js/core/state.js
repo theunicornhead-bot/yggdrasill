@@ -60,6 +60,8 @@ window.GameState = {
   maxFloor: 20,
   selectedPlanetId: null,
   quest: {
+    selectedPlanetId: null,
+    currentPlanetId: null,
     planetId: null,
     planetName: "",
     floor: 1,
