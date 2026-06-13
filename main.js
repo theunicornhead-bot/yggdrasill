@@ -50,6 +50,9 @@ document.addEventListener("click", (event) => {
   if (action === "battle-run") window.battleCommand("run");
   if (action === "select-synth-material") window.selectSynthMaterial(target.dataset.material);
   if (action === "select-mech-core") window.selectMechCore(target.dataset.core);
+  if (action === "synthesis-next-step") window.goSynthesisNextStep();
+  if (action === "synthesis-prev-step") window.goSynthesisPrevStep();
+  if (action === "clear-synth-materials") window.clearSynthMaterials();
   if (action === "add-synth-material") window.addSynthMaterial(target.dataset.material || window.GameState.selectedMaterialId);
   if (action === "remove-synth-material") window.removeSynthMaterial();
   if (action === "reset-synthesis") window.resetSynthesis();

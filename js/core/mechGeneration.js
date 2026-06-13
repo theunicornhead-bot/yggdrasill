@@ -131,9 +131,10 @@ window.getOwnedCoreIds = function getOwnedCoreIds() {
 
 window.ensureMechGenerationState = function ensureMechGenerationState() {
   const state = window.GameState;
-  if (!state.selectedCoreId) state.selectedCoreId = window.getOwnedCoreIds()[0] || window.MechCoreCatalog[0].id;
+  if (state.selectedCoreId && !window.getMechCore(state.selectedCoreId)) state.selectedCoreId = null;
   if (!Array.isArray(state.synthesisSlots)) state.synthesisSlots = [];
   if (!state.generationStatus) state.generationStatus = { busy: false, message: "" };
+  if (!state.synthesisStep) state.synthesisStep = "core";
 };
 
 function chooseGeneratedSize(materials) {
