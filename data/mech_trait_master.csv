@@ -1,0 +1,9 @@
+trait_id,trait_name,effect_type,value,description
+light_frame,軽量骨格,mobility_up,10,機動力が上昇する
+heavy_armor,重甲殻,def_up,15,防御力が上昇する
+poor_fuel,燃費悪化,fuel_cost_up,10,燃料消費が増える
+fuel_efficient,低燃費,fuel_cost_down,10,燃料消費が減る
+melee_frame,近接機構,atk_up,10,近接攻撃向きの機体
+cannon_frame,砲撃機構,cannon_bonus,10,砲撃攻撃向きの機体
+unstable_core,不安定炉,atk_up_def_down,15,攻撃力は上がるが防御が下がる
+rough_body,粗製機体,all_down,5,低ランク素材で作られた粗い機体

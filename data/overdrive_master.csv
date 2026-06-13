@@ -1,0 +1,6 @@
+overdrive_id,overdrive_name,effect_type,power,fuel_cost,description
+seraphim_wing,光翼展開,unique_damage,250,10,白殻機セラフィム専用の高出力必殺技
+strike_burst,強襲連撃,damage,180,8,近接型機体向けの連続攻撃
+cannon_blast,重砲一斉射,damage,220,12,砲撃型機体向けの高火力攻撃
+guard_fortress,甲殻要塞,defense_buff,0,6,防御力を大きく上げる
+scan_drive,索敵展開,drop_bonus,0,5,素材入手率を上げる

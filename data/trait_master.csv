@@ -1,0 +1,8 @@
+trait_id,trait_name,effect_type,base_value,rank_scaling,description
+large_specialist,大型機特化,large_bonus,5,3,大型機搭乗時に性能上昇
+medium_specialist,中型機特化,medium_bonus,5,3,中型機搭乗時に性能上昇
+small_specialist,小型機特化,small_bonus,5,3,小型機搭乗時に性能上昇
+fuel_saver,低燃費,fuel_cost_down,3,2,探索時の燃料消費を軽減
+lucky,幸運,rare_drop_up,2,2,レア素材の入手率上昇
+overdrive_specialist,必殺技特化,overdrive_bonus,5,3,必殺技の威力上昇
+balanced,バランス型,all_bonus,2,1,全体的に少し能力上昇

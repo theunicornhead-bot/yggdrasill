@@ -1,0 +1,9 @@
+class_id,class_name,role,main_stat,weapon_affinity,description
+fighter,ファイター,近接特化,atk,slash,近接攻撃に優れる前衛クラス
+gunner,ガンナー,遠距離特化,hit,shoot,射撃と命中に優れる後衛クラス
+healer,ヒーラー,回復特化,sp,heal,回復と修復に優れる支援クラス
+tank,タンク,防御特化,def,guard,防御と引き受けに優れる前衛クラス
+dragner,ドラグナー,砲撃特化,atk,cannon,重砲撃と範囲攻撃に優れるクラス
+supporter,サポーター,支援特化,sp,support,味方強化に優れる支援クラス
+hunter,ハンター,デバフ特化,dex,pierce,弱体化と部位狙いに優れるクラス
+seeker,シーカー,探索特化,luck,scan,探索と素材発見に優れるクラス

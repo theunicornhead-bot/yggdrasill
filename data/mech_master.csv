@@ -1,0 +1,5 @@
+mech_id,mech_name,size,type,rank,hp,atk,def,mobility,fuel_cost_rate,slot_weapon,slot_armor,slot_core,slot_option,overdrive_id,unique,customizable,description
+frame_s_001,簡易小型機,S,scout,E,420,55,35,70,0.8,1,1,1,1,,false,true,低層探索用の軽量な通常機
+frame_m_001,標準中型機,M,hybrid,E,560,65,50,50,1.0,1,1,1,1,,false,true,扱いやすい標準的な通常機
+frame_l_001,重装甲大型機,L,guard,D,760,70,85,25,1.3,1,2,1,1,,false,true,燃費は悪いが耐久に優れる大型機
+unique_001,白殻機セラフィム,XL,unique,A,1400,130,120,55,1.5,0,0,0,0,seraphim_wing,true,false,最初から完成された固有機体。カスタマイズ不可

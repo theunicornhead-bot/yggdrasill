@@ -1,0 +1,105 @@
+"use strict";
+
+window.MaterialCatalog = [
+  { id: "broken_shell", name: "欠けた甲殻", rank: "E", value: 20, category: "shell", prompts: ["small shell", "rough armor", "damaged plating", "weak organic frame"] },
+  { id: "thin_membrane", name: "薄い飛膜", rank: "D", value: 45, category: "wing", prompts: ["thin insect wing", "fragile membrane", "light organic part"] },
+  { id: "dry_nerve", name: "乾いた神経束", rank: "C", value: 60, category: "nerve", prompts: ["thin organic cable", "dry nerve fiber", "minor bio circuit"] },
+  { id: "brittle_bone", name: "脆い骨片", rank: "E", value: 30, category: "bone", prompts: ["small bone shard", "brittle frame", "pale organic plate"] },
+  { id: "aged_scale", name: "劣化した外骨", rank: "C", value: 75, category: "shell", prompts: ["aged exoskeleton", "worn plating", "medium organic armor"] },
+  { id: "wilted_bloodfilm", name: "朽ちた血管膜", rank: "D", value: 35, category: "organ", prompts: ["thin red membrane", "withered bio film", "minor vascular mesh"] }
+];
+
+window.EnemyCatalog = [
+  { name: "小型甲殻獣", level: 6, hp: 980, maxHp: 980, atk: 118, def: 48, type: "甲殻", drops: ["broken_shell", "brittle_bone"] },
+  { name: "飛膜蟲", level: 9, hp: 1260, maxHp: 1260, atk: 146, def: 58, type: "飛行型", drops: ["thin_membrane", "broken_shell", "wilted_bloodfilm"] },
+  { name: "神経喰らい", level: 12, hp: 1580, maxHp: 1580, atk: 172, def: 66, type: "神経型", drops: ["dry_nerve", "wilted_bloodfilm", "aged_scale"] }
+];
+
+window.GameState = {
+  saveVersion: 1,
+  player: {
+    id: "local_player",
+    name: "名無しの探索者",
+    rank: "E",
+    exp: 0,
+    money: 12450,
+    currentFloor: 1,
+    maxReachedFloor: 1,
+    createdAt: "",
+    updatedAt: ""
+  },
+  money: 12450,
+  pilots: [
+    { id: "ray", name: "レイ・クロード", gender: "male", rank: "A", classId: "fighter", traitId: "large_specialist", traitRank: "A", level: 1, exp: 0, skillPoints: 0, learnedSkills: ["fighter_001"], appearanceId: "fighter_male", hireCost: 1200, hired: true, hair: "#15181c", skin: "#9b725c" },
+    { id: "sera", name: "セラ・ノクティス", gender: "female", rank: "B", classId: "gunner", traitId: "fuel_saver", traitRank: "B", level: 1, exp: 0, skillPoints: 0, learnedSkills: ["gunner_001"], appearanceId: "gunner_female", hireCost: 900, hired: true, hair: "#d7d9dd", skin: "#b99481" },
+    { id: "glen", name: "グレン・バルド", gender: "male", rank: "B", classId: "supporter", traitId: "balanced", traitRank: "B", level: 1, exp: 0, skillPoints: 0, learnedSkills: ["supporter_001"], appearanceId: "supporter_male", hireCost: 800, hired: true, hair: "#8b4f2f", skin: "#a56e4e" }
+  ],
+  mechs: [
+    { id: "raven", name: "レイヴン", size: "中型", hp: 1280, maxHp: 1280, atk: 412, def: 286, mobility: 364, fuelCostRate: 1.0, traits: ["バランス型", "衝撃吸収フレーム"], pilotId: "ray", unique: false, parts: { rightArm: "破砕ブレード", leftArm: "衝撃クラッシャー", back: "標準スラスター", support: "クイックリペアユニット" }, weaponType: "slash" },
+    { id: "striker", name: "ストライカー", size: "大型", hp: 1680, maxHp: 1680, atk: 498, def: 352, mobility: 228, fuelCostRate: 0.8, traits: ["大型機特化", "重装甲"], pilotId: "sera", unique: true, parts: { rightArm: "重粒子砲", leftArm: "硬化シールド", back: "大型冷却炉", support: "弾道補正AI" }, weaponType: "blunt" },
+    { id: "valkyrie", name: "ヴァルキリー", size: "中型", hp: 1240, maxHp: 1240, atk: 435, def: 290, mobility: 392, fuelCostRate: 1.1, traits: ["砲撃特化", "高出力炉"], pilotId: "glen", unique: false, parts: { rightArm: "連装カノン", leftArm: "針状ランス", back: "可変翼", support: "照準リンク" }, weaponType: "pierce" },
+    { id: "seeker", name: "シーカー", size: "小型", hp: 980, maxHp: 980, atk: 302, def: 210, mobility: 512, fuelCostRate: 1.3, traits: ["小型機特化", "偵察強化"], pilotId: null, unique: false, parts: { rightArm: "軽量ライフル", leftArm: "捕獲ワイヤー", back: "静音ブースター", support: "地形スキャナ" }, weaponType: "capture" }
+  ],
+  materials: { broken_shell: 12, thin_membrane: 8, dry_nerve: 6, brittle_bone: 10 },
+  market: {
+    listings: []
+  },
+  exploration: {
+    fuel: 100,
+    maxFuel: 100,
+    currentFloor: 1,
+    temporaryMaterials: {},
+    isExploring: false
+  },
+  runMaterials: {},
+  currentScene: "bar",
+  tavernCandidates: [],
+  masters: { classes: [], traits: [], skills: [], pilotNames: [], mechs: [], mechTraits: [], overdrives: [] },
+  fuel: 100,
+  floor: 3,
+  maxFloor: 20,
+  selectedPlanetId: null,
+  quest: {
+    planetId: null,
+    planetName: "",
+    floor: 1,
+    size: "XS",
+    terrain: "plain",
+    width: 4,
+    height: 4,
+    map: [],
+    player: { x: 0, y: 0, direction: "N" },
+    fuel: 100,
+    maxFuel: 100,
+    discovered: {},
+    foundStairs: false,
+    log: []
+  },
+  exploredSteps: 0,
+  distance: 142,
+  selectedMechId: "raven",
+  nextMechSerial: 1,
+  selectedMaterialId: "broken_shell",
+  synthesisSlots: [],
+  synthSerial: 1,
+  battle: null,
+  logs: {
+    bar: ["バーテンダー: 優秀なパイロットを揃えると探索が有利になるよ。"],
+    quest: ["3Fに到達した……"],
+    battle: [],
+    synthesis: ["培養炉を起動。素材スロットは最大5枠。"]
+  }
+};
+
+window.RankConfig = {
+  ranks: ["E", "D", "C", "B", "A", "S"],
+  hireCosts: { E: 300, D: 600, C: 1200, B: 2500, A: 5000, S: 10000 },
+  rankWeights: [
+    { rank: "E", weight: 30 },
+    { rank: "D", weight: 25 },
+    { rank: "C", weight: 20 },
+    { rank: "B", weight: 15 },
+    { rank: "A", weight: 8 },
+    { rank: "S", weight: 2 }
+  ]
+};
