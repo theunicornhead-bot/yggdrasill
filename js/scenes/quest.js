@@ -247,8 +247,7 @@ window.renderQuest = function renderQuest() {
     ${renderQuestReadout(terrain)}
     ${renderQuestCommands()}
     <section class="explore-lower">
-      <div class="panel panel-pad">
-        <div class="section-head quest-party-head"><h2>パーティ</h2></div>
+      <div class="panel panel-pad quest-party-panel">
         <div class="party-list quest-party-grid">${state.mechs.map(renderPartyUnit).join("")}</div>
       </div>
     </section>
@@ -295,10 +294,10 @@ function renderQuestCommands() {
       <div class="quest-command-layout">
         ${renderFuelMeter(quest)}
         <div class="quest-command-main">
-          <button class="button quest-command-button" data-action="quest-left"><span class="cmd-icon">↶</span>左旋回<br><span class="muted">燃料消費なし</span></button>
-          <button class="button quest-command-button primary" data-action="quest-forward"><span class="cmd-icon">↑</span>前進<br><span class="muted">燃料 -1</span></button>
-          <button class="button quest-command-button" data-action="quest-right"><span class="cmd-icon">↷</span>右旋回<br><span class="muted">燃料消費なし</span></button>
-          <button class="button quest-command-button quest-search-button" data-action="quest-search"><span class="cmd-icon">◇</span>調べる<br><span class="muted">燃料 -1</span></button>
+          <button class="button quest-command-button" data-action="quest-left"><span class="cmd-icon">↶</span>左旋回</button>
+          <button class="button quest-command-button primary" data-action="quest-forward"><span class="cmd-icon">↑</span>前進<br><span class="muted">🔥-1</span></button>
+          <button class="button quest-command-button" data-action="quest-right"><span class="cmd-icon">↷</span>右旋回</button>
+          <button class="button quest-command-button quest-search-button" data-action="quest-search"><span class="cmd-icon">◇</span>調べる<br><span class="muted">🔥-1</span></button>
         </div>
       </div>
     </section>
