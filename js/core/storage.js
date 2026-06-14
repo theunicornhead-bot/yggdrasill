@@ -60,6 +60,7 @@ window.syncRuntimeStateFromPlayer = function syncRuntimeStateFromPlayer() {
 
 window.createPlayerSavePayload = function createPlayerSavePayload() {
   const state = window.GameState;
+  if (typeof window.syncBattleUnitsToMechs === "function") window.syncBattleUnitsToMechs();
   if (typeof window.normalizeAllUnitStatuses === "function") window.normalizeAllUnitStatuses();
   syncPlayerFromRuntimeState();
   state.player.createdAt = state.player.createdAt || nowIsoString();

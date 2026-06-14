@@ -565,6 +565,13 @@ function renderPartyUnit(mech, index) {
   const pilot = displayPilot(mech.pilotId);
   const realPilot = getPilot(mech.pilotId);
   const portraitPilot = realPilot || window.GameState.pilots[index] || window.getDefaultPilotForPortrait();
+  if (typeof window.normalizeMachineStatus === "function") window.normalizeMachineStatus(mech);
+  const stats = realPilot && typeof window.calculateUnitStats === "function" ? window.calculateUnitStats(realPilot, mech) : (mech.stats || {});
+  const maxHp = Math.max(1, Number(mech.maxHp || stats.hp || 1));
+  const currentHp = Math.max(0, Math.min(maxHp, Number(mech.currentHp ?? mech.hp ?? maxHp)));
+  const maxPp = Math.max(0, Number(mech.maxPp ?? stats.pp ?? 0));
+  const currentPp = Math.max(0, Math.min(maxPp, Number(mech.currentPp ?? mech.pp ?? maxPp)));
+  const overdrive = Math.max(0, Math.min(100, Number(mech.overdrive || 0)));
   const mechImage = typeof window.renderMechImage === "function"
     ? window.renderMechImage(mech, "quest")
     : `<div class="mech-thumb"></div>`;
@@ -577,8 +584,9 @@ function renderPartyUnit(mech, index) {
       <div class="party-unit-body">
         <strong>${mech.name}</strong>
         <span class="muted">${pilot.name}</span>
-        <div>HP ${formatNumber(mech.hp)}</div>
-        <div class="bar" style="--value:${Math.max(0, (mech.hp / mech.maxHp) * 100)}%"><span></span></div>
+        <div>HP ${formatNumber(currentHp)} / ${formatNumber(maxHp)}</div>
+        <div class="bar" style="--value:${Math.max(0, (currentHp / maxHp) * 100)}%"><span></span></div>
+        <div class="muted">PP ${formatNumber(currentPp)} / ${formatNumber(maxPp)} / OD ${formatNumber(overdrive)}%</div>
       </div>
     </div>
   `;
@@ -685,8 +693,7 @@ function processCurrentCell(trigger) {
     cell.type = "empty";
     cell.consumed = true;
     if (typeof window.startBattle === "function") {
-      window.startBattle();
-      window.GameState.currentScene = "battle";
+      if (window.startBattle()) window.GameState.currentScene = "battle";
     }
   } else if (cell.type === "fuel") {
     const recovered = 30 + Math.floor(Math.random() * 21);
@@ -787,12 +794,41 @@ window.goToNextFloor = function goToNextFloor() {
   window.renderCurrentScene();
 };
 
+function getRuntimeUnitStatsForMachine(mech) {
+  if (typeof window.normalizeMachineStatus === "function") window.normalizeMachineStatus(mech);
+  const pilot = getPilot(mech?.pilotId);
+  return pilot && typeof window.calculateUnitStats === "function" ? window.calculateUnitStats(pilot, mech) : (mech?.stats || {});
+}
+
+window.restoreMachineRuntimeState = function restoreMachineRuntimeState(mech) {
+  if (!mech) return;
+  const stats = getRuntimeUnitStatsForMachine(mech);
+  const maxHp = Math.max(1, Math.floor(Number(stats.hp || mech.maxHp || mech.hp || 1)));
+  const maxPp = Math.max(0, Math.floor(Number(stats.pp || mech.maxPp || mech.pp || 0)));
+  mech.maxHp = maxHp;
+  mech.hp = maxHp;
+  mech.currentHp = maxHp;
+  mech.maxPp = maxPp;
+  mech.pp = maxPp;
+  mech.currentPp = maxPp;
+  mech.isDefeated = false;
+  mech.statusAilments = [];
+  mech.buffs = [];
+  mech.overdrive = Math.max(0, Math.min(100, Number(mech.overdrive || 0)));
+};
+
+window.restoreAllMachineRuntimeStates = function restoreAllMachineRuntimeStates() {
+  (window.GameState.mechs || []).forEach(window.restoreMachineRuntimeState);
+};
+
 window.returnBase = function returnBase() {
   const state = window.GameState;
+  if (typeof window.syncBattleUnitsToMechs === "function") window.syncBattleUnitsToMechs();
   Object.entries(state.runMaterials).forEach(([id, count]) => {
     state.materials[id] = (state.materials[id] || 0) + count;
   });
   state.runMaterials = {};
+  window.restoreAllMachineRuntimeStates();
   if (state.quest) {
     state.quest.floor = 1;
     state.quest.fuel = state.quest.maxFuel || 100;
@@ -804,6 +840,7 @@ window.returnBase = function returnBase() {
     state.quest.planetName = "";
   }
   state.fuel = 100;
+  state.battle = null;
   state.currentScene = "quest";
   logMessage("bar", "探索から帰還し、素材を格納した。", "good");
   window.renderCurrentScene();
@@ -811,6 +848,7 @@ window.returnBase = function returnBase() {
 
 window.forceReturn = function forceReturn(message, loseMaterials) {
   const state = window.GameState;
+  if (typeof window.syncBattleUnitsToMechs === "function") window.syncBattleUnitsToMechs();
   if (loseMaterials) {
     Object.entries(state.runMaterials).forEach(([id, count]) => {
       const kept = Math.floor(count / 2);
@@ -818,6 +856,7 @@ window.forceReturn = function forceReturn(message, loseMaterials) {
     });
     state.runMaterials = {};
   }
+  window.restoreAllMachineRuntimeStates();
   if (state.quest) {
     state.quest.floor = 1;
     state.quest.fuel = state.quest.maxFuel || 100;
