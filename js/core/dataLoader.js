@@ -162,6 +162,23 @@ window.createMechFromMaster = function createMechFromMaster(mechMasterId) {
   const unique = String(master.unique) === "true";
   const customizable = String(master.customizable) === "true";
   const hp = Number(master.hp);
+  const atk = Number(master.atk);
+  const def = Number(master.def);
+  const mobility = Number(master.mobility);
+  const typeTag = {
+    assault: "melee",
+    melee: "melee",
+    scout: "scout",
+    guard: "defense",
+    defense: "defense",
+    support: "command",
+    healer: "supply",
+    debuff: "jammer",
+    magic: "magic",
+    ranged: "ranged"
+  }[String(master.type || "").toLowerCase()] || "general";
+  const weaponType = typeTag === "scout" || typeTag === "command" ? "ranged" : typeTag === "magic" || typeTag === "supply" || typeTag === "jammer" ? "magic" : typeTag === "ranged" ? "ranged" : "melee";
+  const optionSlots = Number(master.slot_option || 0);
   const mech = {
     id: `mech_${serial}`,
     baseId: master.mech_id,
@@ -171,18 +188,36 @@ window.createMechFromMaster = function createMechFromMaster(mechMasterId) {
     rank: master.rank,
     level: 1,
     exp: 0,
+    tags: ["general", typeTag].filter((tag, index, tags) => tag && tags.indexOf(tag) === index),
+    stats: {
+      hp,
+      pp: 30,
+      sAtk: weaponType === "melee" ? atk : Math.round(atk * 0.82),
+      mAtk: weaponType === "magic" ? atk : Math.round(atk * 0.82),
+      lAtk: weaponType === "ranged" ? atk : Math.round(atk * 0.82),
+      sDef: def,
+      mDef: Math.round(def * 0.95),
+      lDef: Math.round(def),
+      speed: mobility
+    },
     hp,
     maxHp: hp,
-    atk: Number(master.atk),
-    def: Number(master.def),
-    mobility: Number(master.mobility),
+    atk,
+    def,
+    mobility,
     mainWeapon: {
       id: `${master.mech_id}_main_weapon`,
       name: `${master.mech_name} Main Weapon`,
-      weaponType: master.type === "scout" ? "ranged" : master.type === "guard" ? "melee" : "melee",
-      power: Number(master.atk),
-      ppCost: 0
+      rank: master.rank,
+      weaponType,
+      element: "none",
+      power: Math.max(1, Math.round(atk * 0.65)),
+      ppCost: 0,
+      overdrive: null
     },
+    subWeapons: [],
+    optionSlots,
+    equippedOptions: [],
     options: [],
     fuelCostRate: Number(master.fuel_cost_rate),
     slotCounts: {
@@ -191,7 +226,7 @@ window.createMechFromMaster = function createMechFromMaster(mechMasterId) {
       core: Number(master.slot_core),
       option: Number(master.slot_option)
     },
-    optionalSlots: Number(master.slot_option),
+    optionalSlots: optionSlots,
     traits: [],
     parts: { weapon: null, armor: null, core: null, option: null },
     overdriveId: master.overdrive_id || null,
@@ -210,8 +245,8 @@ window.initializeStartingMechs = function initializeStartingMechs() {
   const hasSavedMechs = state.storage?.loaded && Array.isArray(state.mechs) && state.mechs.length > 0;
   if (hasSavedMechs) return;
   const first = createMechFromMaster("frame_s_001");
-  const second = createMechFromMaster("frame_m_001");
-  state.mechs = [first, second].filter(Boolean);
+  if (first && state.pilots[0]) first.pilotId = state.pilots[0].id;
+  state.mechs = [first].filter(Boolean);
   if (typeof window.normalizeAllUnitStatuses === "function") window.normalizeAllUnitStatuses();
   state.selectedMechId = state.mechs[0]?.id || null;
 };

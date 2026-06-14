@@ -58,6 +58,7 @@ window.renderHangar = function renderHangar() {
 
   const selected = getMech(state.selectedMechId) || state.mechs[0];
   const assigningMech = getMech(state.assigningMechId);
+  const sortieCount = typeof window.getSortieUnits === "function" ? window.getSortieUnits().length : state.mechs.filter((mech) => getPilot(mech.pilotId)).slice(0, 4).length;
   window.App.root.innerHTML = `
     ${renderHeader("ハンガー", "HANGER")}
     <section class="hangar-tabs" role="tablist" aria-label="ハンガータブ">
@@ -68,7 +69,7 @@ window.renderHangar = function renderHangar() {
     ${state.hangarTab === "party" ? `
       ${state.hangarView === "pilot-assign" && assigningMech ? renderPilotAssignView(assigningMech) : `
         <section class="panel panel-pad">
-          <div class="section-head"><h2>パーティ編成</h2><span>出撃機体 ${state.mechs.length} / 4</span></div>
+          <div class="section-head"><h2>パーティ編成</h2><span>出撃機体 ${sortieCount} / 4</span></div>
           <div class="hangar-party-grid">${state.mechs.slice(0, 4).map(renderPartySlot).join("")}</div>
         </section>
       `}
@@ -76,7 +77,7 @@ window.renderHangar = function renderHangar() {
     ${state.hangarTab === "mechs" ? `
       ${state.hangarView === "mech-detail" && selected ? renderMechDetailV2(selected) : `
         <section class="panel panel-pad">
-          <div class="section-head"><h2>所持機体一覧</h2><span>${state.mechs.length} / 4</span></div>
+          <div class="section-head"><h2>所持機体一覧</h2><span>${state.mechs.length} / 20</span></div>
           <div class="mech-list">${state.mechs.map((mech, index) => renderMechCard(mech, index)).join("")}</div>
         </section>
       `}

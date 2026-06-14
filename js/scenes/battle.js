@@ -25,6 +25,7 @@ window.renderBattle = function renderBattle() {
   if (!state.battle) startBattle();
   const battle = state.battle;
   const enemy = battle.enemy;
+  const sortieUnits = typeof window.getSortieUnits === "function" ? window.getSortieUnits() : state.mechs.slice(0, 4);
   const enemyHpPercent = Math.max(0, (enemy.hp / enemy.maxHp) * 100);
   window.App.root.innerHTML = `
     ${renderHeader("BATTLE", "戦闘中", `<div class="resource"><small>燃料残量</small><strong>${state.fuel.toFixed(1)} / 100</strong></div>`)}
@@ -63,8 +64,8 @@ window.renderBattle = function renderBattle() {
       <button class="button danger" data-action="battle-run"><span class="cmd-icon">↪</span>逃走<br><span class="muted">70%</span></button>
     </div>
     <section class="panel panel-pad">
-      <div class="section-head"><h2>味方${state.mechs.length}機</h2><span>${battle.message}</span></div>
-      <div class="ally-grid">${state.mechs.map(renderAllyCard).join("")}</div>
+      <div class="section-head"><h2>味方${sortieUnits.length}機</h2><span>${battle.message}</span></div>
+      <div class="ally-grid">${sortieUnits.map(renderAllyCard).join("")}</div>
     </section>
   `;
 };
@@ -119,7 +120,8 @@ window.battleCommand = function battleCommand(type) {
   }
   const multiplier = type === "overdrive" ? 1.9 : type === "skill" ? 1.35 : 1;
   const label = type === "overdrive" ? "オーバードライブ" : type === "skill" ? "スキル" : "攻撃";
-  state.mechs
+  const sortieUnits = typeof window.getSortieUnits === "function" ? window.getSortieUnits() : state.mechs.slice(0, 4);
+  sortieUnits
     .filter((mech) => mech.hp > 0 && getPilot(mech.pilotId))
     .sort((a, b) => {
       const pilotA = getPilot(a.pilotId);
@@ -160,7 +162,8 @@ function spendBattleFuel(amount) {
 function enemyTurn() {
   const state = window.GameState;
   const battle = state.battle;
-  const alive = state.mechs.filter((mech) => mech.hp > 0);
+  const sortieUnits = typeof window.getSortieUnits === "function" ? window.getSortieUnits() : state.mechs.slice(0, 4);
+  const alive = sortieUnits.filter((mech) => mech.hp > 0);
   if (!alive.length) {
     forceReturn("味方が全滅した。", true);
     return;
@@ -182,7 +185,7 @@ function enemyTurn() {
   battle.guarded = false;
   battle.turn += 1;
   battle.message = `TURN ${battle.turn}`;
-  if (state.mechs.every((mech) => mech.hp <= 0)) forceReturn("味方が全滅した。", true);
+  if (sortieUnits.every((mech) => mech.hp <= 0)) forceReturn("味方が全滅した。", true);
 }
 
 function winBattle() {
@@ -191,7 +194,8 @@ function winBattle() {
   enemy.drops.forEach((id) => {
     if (Math.random() < 0.72) state.runMaterials[id] = (state.runMaterials[id] || 0) + 1;
   });
-  state.mechs.forEach((mech) => {
+  const sortieUnits = typeof window.getSortieUnits === "function" ? window.getSortieUnits() : state.mechs.slice(0, 4);
+  sortieUnits.forEach((mech) => {
     const pilot = getPilot(mech.pilotId);
     if (pilot && typeof window.addPilotExp === "function") window.addPilotExp(pilot, 35 + Number(enemy.level || 1) * 8);
   });
