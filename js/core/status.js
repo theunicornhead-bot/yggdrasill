@@ -641,11 +641,124 @@ window.addPilotExp = function addPilotExp(pilot, expAmount) {
   return learned;
 };
 
+window.getNextPilotRank = function getNextPilotRank(rank) {
+  const normalized = window.normalizePilotRank(rank);
+  const index = PILOT_RANKS.indexOf(normalized);
+  return index >= 0 && index < PILOT_RANKS.length - 1 ? PILOT_RANKS[index + 1] : null;
+};
+
+window.getPilotRankUpRequirement = function getPilotRankUpRequirement(pilot) {
+  const nextRank = window.getNextPilotRank(pilot?.rank);
+  if (!nextRank) return { nextRank: null, materials: [], message: "最高ランクです。" };
+  const table = {
+    C: [{ id: "thin_membrane", count: 2 }],
+    B: [{ id: "dry_nerve", count: 2 }],
+    A: [{ id: "aged_scale", count: 3 }],
+    S: [{ id: "live_nerve", count: 2 }]
+  };
+  const materials = table[nextRank] || [];
+  const valid = materials.length && materials.every((item) => typeof window.getMaterial === "function" ? Boolean(window.getMaterial(item.id)) : Boolean((window.MaterialCatalog || []).find((material) => material.id === item.id)));
+  return { nextRank, materials: valid ? materials : [], message: valid ? "" : "必要素材未設定" };
+};
+
+function inventoryCount(source, id) {
+  if (!source || !id) return 0;
+  return Math.max(0, Math.floor(statusNumber(source[id], 0)));
+}
+
+window.canRankUpPilot = function canRankUpPilot(pilot, inventory = null) {
+  if (!pilot) return false;
+  const requirement = window.getPilotRankUpRequirement(pilot);
+  if (!requirement.nextRank || !requirement.materials.length) return false;
+  const materials = inventory || window.GameState?.materials || {};
+  return requirement.materials.every((item) => inventoryCount(materials, item.id) >= item.count);
+};
+
+window.rankUpPilot = function rankUpPilot(pilot) {
+  if (!window.canRankUpPilot(pilot, window.GameState?.materials)) return false;
+  const requirement = window.getPilotRankUpRequirement(pilot);
+  requirement.materials.forEach((item) => {
+    window.GameState.materials[item.id] = Math.max(0, inventoryCount(window.GameState.materials, item.id) - item.count);
+  });
+  pilot.rank = requirement.nextRank;
+  const baseStats = window.getPilotBaseStats(pilot);
+  pilot.stats = UNIT_STATUS_KEYS.reduce((stats, key) => {
+    stats[key] = Math.max(statusNumber(pilot.stats?.[key], 0), baseStats[key] || 0);
+    pilot[key] = stats[key];
+    return stats;
+  }, {});
+  window.normalizePilotStatus(pilot);
+  return true;
+};
+
 window.getLearnedClassSkills = function getLearnedClassSkills(pilot) {
   if (!pilot || !Array.isArray(window.ClassSkillMaster)) return [];
   window.normalizePilotStatus(pilot);
   const ids = new Set(pilot.skills || []);
   return window.ClassSkillMaster.filter((skill) => ids.has(skill.id));
+};
+
+window.getPilotSkillTree = function getPilotSkillTree(classId) {
+  const normalized = window.normalizePilotClassId(classId);
+  if (Array.isArray(window.ClassSkillMaster) && window.ClassSkillMaster.length) {
+    return window.ClassSkillMaster
+      .filter((skill) => skill.classId === normalized || skill.classId === classId)
+      .map((skill) => ({
+        ...skill,
+        skillId: skill.id || skill.skillId,
+        name: skill.name || skill.skill_name || skill.id,
+        requiredLevel: Number(skill.requiredLevel ?? skill.learnLevel ?? skill.tier ?? 1),
+        spCost: Number(skill.spCost ?? skill.cost ?? 1),
+        prerequisiteSkillIds: Array.isArray(skill.prerequisiteSkillIds) ? skill.prerequisiteSkillIds : []
+      }))
+      .sort((a, b) => a.requiredLevel - b.requiredLevel || String(a.skillId).localeCompare(String(b.skillId)));
+  }
+  return (window.GameState?.masters?.skills || [])
+    .filter((skill) => skill.class_id === classId)
+    .map((skill) => ({
+      skillId: skill.skill_id,
+      id: skill.skill_id,
+      classId: skill.class_id,
+      name: skill.skill_name,
+      description: skill.description || skill.effect_type || "",
+      requiredLevel: Number(skill.tier || 1),
+      spCost: Number(skill.cost || 1),
+      prerequisiteSkillIds: []
+    }));
+};
+
+window.getPilotSkillLearnState = function getPilotSkillLearnState(pilot, skill) {
+  if (!pilot || !skill) return { state: "unavailable", label: "条件不足", reasons: ["対象未設定"] };
+  window.normalizePilotStatus(pilot);
+  const skillId = skill.skillId || skill.id;
+  const learnedIds = new Set([...(pilot.learnedSkills || []), ...(pilot.skills || [])]);
+  if (learnedIds.has(skillId)) return { state: "learned", label: "習得済み", reasons: [] };
+  const reasons = [];
+  const requiredLevel = Number(skill.requiredLevel ?? skill.learnLevel ?? 1);
+  const spCost = Number(skill.spCost ?? skill.cost ?? 1);
+  const prerequisites = Array.isArray(skill.prerequisiteSkillIds) ? skill.prerequisiteSkillIds : [];
+  if ((pilot.level || 1) < requiredLevel) reasons.push(`Lv ${requiredLevel} 必要`);
+  if ((pilot.skillPoints || 0) < spCost) reasons.push(`SP ${spCost} 必要`);
+  const missing = prerequisites.filter((id) => id && !learnedIds.has(id));
+  if (missing.length) reasons.push("前提未習得");
+  return reasons.length ? { state: "locked", label: "条件不足", reasons } : { state: "available", label: "習得可能", reasons: [] };
+};
+
+window.canLearnPilotSkill = function canLearnPilotSkill(pilot, skill) {
+  return window.getPilotSkillLearnState(pilot, skill).state === "available";
+};
+
+window.learnPilotSkill = function learnPilotSkill(pilot, skillId) {
+  if (!pilot || !skillId) return false;
+  const skill = window.getPilotSkillTree(pilot.classId).find((item) => (item.skillId || item.id) === skillId);
+  if (!window.canLearnPilotSkill(pilot, skill)) return false;
+  const cost = Number(skill.spCost ?? skill.cost ?? 1);
+  pilot.skillPoints = Math.max(0, Math.floor(statusNumber(pilot.skillPoints, 0) - cost));
+  if (!Array.isArray(pilot.skills)) pilot.skills = [];
+  if (!Array.isArray(pilot.learnedSkills)) pilot.learnedSkills = [];
+  if (!pilot.skills.includes(skillId)) pilot.skills.push(skillId);
+  if (!pilot.learnedSkills.includes(skillId)) pilot.learnedSkills.push(skillId);
+  return true;
 };
 
 window.getLearnedPilotSkills = function getLearnedPilotSkills(pilot) {

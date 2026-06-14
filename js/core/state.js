@@ -137,6 +137,12 @@ window.GameState = {
     }
   ],
   materials: { broken_shell: 12, thin_membrane: 8, dry_nerve: 6, brittle_bone: 10 },
+  inventory: {
+    items: { repair_kit_s: 2, ether_pack_s: 1 },
+    options: {},
+    weapons: {},
+    cores: { core_r: 1, core_sr: 1 }
+  },
   market: {
     listings: []
   },

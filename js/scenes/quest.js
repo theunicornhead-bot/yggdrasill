@@ -259,6 +259,7 @@ window.renderQuest = function renderQuest() {
     </section>
     ${renderMiniMapModal()}
     ${renderQuestMaterialsModal()}
+    ${renderExploreItemModal()}
   `;
 };
 
@@ -297,6 +298,7 @@ function renderQuestCommands() {
     <section class="quest-command-panel panel panel-pad">
       <div class="quest-special-row">
         <button class="button quest-utility-button" data-action="quest-next-floor" ${quest.foundStairs ? "" : "disabled"}>↓ 下の階へ</button>
+        <button class="button quest-utility-button" data-action="open-explore-items" type="button">アイテム</button>
         <button class="button quest-utility-button subdued danger" data-action="return-base">⌂ 帰還</button>
       </div>
       <div class="quest-command-layout">
@@ -311,6 +313,115 @@ function renderQuestCommands() {
     </section>
   `;
 }
+
+window.openExploreItemMenu = function openExploreItemMenu() {
+  if (!window.GameState.quest) return;
+  window.GameState.quest.itemMenuOpen = true;
+  window.renderCurrentScene();
+};
+
+window.closeExploreItemMenu = function closeExploreItemMenu() {
+  if (window.GameState.quest) window.GameState.quest.itemMenuOpen = false;
+  window.renderCurrentScene();
+};
+
+window.getUsableExploreItems = function getUsableExploreItems() {
+  const inventory = typeof window.ensureInventoryState === "function" ? window.ensureInventoryState() : window.GameState.inventory;
+  const masters = Array.isArray(window.masterData?.itemMaster) && window.masterData.itemMaster.length
+    ? window.masterData.itemMaster
+    : [
+      { itemId: "repair_kit_s", name: "応急修復キットS", effectType: "hpRecover", power: "300", target: "ally", description: "味方単体のHPを回復" },
+      { itemId: "ether_pack_s", name: "PP補給パックS", effectType: "ppRecover", power: "20", target: "ally", description: "味方単体のPPを回復" },
+      { itemId: "revive_cell_s", name: "再起動セルS", effectType: "revive", power: "250", target: "allyDefeated", description: "戦闘不能の味方を復帰" },
+      { itemId: "ammo_pack_s", name: "弾薬補給パックS", effectType: "ammoRecover", power: "1", target: "ally", description: "サブウェポン残弾を回復" }
+    ];
+  return masters.map((item) => ({ ...item, count: inventory?.items?.[item.itemId] || 0 }));
+};
+
+function renderExploreItemModal() {
+  const quest = window.GameState.quest;
+  if (!quest?.itemMenuOpen) return "";
+  const items = window.getUsableExploreItems();
+  return `
+    <div class="modal-backdrop explore-items-modal-backdrop">
+      <section class="quest-materials-modal panel panel-pad" role="dialog" aria-modal="true" aria-label="アイテム">
+        <div class="section-head">
+          <h2>アイテム</h2>
+          <button class="button mini-map-close" data-action="close-explore-items" type="button">閉じる</button>
+        </div>
+        <div class="compact-list">${items.length ? items.map(renderExploreItemBlock).join("") : `<div class="muted">使用可能なアイテムがありません。</div>`}</div>
+      </section>
+    </div>
+  `;
+}
+
+function renderExploreItemBlock(item) {
+  const targets = typeof window.getSortieUnits === "function" ? window.getSortieUnits() : (window.GameState.mechs || []);
+  return `
+    <article class="panel panel-pad">
+      <div class="section-head"><h3>${item.name || item.itemId}</h3><span>x${item.count || 0}</span></div>
+      <p class="muted">${item.description || item.effectType || ""}</p>
+      <div class="compact-list">${targets.length ? targets.map((machine) => renderExploreItemTarget(item, machine)).join("") : `<div class="muted">使用対象が未準備です。</div>`}</div>
+    </article>
+  `;
+}
+
+function renderExploreItemTarget(item, machine) {
+  const canUse = window.canUseExploreItem(item, machine);
+  const pilot = displayPilot(machine.pilotId);
+  return `
+    <div class="material-row">
+      <span style="flex:1">${machine.name || "Machine"}<br><span class="muted">${pilot.name} / HP ${formatNumber(machine.currentHp ?? machine.hp ?? 0)} / PP ${formatNumber(machine.currentPp ?? machine.pp ?? 0)}</span></span>
+      <button class="button" data-action="use-explore-item" data-item="${item.itemId}" data-target="${machine.id}" ${canUse ? "" : "disabled"} type="button">使う</button>
+    </div>
+  `;
+}
+
+window.canUseExploreItem = function canUseExploreItem(item, targetUnit) {
+  const inventory = typeof window.ensureInventoryState === "function" ? window.ensureInventoryState() : window.GameState.inventory;
+  if (!item || !targetUnit || (inventory?.items?.[item.itemId] || 0) <= 0) return false;
+  const effectType = item.effectType || item.type || "";
+  if (effectType === "revive") return Boolean(targetUnit.isDefeated || Number(targetUnit.currentHp ?? targetUnit.hp ?? 0) <= 0);
+  if (effectType === "hpRecover") return Number(targetUnit.currentHp ?? targetUnit.hp ?? 0) < Number(targetUnit.maxHp || targetUnit.stats?.hp || targetUnit.hp || 1);
+  if (effectType === "ppRecover") return Number(targetUnit.currentPp ?? targetUnit.pp ?? 0) < Number(targetUnit.maxPp || targetUnit.stats?.pp || targetUnit.pp || 0);
+  if (effectType === "ammoRecover") return true;
+  return false;
+};
+
+window.useExploreItem = function useExploreItem(itemId, targetUnitId) {
+  const item = window.getUsableExploreItems().find((entry) => entry.itemId === itemId);
+  const target = getMech(targetUnitId);
+  if (!window.canUseExploreItem(item, target)) {
+    addQuestLog("アイテムを使用できません。", "warn");
+    window.renderCurrentScene();
+    return false;
+  }
+  const inventory = typeof window.ensureInventoryState === "function" ? window.ensureInventoryState() : window.GameState.inventory;
+  const power = Number(item.power || 0);
+  const stats = getRuntimeUnitStatsForMachine(target);
+  target.maxHp = Math.max(1, Number(target.maxHp || stats.hp || target.hp || 1));
+  target.maxPp = Math.max(0, Number(target.maxPp || stats.pp || target.pp || 0));
+  const effectType = item.effectType || item.type || "";
+  if (effectType === "revive") {
+    target.isDefeated = false;
+    target.currentHp = Math.min(target.maxHp, Math.max(1, power));
+    target.hp = target.currentHp;
+  } else if (effectType === "hpRecover") {
+    target.currentHp = Math.min(target.maxHp, Number(target.currentHp ?? target.hp ?? target.maxHp) + power);
+    target.hp = target.currentHp;
+  } else if (effectType === "ppRecover") {
+    target.currentPp = Math.min(target.maxPp, Number(target.currentPp ?? target.pp ?? target.maxPp) + power);
+    target.pp = target.currentPp;
+  } else if (effectType === "ammoRecover") {
+    (target.subWeapons || []).forEach((weapon) => {
+      weapon.ammo = weapon.maxAmmo ?? weapon.ammo ?? 0;
+    });
+  }
+  inventory.items[itemId] = Math.max(0, (inventory.items[itemId] || 0) - 1);
+  addQuestLog(`${item.name || itemId}を使用した。`, "good");
+  window.renderCurrentScene();
+  return true;
+};
 
 function renderFuelMeter(quest) {
   const fuelPercent = Math.max(0, Math.min(100, (quest.fuel / quest.maxFuel) * 100));

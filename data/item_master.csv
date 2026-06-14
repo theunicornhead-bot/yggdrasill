@@ -1,0 +1,5 @@
+itemId,name,effectType,power,price,target,description
+repair_kit_s,応急修復キットS,hpRecover,300,120,ally,味方単体のHPを回復
+ether_pack_s,PP補給パックS,ppRecover,20,140,ally,味方単体のPPを回復
+revive_cell_s,再起動セルS,revive,250,360,allyDefeated,戦闘不能の味方を復帰
+ammo_pack_s,弾薬補給パックS,ammoRecover,1,160,ally,サブウェポン残弾を回復

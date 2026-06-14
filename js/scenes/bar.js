@@ -75,7 +75,7 @@ window.generateTavernCandidates = function generateTavernCandidates() {
 
 window.setBarView = function setBarView(view) {
   const state = window.GameState;
-  state.barView = ["home", "hire", "quests", "candidate-detail"].includes(view) ? view : "home";
+  state.barView = ["home", "hire", "rank-up", "quests", "candidate-detail"].includes(view) ? view : "home";
   if (state.barView !== "candidate-detail") state.selectedTavernCandidateId = null;
   window.renderCurrentScene();
 };
@@ -129,6 +129,7 @@ window.renderBar = function renderBar() {
   const viewHtml = {
     home: renderBarHome,
     hire: renderHireView,
+    "rank-up": renderPilotRankUpView,
     quests: renderTavernQuests,
     "candidate-detail": renderCandidateDetail
   }[state.barView]();
@@ -146,6 +147,7 @@ function renderBarHome() {
     </section>
     <section class="tavern-menu">
       <button class="button tavern-menu-button" data-action="bar-view" data-view="hire" type="button">キャラクター雇用</button>
+      <button class="button tavern-menu-button" data-action="bar-view" data-view="rank-up" type="button">ランクアップ</button>
       <button class="button tavern-menu-button" data-action="bar-view" data-view="quests" type="button">クエスト受注</button>
     </section>
     <section class="panel panel-pad">
@@ -154,6 +156,57 @@ function renderBarHome() {
     </section>
   `;
 }
+
+function renderPilotRankUpView() {
+  const pilots = window.GameState.pilots || [];
+  return `
+    <section class="panel panel-pad">
+      <div class="section-head">
+        <h2>ランクアップ</h2>
+        <button class="button" data-action="bar-view" data-view="home" type="button">戻る</button>
+      </div>
+      <div class="compact-list">${pilots.length ? pilots.map(renderPilotRankUpCard).join("") : `<div class="muted">対象パイロットがいません。</div>`}</div>
+    </section>
+  `;
+}
+
+function renderPilotRankUpCard(pilot) {
+  if (typeof window.normalizePilotStatus === "function") window.normalizePilotStatus(pilot);
+  const className = window.getPilotClassDisplayName(pilot.classId);
+  const cap = typeof window.getPilotLevelCap === "function" ? window.getPilotLevelCap(pilot.rank) : 10;
+  const requirement = typeof window.getPilotRankUpRequirement === "function" ? window.getPilotRankUpRequirement(pilot) : { nextRank: null, materials: [], message: "必要素材未設定" };
+  const canRankUp = typeof window.canRankUpPilot === "function" && window.canRankUpPilot(pilot, window.GameState.materials);
+  const requirementText = requirement.materials?.length
+    ? requirement.materials.map((item) => {
+      const material = typeof window.getMaterial === "function" ? window.getMaterial(item.id) : null;
+      const owned = window.GameState.materials?.[item.id] || 0;
+      return `${material?.name || item.id} ${owned}/${item.count}`;
+    }).join(" / ")
+    : (requirement.message || "必要素材未設定");
+  return `
+    <article class="panel panel-pad">
+      <div class="section-head"><h3>${pilot.name || "Pilot"}</h3><span>${className || "-"}</span></div>
+      <div class="compact-list">
+        <div class="material-row"><span>現在Rank</span><strong>${pilot.rank || "-"}</strong></div>
+        <div class="material-row"><span>現在Lv / 上限</span><strong>${pilot.level || 1} / ${cap}</strong></div>
+        <div class="material-row"><span>次Rank</span><strong>${requirement.nextRank || "なし"}</strong></div>
+        <div class="material-row"><span>必要素材</span><strong>${requirementText}</strong></div>
+      </div>
+      <button class="button tavern-wide-action" data-action="rank-up-pilot" data-pilot="${pilot.id}" ${canRankUp ? "" : "disabled"} type="button">ランクアップ</button>
+    </article>
+  `;
+}
+
+window.rankUpPilotById = function rankUpPilotById(pilotId) {
+  const pilot = window.getPilot(pilotId);
+  if (!pilot || typeof window.rankUpPilot !== "function" || !window.rankUpPilot(pilot)) {
+    logMessage("bar", "ランクアップ条件を満たしていません。", "danger");
+    renderCurrentScene();
+    return;
+  }
+  logMessage("bar", `${pilot.name}のP-Rankが${pilot.rank}になりました。`, "good");
+  renderCurrentScene();
+};
 
 function renderHireView() {
   const state = window.GameState;

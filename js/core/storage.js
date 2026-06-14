@@ -10,6 +10,20 @@ function clonePlain(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function ensureInventoryState() {
+  const state = window.GameState;
+  const inventory = state.inventory && typeof state.inventory === "object" ? state.inventory : {};
+  state.inventory = {
+    items: inventory.items && typeof inventory.items === "object" ? inventory.items : {},
+    options: inventory.options && typeof inventory.options === "object" ? inventory.options : {},
+    weapons: inventory.weapons && typeof inventory.weapons === "object" ? inventory.weapons : {},
+    cores: inventory.cores && typeof inventory.cores === "object" ? inventory.cores : {}
+  };
+  return state.inventory;
+}
+
+window.ensureInventoryState = ensureInventoryState;
+
 function canUseLocalStorage() {
   try {
     const key = "__yggdrasil_storage_test__";
@@ -23,6 +37,7 @@ function canUseLocalStorage() {
 
 window.syncPlayerFromRuntimeState = function syncPlayerFromRuntimeState() {
   const state = window.GameState;
+  ensureInventoryState();
   if (!state.player) return;
   state.player.money = state.money;
   state.player.currentFloor = state.quest?.floor || state.exploration?.currentFloor || state.player.currentFloor || 1;
@@ -75,6 +90,7 @@ window.createPlayerSavePayload = function createPlayerSavePayload() {
     selectedPlanetId: state.selectedPlanetId || state.quest?.planetId || null,
     nextMechSerial: state.nextMechSerial || 1,
     materials: clonePlain(state.materials || {}),
+    inventory: clonePlain(ensureInventoryState()),
     market: clonePlain(state.market || { listings: [] }),
     exploration: clonePlain(state.exploration || {}),
     currentScene: state.currentScene || "bar"
@@ -92,6 +108,8 @@ window.applyPlayerSavePayload = function applyPlayerSavePayload(payload) {
   state.selectedPlanetId = payload.selectedPlanetId || state.selectedPlanetId || payload.exploration?.planetId || null;
   state.nextMechSerial = Number(payload.nextMechSerial || state.nextMechSerial || 1);
   state.materials = payload.materials && typeof payload.materials === "object" ? payload.materials : state.materials;
+  state.inventory = payload.inventory && typeof payload.inventory === "object" ? payload.inventory : state.inventory;
+  ensureInventoryState();
   state.market = payload.market && typeof payload.market === "object" ? payload.market : state.market;
   state.exploration = payload.exploration && typeof payload.exploration === "object" ? { ...state.exploration, ...payload.exploration } : state.exploration;
   state.currentScene = typeof payload.currentScene === "string" ? payload.currentScene : state.currentScene;
@@ -105,6 +123,7 @@ window.loadPlayerData = function loadPlayerData() {
   state.storage = { available: canUseLocalStorage(), loaded: false, lastError: "" };
   state.player.createdAt = state.player.createdAt || nowIsoString();
   state.player.updatedAt = state.player.updatedAt || state.player.createdAt;
+  ensureInventoryState();
   if (typeof window.normalizeAllUnitStatuses === "function") window.normalizeAllUnitStatuses();
   syncPlayerFromRuntimeState();
 

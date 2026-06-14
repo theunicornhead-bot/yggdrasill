@@ -9,7 +9,7 @@ function materialCountsForSynthesis() {
 }
 
 window.canAddMech = function canAddMech() {
-  return window.GameState.mechs.length < 4;
+  return window.GameState.mechs.length < 20;
 };
 
 function consumeMaterial(materialId) {
@@ -43,9 +43,12 @@ function setSynthesisStep(step) {
 window.renderSynthesis = function renderSynthesis() {
   const state = window.GameState;
   window.ensureMechGenerationState();
+  state.synthesisTab = ["mech-generate", "mech-enhance", "mech-rank-up", "weapon-generate"].includes(state.synthesisTab) ? state.synthesisTab : "mech-generate";
   const step = getSynthesisStep();
   window.App.root.innerHTML = `
-    ${renderHeader("機体生成", "MECH FORGE")}
+    ${renderHeader("生成", "FORGE")}
+    ${renderSynthesisTabs()}
+    ${state.synthesisTab === "mech-generate" ? `
     <section class="synthesis-vat panel">
       <div class="reticle"></div>
       <div class="vat-label"><span>${stepLabel(step)}</span><span>MATERIAL ${state.synthesisSlots.length} / 5</span></div>
@@ -53,8 +56,85 @@ window.renderSynthesis = function renderSynthesis() {
     ${step === "core" ? renderCoreStep() : ""}
     ${step === "materials" ? renderMaterialsStep() : ""}
     ${step === "result" ? renderResultStep() : ""}
+    ` : ""}
+    ${state.synthesisTab === "mech-enhance" ? renderMachineEnhanceTab() : ""}
+    ${state.synthesisTab === "mech-rank-up" ? renderMachineRankUpTab() : ""}
+    ${state.synthesisTab === "weapon-generate" ? renderWeaponGenerateTab() : ""}
   `;
 };
+
+function renderSynthesisTabs() {
+  const tabs = [
+    ["mech-generate", "機体生成"],
+    ["mech-enhance", "機体強化"],
+    ["mech-rank-up", "機体ランクアップ"],
+    ["weapon-generate", "武器生成"]
+  ];
+  return `<section class="sub-tabs synthesis-tabs">${tabs.map(([tab, label]) => `<button class="button ${window.GameState.synthesisTab === tab ? "active" : ""}" data-action="change-synthesis-tab" data-tab="${tab}" type="button">${label}</button>`).join("")}</section>`;
+}
+
+function renderMachineEnhanceTab() {
+  return `
+    <section class="panel panel-pad">
+      <div class="section-head"><h2>機体強化</h2><span>M-Lv</span></div>
+      <div class="compact-list">${(window.GameState.mechs || []).map(renderMachineEnhanceRow).join("")}</div>
+    </section>
+  `;
+}
+
+function renderMachineEnhanceRow(machine) {
+  if (typeof window.normalizeMachineStatus === "function") window.normalizeMachineStatus(machine);
+  const cap = typeof window.getMachineLevelCap === "function" ? window.getMachineLevelCap(machine.rank) : 10;
+  const canEnhance = typeof window.canEnhanceMachine === "function" ? window.canEnhanceMachine(machine, window.GameState.materials) : machine.level < cap;
+  return `
+    <article class="material-row">
+      <span style="flex:1">${machine.name || "Machine"}<br><span class="muted">RANK ${machine.rank || "-"} / Lv ${machine.level || 1} / ${cap}</span></span>
+      <button class="button" data-action="enhance-machine" data-mech="${machine.id}" ${canEnhance ? "" : "disabled"} type="button">強化</button>
+    </article>
+  `;
+}
+
+function renderMachineRankUpTab() {
+  return `
+    <section class="panel panel-pad">
+      <div class="section-head"><h2>機体ランクアップ</h2><span>再生成予定</span></div>
+      <div class="compact-list">${(window.GameState.mechs || []).map(renderMachineRankUpRow).join("")}</div>
+    </section>
+  `;
+}
+
+function renderMachineRankUpRow(machine) {
+  const requirement = typeof window.getMachineRankUpRequirement === "function" ? window.getMachineRankUpRequirement(machine) : { nextRank: null, coreId: "", message: "必要コア未設定" };
+  const canRankUp = typeof window.canRankUpMachine === "function" && window.canRankUpMachine(machine, window.ensureInventoryState ? window.ensureInventoryState() : {});
+  return `
+    <article class="panel panel-pad">
+      <div class="section-head"><h3>${machine.name || "Machine"}</h3><span>RANK ${machine.rank || "-"}</span></div>
+      <div class="material-row"><span>次Rank</span><strong>${requirement.nextRank || "なし"}</strong></div>
+      <div class="material-row"><span>必要コア</span><strong>${requirement.coreId || requirement.message || "必要コア未設定"}</strong></div>
+      <div class="material-row"><span>見た目</span><strong>再生成予定</strong></div>
+      <button class="button tavern-wide-action" data-action="rank-up-machine" data-mech="${machine.id}" ${canRankUp ? "" : "disabled"} type="button">ランクアップ</button>
+    </article>
+  `;
+}
+
+function renderWeaponGenerateTab() {
+  const weapons = Array.isArray(window.masterData?.weaponMaster) ? window.masterData.weaponMaster.slice(0, 16) : [];
+  return `
+    <section class="panel panel-pad">
+      <div class="section-head"><h2>武器生成</h2><span>${weapons.length ? "候補" : "未実装"}</span></div>
+      <div class="compact-list">${weapons.length ? weapons.map(renderWeaponCandidate).join("") : `<div class="muted">weapon_master.csv が未読込です。武器生成ロジックは後続実装です。</div>`}</div>
+    </section>
+  `;
+}
+
+function renderWeaponCandidate(weapon) {
+  return `
+    <div class="material-row">
+      <span style="flex:1">${weapon.name || weapon.weaponId || "Weapon"}<br><span class="muted">${weapon.weaponType || "-"} / ${weapon.element || "none"} / RANK ${weapon.rank || "-"}</span></span>
+      <button class="button" data-action="generate-weapon" data-weapon="${weapon.weaponId}" type="button">未実装</button>
+    </div>
+  `;
+}
 
 function stepLabel(step) {
   return { core: "STEP 1 CORE SELECT", materials: "STEP 2 MATERIAL SELECT", result: "RESULT" }[step] || "MECH FORGE";
@@ -370,6 +450,92 @@ window.startSynthesisProcess = async function startSynthesisProcess() {
     window.savePlayerData();
     window.renderCurrentScene();
   }
+};
+
+window.setSynthesisTab = function setSynthesisTab(tab) {
+  window.GameState.synthesisTab = ["mech-generate", "mech-enhance", "mech-rank-up", "weapon-generate"].includes(tab) ? tab : "mech-generate";
+  window.renderCurrentScene();
+};
+
+window.getNextMachineRank = function getNextMachineRank(rank) {
+  const ranks = ["N", "R", "SR", "SSR", "UR"];
+  const normalized = typeof window.normalizeMachineRank === "function" ? window.normalizeMachineRank(rank) : String(rank || "N").toUpperCase();
+  const index = ranks.indexOf(normalized);
+  return index >= 0 && index < ranks.length - 1 ? ranks[index + 1] : null;
+};
+
+window.getMachineRankUpRequirement = function getMachineRankUpRequirement(machine) {
+  const nextRank = window.getNextMachineRank(machine?.rank || machine?.rarity);
+  if (!nextRank) return { nextRank: null, coreId: "", message: "最高ランクです。" };
+  return { nextRank, coreId: `core_${nextRank.toLowerCase()}`, message: "" };
+};
+
+window.canRankUpMachine = function canRankUpMachine(machine, inventory) {
+  const requirement = window.getMachineRankUpRequirement(machine);
+  if (!requirement.nextRank || !requirement.coreId) return false;
+  const cores = inventory?.cores || {};
+  return (cores[requirement.coreId] || 0) > 0;
+};
+
+window.rankUpMachine = function rankUpMachine(machine) {
+  const inventory = window.ensureInventoryState ? window.ensureInventoryState() : window.GameState.inventory;
+  if (!window.canRankUpMachine(machine, inventory)) return false;
+  const requirement = window.getMachineRankUpRequirement(machine);
+  inventory.cores[requirement.coreId] = Math.max(0, (inventory.cores[requirement.coreId] || 0) - 1);
+  machine.rank = requirement.nextRank;
+  machine.rarity = requirement.nextRank;
+  machine.optionSlots = typeof window.getOptionSlotCountByRank === "function" ? window.getOptionSlotCountByRank(machine.rank) : machine.optionSlots;
+  machine.optionalSlots = machine.optionSlots;
+  if (typeof window.normalizeMachineStatus === "function") window.normalizeMachineStatus(machine);
+  return true;
+};
+
+window.canEnhanceMachine = function canEnhanceMachine(machine, materials) {
+  if (!machine) return false;
+  const cap = typeof window.getMachineLevelCap === "function" ? window.getMachineLevelCap(machine.rank) : 10;
+  return (machine.level || 1) < cap && Object.values(materials || {}).some((count) => count > 0);
+};
+
+window.enhanceMachine = function enhanceMachine(machine, materials) {
+  if (!window.canEnhanceMachine(machine, materials)) return false;
+  const materialId = Object.keys(materials || {}).find((id) => (materials[id] || 0) > 0);
+  if (!materialId) return false;
+  materials[materialId] -= 1;
+  machine.level = Math.min((typeof window.getMachineLevelCap === "function" ? window.getMachineLevelCap(machine.rank) : 10), (machine.level || 1) + 1);
+  if (typeof window.normalizeMachineStatus === "function") window.normalizeMachineStatus(machine);
+  return true;
+};
+
+window.enhanceMachineById = function enhanceMachineById(machineId) {
+  const machine = getMech(machineId);
+  if (!machine || !window.enhanceMachine(machine, window.GameState.materials)) {
+    logMessage("synthesis", "強化条件を満たしていません。", "danger");
+    renderCurrentScene();
+    return;
+  }
+  logMessage("synthesis", `${machine.name}をLv ${machine.level}に強化しました。`, "good");
+  renderCurrentScene();
+};
+
+window.rankUpMachineById = function rankUpMachineById(machineId) {
+  const machine = getMech(machineId);
+  if (!machine || !window.rankUpMachine(machine)) {
+    logMessage("synthesis", "ランクアップ条件を満たしていません。", "danger");
+    renderCurrentScene();
+    return;
+  }
+  logMessage("synthesis", `${machine.name}がRANK ${machine.rank}になりました。見た目再生成は後続実装です。`, "good");
+  renderCurrentScene();
+};
+
+window.canGenerateWeapon = function canGenerateWeapon() {
+  return false;
+};
+
+window.generateWeapon = function generateWeapon() {
+  logMessage("synthesis", "武器生成ロジックは未実装です。", "warn");
+  renderCurrentScene();
+  return false;
 };
 
 window.App.scenes.synthesis = window.renderSynthesis;

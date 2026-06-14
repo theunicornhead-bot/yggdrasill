@@ -20,6 +20,11 @@ document.addEventListener("click", (event) => {
     window.savePlayerData();
     return;
   }
+  if (event.target.classList?.contains("explore-items-modal-backdrop")) {
+    window.closeExploreItemMenu();
+    window.savePlayerData();
+    return;
+  }
 
   const target = event.target.closest("button, [data-action]");
   if (!target) return;
@@ -40,6 +45,7 @@ document.addEventListener("click", (event) => {
   if (action === "open-tavern-candidate-detail") window.openTavernCandidateDetail(target.dataset.pilot);
   if (action === "accept-tavern-quest") window.acceptTavernQuest(target.dataset.planet);
   if (action === "hire") window.hirePilot(target.dataset.pilot);
+  if (action === "rank-up-pilot") window.rankUpPilotById(target.dataset.pilot);
   if (action === "sell-material") window.sellMaterial(target.dataset.material);
   if (action === "sell-mech") window.sellMech(target.dataset.mech);
   if (action === "change-hangar-tab") {
@@ -78,6 +84,8 @@ document.addEventListener("click", (event) => {
     window.GameState.hangarView = "list";
     window.renderCurrentScene();
   }
+  if (action === "pilot-detail-mode") window.setPilotDetailMode(target.dataset.mode);
+  if (action === "learn-pilot-skill") window.learnPilotSkillById(target.dataset.pilot, target.dataset.skill);
   if (action === "assign-pilot") window.assignPilotToMech(target.dataset.mech, target.dataset.pilot);
   if (action === "unassign-pilot") window.unassignPilotFromMech(target.dataset.mech);
   if (action === "select-mech") {
@@ -98,6 +106,9 @@ document.addEventListener("click", (event) => {
   if (action === "close-mini-map") window.closeMiniMapModal();
   if (action === "open-quest-materials") window.openQuestMaterialsModal();
   if (action === "close-quest-materials") window.closeQuestMaterialsModal();
+  if (action === "open-explore-items") window.openExploreItemMenu();
+  if (action === "close-explore-items") window.closeExploreItemMenu();
+  if (action === "use-explore-item") window.useExploreItem(target.dataset.item, target.dataset.target);
   if (action === "select-planet") window.selectPlanet(target.dataset.planet);
   if (action === "start-selected-planet-quest") window.startSelectedPlanetQuest();
   if (action === "return-base") window.returnBase();
@@ -108,6 +119,10 @@ document.addEventListener("click", (event) => {
   if (action === "battle-run") window.battleCommand("run");
   if (action === "select-synth-material") window.selectSynthMaterial(target.dataset.material);
   if (action === "select-mech-core") window.selectMechCore(target.dataset.core);
+  if (action === "change-synthesis-tab") window.setSynthesisTab(target.dataset.tab);
+  if (action === "enhance-machine") window.enhanceMachineById(target.dataset.mech);
+  if (action === "rank-up-machine") window.rankUpMachineById(target.dataset.mech);
+  if (action === "generate-weapon") window.generateWeapon(target.dataset.weapon);
   if (action === "synthesis-next-step") window.goSynthesisNextStep();
   if (action === "synthesis-prev-step") window.goSynthesisPrevStep();
   if (action === "clear-synth-materials") window.clearSynthMaterials();
@@ -119,6 +134,9 @@ document.addEventListener("click", (event) => {
     const materialId = window.GameState.synthesisSlots[Number(target.dataset.slot)];
     if (materialId) window.selectSynthMaterial(materialId);
   }
+  if (action === "change-market-tab") window.setMarketTab(target.dataset.tab);
+  if (action === "buy-market-item") window.buyMarketItem(target.dataset.item);
+  if (action === "buy-option") window.buyOption(target.dataset.option);
 
   window.savePlayerData();
 });

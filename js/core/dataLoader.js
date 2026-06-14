@@ -113,6 +113,7 @@ const MASTER_CSV_CONFIGS = [
   { masterName: "optionMaster", path: "data/option_master.csv", idKey: "optionId" },
   { masterName: "coreMaster", path: "data/core_master.csv", idKey: "coreId" },
   { masterName: "materialMaster", path: "data/material_master.csv", idKey: "materialId" },
+  { masterName: "itemMaster", path: "data/item_master.csv", idKey: "itemId" },
   { masterName: "pilotClassMaster", path: "data/pilot_class_master.csv", idKey: "classId" },
   { masterName: "pilotGrowthMaster", path: "data/pilot_growth_master.csv", idKey: "growthType" },
   { masterName: "pilotSkillMaster", path: "data/pilot_skill_master.csv", idKey: "skillId" },
@@ -284,6 +285,10 @@ window.getWeaponMaster = function getWeaponMaster(weaponId) {
 
 window.getOptionMaster = function getOptionMaster(optionId) {
   return window.getMasterById("optionMaster", "optionId", optionId);
+};
+
+window.getItemMaster = function getItemMaster(itemId) {
+  return window.getMasterById("itemMaster", "itemId", itemId);
 };
 
 window.getPilotClassMaster = function getPilotClassMaster(classId) {

@@ -25,6 +25,21 @@ window.getPilotMechCompatibility = function getPilotMechCompatibility(pilot, mec
   return { label: "標準", bonusText: "特別な適性なし", matched: false };
 };
 
+const BASE_MECH_IMAGE_PATH = "generated/mechs/basemech_000.png";
+
+function getSafeMechImageId(mech) {
+  const id = mech?.imageId || mech?.id || mech?.baseId || "";
+  return String(id).replace(/[^a-zA-Z0-9_-]/g, "");
+}
+
+window.getMechImagePath = function getMechImagePath(mech) {
+  const explicitPath = String(mech?.imagePath || "").trim();
+  if (explicitPath.includes("generated/mechs/")) return explicitPath;
+  const imageId = getSafeMechImageId(mech);
+  if (imageId) return `generated/mechs/${imageId}.png`;
+  return explicitPath || BASE_MECH_IMAGE_PATH;
+};
+
 window.renderMechImage = function renderMechImage(mech, variant = "card") {
   const variantAliases = { party: "card", list: "card", quest: "icon" };
   const normalizedVariant = variantAliases[variant] || variant;
@@ -36,12 +51,10 @@ window.renderMechImage = function renderMechImage(mech, variant = "card") {
     crop.scale !== undefined ? `--mech-scale:${crop.scale}` : ""
   ].filter(Boolean).join(";");
   const styleAttr = style ? ` style="${style}"` : "";
+  const imagePath = window.getMechImagePath(mech);
+  const altText = mech?.name || "Machine";
 
-  if (!mech?.imagePath) {
-    return `<div class="mech-image mech-image-${safeVariant}"${styleAttr}></div>`;
-  }
-
-  return `<div class="mech-image mech-image-${safeVariant}"${styleAttr}><img src="${mech.imagePath}" alt="${mech.name}"></div>`;
+  return `<div class="mech-image mech-image-${safeVariant}"${styleAttr}><img src="${imagePath}" alt="${altText}" onerror="this.onerror=null;this.src='${BASE_MECH_IMAGE_PATH}'"></div>`;
 };
 
 window.renderHangar = function renderHangar() {
@@ -246,6 +259,7 @@ function renderStoredPilot(pilot) {
 
 function renderPilotDetailView(pilot) {
   if (typeof window.normalizePilotStatus === "function") window.normalizePilotStatus(pilot);
+  const mode = window.GameState.pilotDetailMode === "skill-tree" ? "skill-tree" : "detail";
   const className = window.getPilotClassDisplayName(pilot.classId);
   const classRole = window.getPilotClassRole(pilot.classId);
   const pilotSkills = typeof window.getLearnedPilotSkills === "function" ? window.getLearnedPilotSkills(pilot) : [];
@@ -265,8 +279,16 @@ function renderPilotDetailView(pilot) {
         <h2>${pilot.name}</h2>
         <button class="button" data-action="close-pilot-detail" type="button">戻る</button>
       </div>
+      <div class="sub-tabs" style="margin-bottom:10px">
+        <button class="button ${mode === "detail" ? "active" : ""}" data-action="pilot-detail-mode" data-mode="detail" type="button">詳細</button>
+        <button class="button ${mode === "skill-tree" ? "active" : ""}" data-action="pilot-detail-mode" data-mode="skill-tree" type="button">スキルツリー</button>
+      </div>
+      ${mode === "skill-tree" ? renderPilotSkillTreeView(pilot) : `
       <div class="pilot-detail-layout">
-        <div class="pilot-detail-portrait">${window.renderPilotPortraitImage(pilot, "pilot-portrait--detail")}</div>
+        <div class="pilot-detail-portrait pilot-overlay-anchor pilot-overlay-anchor--pilot-detail">
+          ${assignedMech ? window.renderMechImage(assignedMech, "detail") : ""}
+          ${window.renderPilotPortraitImage(pilot, "pilot-portrait--detail")}
+        </div>
         <div class="compact-list">
           <div class="material-row"><span>P-RANK</span><strong>${pilot.rank}</strong></div>
           <div class="material-row"><span>CLASS</span><strong>${className}</strong></div>
@@ -286,7 +308,39 @@ function renderPilotDetailView(pilot) {
       <div class="material-row"><span>SKILL TREE</span><strong>${formatNumber(learnedClassSkillCount)} / ${formatNumber(classSkillTotal)}</strong></div>
       <div class="section-head" style="margin-top:10px"><h3>next skill</h3></div>
       <div class="material-row"><span>${nextClassSkill ? nextClassSkill.name : "None"}</span><strong>${nextClassSkill ? `LV ${nextClassSkill.learnLevel}` : "-"}</strong></div>
+      `}
     </section>
+  `;
+}
+
+function renderPilotSkillTreeView(pilot) {
+  const skills = typeof window.getPilotSkillTree === "function" ? window.getPilotSkillTree(pilot.classId) : [];
+  const className = window.getPilotClassDisplayName(pilot.classId);
+  return `
+    <div class="material-row"><span>${className || "-"}</span><strong>SP ${formatNumber(pilot.skillPoints || 0)}</strong></div>
+    <div class="compact-list" style="margin-top:8px">${skills.length ? skills.map((skill) => renderPilotSkillTreeCard(pilot, skill)).join("") : `<div class="muted">スキル定義がありません。</div>`}</div>
+  `;
+}
+
+function renderPilotSkillTreeCard(pilot, skill) {
+  const skillId = skill.skillId || skill.id || "";
+  const state = typeof window.getPilotSkillLearnState === "function" ? window.getPilotSkillLearnState(pilot, skill) : { state: "locked", label: "条件不足", reasons: [] };
+  const prerequisiteText = skill.prerequisiteSkillIds?.length ? skill.prerequisiteSkillIds.join(", ") : "なし";
+  const description = skill.description || skill.type || "";
+  const requiredLevel = Number(skill.requiredLevel ?? skill.learnLevel ?? 1);
+  const spCost = Number(skill.spCost ?? skill.cost ?? 1);
+  return `
+    <article class="panel panel-pad skill-tree-card">
+      <div class="section-head"><h3>${skill.name || skillId || "Skill"}</h3><span class="tag">${state.label}</span></div>
+      <p class="muted">${description}</p>
+      <div class="compact-list">
+        <div class="material-row"><span>必要Lv</span><strong>${requiredLevel}</strong></div>
+        <div class="material-row"><span>必要SP</span><strong>${spCost}</strong></div>
+        <div class="material-row"><span>前提スキル</span><strong>${prerequisiteText}</strong></div>
+        <div class="material-row"><span>状態</span><strong>${state.reasons?.length ? state.reasons.join(" / ") : state.label}</strong></div>
+      </div>
+      <button class="button tavern-wide-action" data-action="learn-pilot-skill" data-pilot="${pilot.id}" data-skill="${skillId}" ${state.state === "available" ? "" : "disabled"} type="button">習得</button>
+    </article>
   `;
 }
 
@@ -420,6 +474,22 @@ window.cyclePilot = function cyclePilot(mechId) {
   if (!mech || !state.pilots.length) return;
   const index = state.pilots.findIndex((pilot) => pilot.id === mech.pilotId);
   mech.pilotId = state.pilots[(index + 1) % state.pilots.length].id;
+  renderCurrentScene();
+};
+
+window.setPilotDetailMode = function setPilotDetailMode(mode) {
+  window.GameState.pilotDetailMode = mode === "skill-tree" ? "skill-tree" : "detail";
+  renderCurrentScene();
+};
+
+window.learnPilotSkillById = function learnPilotSkillById(pilotId, skillId) {
+  const pilot = getPilot(pilotId);
+  if (!pilot || typeof window.learnPilotSkill !== "function" || !window.learnPilotSkill(pilot, skillId)) {
+    logMessage("bar", "スキル習得条件を満たしていません。", "danger");
+    renderCurrentScene();
+    return;
+  }
+  logMessage("bar", `${pilot.name}がスキルを習得しました。`, "good");
   renderCurrentScene();
 };
 
