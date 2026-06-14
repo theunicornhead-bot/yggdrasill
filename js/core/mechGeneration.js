@@ -85,37 +85,89 @@ window.MechMaterialCatalog = [
 ];
 
 const CORE_TYPE_MAP = {
-  melee: "Assault",
-  ranged: "Shooter",
-  artillery: "Artillery",
-  defense: "Defender",
-  healer: "Medic",
-  support: "Support",
-  debuff: "Hunter",
+  general: "General",
+  melee: "Melee",
+  ranged: "Ranged",
+  magic: "Magic",
+  supply: "Supply",
+  defense: "Defense",
+  command: "Command",
+  jammer: "Jammer",
   scout: "Scout"
 };
 const CORE_TAG_MAP = {
+  general: "general",
   melee: "melee",
   ranged: "ranged",
   artillery: "ranged",
+  magic: "magic",
+  supply: "supply",
   defense: "defense",
   healer: "supply",
   support: "command",
+  command: "command",
   debuff: "jammer",
+  jammer: "jammer",
   scout: "scout"
 };
 const CORE_WEAPON_TYPE_MAP = {
+  general: "melee",
   melee: "melee",
   ranged: "ranged",
   artillery: "ranged",
+  magic: "magic",
+  supply: "magic",
   defense: "melee",
   healer: "magic",
   support: "ranged",
+  command: "ranged",
   debuff: "magic",
+  jammer: "magic",
   scout: "ranged"
 };
 
 const RARITY_SCORE = { N: 1, R: 2, SR: 3, SSR: 4, UR: 5 };
+const SCORE_RARITY = { 1: "N", 2: "R", 3: "SR", 4: "SSR", 5: "UR" };
+const MACHINE_COMMON_PROMPT = [
+  "full body humanoid bio-organic mecha",
+  "living machine",
+  "grown from monster materials",
+  "bone frame",
+  "chitin armor",
+  "muscle fiber structures",
+  "nerve bundle cables",
+  "bio-reactor core",
+  "organic mechanical design",
+  "dark fantasy sci-fi",
+  "plain industrial hangar",
+  "plain dark hangar background",
+  "dim industrial hangar",
+  "simple maintenance bay",
+  "dark sci-fi garage",
+  "subtle floor lights",
+  "full body",
+  "center composition",
+  "front angle",
+  "high detail",
+  "1024x1024 game asset",
+  "no pilot",
+  "no human",
+  "no text",
+  "no logo",
+  "no UI",
+  "no cockpit",
+  "no green screen",
+  "no chroma key background",
+  "no city background",
+  "no battlefield background"
+];
+const RARITY_PROMPTS = {
+  N: ["low rank machine", "crude organic frame", "thin armor", "unfinished bio-mechanical structure", "dim bio-reactor", "fragile silhouette", "patched shell", "weak appearance"],
+  R: ["stable organic frame", "reinforced armor", "improved reactor", "visible biological adaptation", "balanced combat silhouette"],
+  SR: ["advanced bio-mechanical frame", "specialized combat design", "large organic structures", "enhanced reactor output", "strong biological integration"],
+  SSR: ["elite living machine", "massive organic adaptation", "multiple biological organs", "high-output reactor", "organic and machine perfectly fused"],
+  UR: ["mythic living machine", "overgrown organic evolution", "multiple reactor organs", "massive biological structures", "machine and organism indistinguishable", "apex bio-mechanical weapon"]
+};
 const SIZE_TABLE = [
   { size: "XS", minCost: 0, outputMultiplier: 0.65, stats: { hp: 380, armor: 38, attack: 58, accuracy: 74, evasion: 86, speed: 88, fuelCost: 58, cargo: 22, scan: 70 } },
   { size: "S", minCost: 24, outputMultiplier: 0.85, stats: { hp: 520, armor: 52, attack: 72, accuracy: 78, evasion: 76, speed: 76, fuelCost: 74, cargo: 34, scan: 74 } },
@@ -171,11 +223,11 @@ function outputState(required, limit) {
 
 function aggregateMaterialStats(materials) {
   return materials.reduce((stats, material) => {
-    Object.entries(material.stats || {}).forEach(([key, value]) => {
+    Object.entries(material.stats || material.statEffects || {}).forEach(([key, value]) => {
       stats[key] = (stats[key] || 0) + Number(value || 0);
     });
     return stats;
-  }, { hp: 0, armor: 0, attack: 0, accuracy: 0, evasion: 0, speed: 0, fuelCost: 0, cargo: 0, scan: 0 });
+  }, { hp: 0, pp: 0, sAtk: 0, mAtk: 0, lAtk: 0, sDef: 0, mDef: 0, lDef: 0, speed: 0 });
 }
 
 function applyCategoryModifiers(stats, type) {
@@ -223,26 +275,80 @@ function clampFinalStats(stats) {
   }, {});
 }
 
-function convertGeneratedStatsToUnitStats(stats, category) {
+function calculateGeneratedRarity(core, materials) {
+  const scores = [core, ...materials].map((item) => RARITY_SCORE[item.rarity || item.rank] || 1);
+  const average = Math.floor(scores.reduce((sum, score) => sum + score, 0) / Math.max(1, scores.length));
+  const score = Math.max(1, Math.min(5, average));
+  return { rarity: SCORE_RARITY[score] || "N", score };
+}
+
+function getCoreTag(core) {
+  return CORE_TAG_MAP[core?.tagId || core?.category] || core?.tagId || core?.category || "general";
+}
+
+function getRankPromptParts(rarity) {
+  const rankRow = typeof window.getMasterById === "function"
+    ? window.getMasterById("rankMaster", "rankId", rarity)
+    : null;
+  const csvPrompt = rankRow?.category === "machine" ? rankRow.promptText : "";
+  if (csvPrompt) return csvPrompt.split("|").map((item) => item.trim()).filter(Boolean);
+  return RARITY_PROMPTS[rarity] || RARITY_PROMPTS.N;
+}
+
+function createGeneratedUnitStats(core, materials, rarityScore, tag) {
+  const materialStats = aggregateMaterialStats(materials);
+  const coreStats = core.stats || {};
+  const rarityBase = {
+    hp: 520 + rarityScore * 120,
+    pp: 24 + rarityScore * 6,
+    sAtk: 48 + rarityScore * 12,
+    mAtk: 48 + rarityScore * 12,
+    lAtk: 48 + rarityScore * 12,
+    sDef: 38 + rarityScore * 10,
+    mDef: 38 + rarityScore * 10,
+    lDef: 38 + rarityScore * 10,
+    speed: 42 + rarityScore * 8
+  };
+  const tagBias = {
+    melee: { sAtk: 1.22, sDef: 1.08, speed: 1.04 },
+    ranged: { lAtk: 1.22, lDef: 1.08, speed: 1.03 },
+    magic: { mAtk: 1.24, mDef: 1.12, pp: 1.12 },
+    supply: { pp: 1.18, mDef: 1.12, speed: 1.04 },
+    defense: { hp: 1.2, sDef: 1.2, mDef: 1.1, lDef: 1.16, speed: 0.88 },
+    command: { pp: 1.12, lAtk: 1.1, speed: 1.08 },
+    jammer: { mAtk: 1.14, mDef: 1.08, speed: 1.1 },
+    scout: { speed: 1.28, lAtk: 1.1, hp: 0.9 }
+  }[tag] || {};
+  const keys = Object.keys(rarityBase);
+  return keys.reduce((stats, key) => {
+    const value = (rarityBase[key] || 0) + Number(coreStats[key] || 0) + Number(materialStats[key] || 0);
+    stats[key] = Math.max(key === "hp" ? 1 : 0, Math.round(value * (tagBias[key] || 1)));
+    return stats;
+  }, {});
+}
+
+function convertGeneratedStatsToUnitStats(stats) {
+  if ("sAtk" in stats || "mAtk" in stats || "lAtk" in stats) {
+    return {
+      hp: Math.max(1, Math.round(Number(stats.hp || 0))),
+      pp: Math.max(0, Math.round(Number(stats.pp || 0))),
+      sAtk: Math.max(0, Math.round(Number(stats.sAtk || 0))),
+      mAtk: Math.max(0, Math.round(Number(stats.mAtk || 0))),
+      lAtk: Math.max(0, Math.round(Number(stats.lAtk || 0))),
+      sDef: Math.max(0, Math.round(Number(stats.sDef || 0))),
+      mDef: Math.max(0, Math.round(Number(stats.mDef || 0))),
+      lDef: Math.max(0, Math.round(Number(stats.lDef || 0))),
+      speed: Math.max(0, Math.round(Number(stats.speed || 0)))
+    };
+  }
   const attack = Number(stats.attack || 0);
   const armor = Number(stats.armor || 0);
-  const categoryKey = String(category || "").toLowerCase();
-  const attackBias = {
-    assault: { sAtk: 1.18, mAtk: 0.82, lAtk: 0.9 },
-    shooter: { sAtk: 0.82, mAtk: 0.9, lAtk: 1.18 },
-    artillery: { sAtk: 0.78, mAtk: 1.0, lAtk: 1.25 },
-    defender: { sAtk: 1.0, mAtk: 0.85, lAtk: 0.85 },
-    medic: { sAtk: 0.78, mAtk: 1.12, lAtk: 0.9 },
-    support: { sAtk: 0.85, mAtk: 0.92, lAtk: 1.08 },
-    hunter: { sAtk: 0.82, mAtk: 1.12, lAtk: 1.0 },
-    scout: { sAtk: 0.9, mAtk: 0.85, lAtk: 1.05 }
-  }[categoryKey] || { sAtk: 1, mAtk: 1, lAtk: 1 };
   return {
     hp: Math.max(1, Math.round(Number(stats.hp || 0))),
     pp: Math.max(0, Math.round(30 + Number(stats.scan || 0) * 0.2 - Number(stats.fuelCost || 0) * 0.05)),
-    sAtk: Math.max(0, Math.round(attack * attackBias.sAtk)),
-    mAtk: Math.max(0, Math.round(attack * attackBias.mAtk)),
-    lAtk: Math.max(0, Math.round(attack * attackBias.lAtk)),
+    sAtk: Math.max(0, Math.round(attack)),
+    mAtk: Math.max(0, Math.round(attack)),
+    lAtk: Math.max(0, Math.round(attack)),
     sDef: Math.max(0, Math.round(armor * 1.05)),
     mDef: Math.max(0, Math.round(armor * 0.95)),
     lDef: Math.max(0, Math.round(armor)),
@@ -250,24 +356,31 @@ function convertGeneratedStatsToUnitStats(stats, category) {
   };
 }
 
-window.buildMechVisualPrompt = function buildMechVisualPrompt(core, materials, size, type, stateName) {
+function createLegacyPreviewStats(unitStats) {
+  const attack = Math.max(unitStats.sAtk || 0, unitStats.mAtk || 0, unitStats.lAtk || 0);
+  const armor = Math.max(unitStats.sDef || 0, unitStats.mDef || 0, unitStats.lDef || 0);
+  return {
+    hp: unitStats.hp,
+    attack,
+    armor,
+    accuracy: Math.max(unitStats.lAtk || 0, unitStats.mAtk || 0),
+    evasion: unitStats.speed,
+    speed: unitStats.speed,
+    fuelCost: Math.max(35, Math.round(120 - unitStats.speed * 0.12)),
+    cargo: Math.round(unitStats.hp / 40),
+    scan: Math.max(unitStats.lAtk || 0, unitStats.mAtk || 0)
+  };
+}
+
+window.buildMechVisualPrompt = function buildMechVisualPrompt(core, materials, size, type, stateName, rarity = "N") {
   const promptParts = [
-    "full body original mecha concept art",
+    ...MACHINE_COMMON_PROMPT,
     `${size} size ${type} mech`,
-    "three quarter view",
-    "transparent background",
-    "full body visible",
-    "head fully visible",
-    "feet visible",
-    "extra margin around the entire body",
-    "not cropped",
-    "game asset style",
-    "clean readable silhouette",
-    "no text, no logo, no watermark",
+    ...getRankPromptParts(rarity),
     ...core.prompts,
     ...materials.flatMap((material) => material.prompts)
   ];
-  if (stateName === "overloaded") promptParts.push("overloaded glowing reactor vents", "strained power conduits");
+  if (stateName === "overloaded") promptParts.push("strong biological invasion", "strained power conduits");
   if (stateName === "stable") promptParts.push("balanced reactor glow", "well integrated armor");
   return [...new Set(promptParts)].join(", ");
 };
@@ -277,48 +390,30 @@ window.previewGeneratedMech = function previewGeneratedMech(coreId, materialIds)
   const materials = materialIds.map(window.getMechGenerationMaterial).filter(Boolean);
   if (!core || materials.length < 3 || materials.length > 5) return null;
 
-  const materialStats = aggregateMaterialStats(materials);
   const sizeInfo = chooseGeneratedSize(materials);
-  const rarityScore = Math.round((RARITY_SCORE[core.rarity] || 1) + materials.reduce((sum, material) => sum + (RARITY_SCORE[material.rarity] || 1), 0) / materials.length);
-  const rarityEntry = Object.entries(RARITY_SCORE).find((entry) => entry[1] === Math.min(5, rarityScore));
-  const rarity = rarityEntry ? rarityEntry[0] : "R";
-  const materialOutputCost = materials.reduce((sum, material) => sum + material.outputCost, 0);
-  const type = CORE_TYPE_MAP[core.category] || "Support";
-  const categoryOutputCost = {
-    Assault: 8,
-    Shooter: 6,
-    Artillery: 18,
-    Defender: 14,
-    Medic: 7,
-    Support: 6,
-    Hunter: 9,
-    Scout: 4
-  }[type] || 6;
-  const required = Math.round((48 + materialOutputCost + categoryOutputCost + rarityScore * 4) * sizeInfo.outputMultiplier);
-  const limit = core.outputLimit;
-  const loadRate = required / limit;
-  const stateName = outputState(required, limit);
-  const rarityBonus = {
-    hp: rarityScore * 35,
-    armor: rarityScore * 5,
-    attack: rarityScore * 6,
-    accuracy: rarityScore * 3,
-    evasion: rarityScore * 2,
-    speed: rarityScore * 2,
-    fuelCost: 0,
-    cargo: rarityScore * 3,
-    scan: rarityScore * 3
-  };
-  const sizeAndCategoryStats = applyCategoryModifiers(sizeInfo.stats, type);
-  const stats = clampFinalStats(applyOutputStateModifiers(addStats(addStats(sizeAndCategoryStats, materialStats), rarityBonus), stateName));
+  const rarityResult = calculateGeneratedRarity(core, materials);
+  const rarity = rarityResult.rarity;
+  const rarityScore = rarityResult.score;
+  const tag = getCoreTag(core);
+  const type = CORE_TYPE_MAP[tag] || CORE_TYPE_MAP.general;
+  const materialOutputCost = materials.reduce((sum, material) => sum + Number(material.outputCost || 0), 0);
+  const required = Math.round((materialOutputCost + rarityScore * 12 + materials.length * 8) * sizeInfo.outputMultiplier);
+  const limit = Number(core.outputLimit || 100);
+  const loadRate = required / Math.max(1, limit);
+  const stateName = loadRate <= 0.85 ? "stable" : loadRate <= 1.15 ? "normal" : "overloaded";
+  const unitStats = createGeneratedUnitStats(core, materials, rarityScore, tag);
+  const stats = createLegacyPreviewStats(unitStats);
 
   return {
     core,
     materials,
     rarity,
+    rarityScore,
+    tag,
     size: sizeInfo.size,
     type,
     stats,
+    unitStats,
     output: {
       limit,
       required,
@@ -326,7 +421,7 @@ window.previewGeneratedMech = function previewGeneratedMech(coreId, materialIds)
       loadRate: Number(loadRate.toFixed(2)),
       state: stateName
     },
-    visualPrompt: window.buildMechVisualPrompt(core, materials, sizeInfo.size, type, stateName)
+    visualPrompt: window.buildMechVisualPrompt(core, materials, sizeInfo.size, type, stateName, rarity)
   };
 };
 
@@ -334,7 +429,7 @@ window.createGeneratedMechData = function createGeneratedMechData(preview, mater
   const state = window.GameState;
   const serial = String(state.nextMechSerial || 1).padStart(3, "0");
   state.nextMechSerial = (state.nextMechSerial || 1) + 1;
-  const unitStats = convertGeneratedStatsToUnitStats(preview.stats, preview.type);
+  const unitStats = convertGeneratedStatsToUnitStats(preview.unitStats || preview.stats);
   const optionSlots = typeof window.getOptionSlotCountByRank === "function" ? window.getOptionSlotCountByRank(preview.rarity) : 1;
   const mech = {
     id: `mech_${serial}`,
@@ -346,9 +441,12 @@ window.createGeneratedMechData = function createGeneratedMechData(preview, mater
     type: preview.type,
     coreId: preview.core.id,
     materialIds: [...materialIds],
+    usedCore: preview.core.id,
+    usedMaterials: [...materialIds],
     stats: unitStats,
     legacyStats: preview.stats,
     output: preview.output,
+    prompt: preview.visualPrompt,
     visualPrompt: preview.visualPrompt,
     imagePath: null,
     createdAt: new Date().toISOString(),
@@ -361,9 +459,9 @@ window.createGeneratedMechData = function createGeneratedMechData(preview, mater
       id: `mech_${serial}_main_weapon`,
       name: `${preview.type} Main Weapon`,
       rank: preview.rarity,
-      weaponType: CORE_WEAPON_TYPE_MAP[preview.core.category] || "melee",
+      weaponType: CORE_WEAPON_TYPE_MAP[preview.tag || preview.core.category] || "melee",
       element: "none",
-      power: Math.max(1, Math.round((preview.stats.attack || 1) * 0.65)),
+      power: Math.max(1, Math.round(Math.max(unitStats.sAtk, unitStats.mAtk, unitStats.lAtk) * 0.42)),
       ppCost: 0,
       overdrive: null
     },
@@ -382,7 +480,8 @@ window.createGeneratedMechData = function createGeneratedMechData(preview, mater
     promptTags: preview.materials.flatMap((material) => material.tags || []),
     description: preview.visualPrompt
   };
-  mech.tags = ["general", CORE_TAG_MAP[preview.core.category] || "general"].filter((tag, index, tags) => tag && tags.indexOf(tag) === index);
+  mech.tag = preview.tag || getCoreTag(preview.core);
+  mech.tags = ["general", mech.tag].filter((tag, index, tags) => tag && tags.indexOf(tag) === index);
   if (typeof window.normalizeMachineStatus === "function") window.normalizeMachineStatus(mech);
   return mech;
 };

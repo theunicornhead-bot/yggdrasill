@@ -1,11 +1,11 @@
-rankId,category,displayName,levelCap,order,statMultiplier,description
-D,pilot,D,10,1,0.94,初期パイロットランク
-C,pilot,C,20,2,1,標準パイロットランク
-B,pilot,B,30,3,1.08,熟練パイロットランク
-A,pilot,A,40,4,1.18,上級パイロットランク
-S,pilot,S,50,5,1.3,最高パイロットランク
-N,machine,N,10,1,0.92,通常機体ランク
-R,machine,R,20,2,1,希少機体ランク
-SR,machine,SR,30,3,1.1,高性能機体ランク
-SSR,machine,SSR,40,4,1.23,最上位機体ランク
-UR,machine,UR,50,5,1.38,究極機体ランク
+rankId,category,displayName,levelCap,order,statMultiplier,promptText,description
+D,pilot,D,10,1,0.94,,初期パイロットランク
+C,pilot,C,20,2,1,,標準パイロットランク
+B,pilot,B,30,3,1.08,,熟練パイロットランク
+A,pilot,A,40,4,1.18,,上級パイロットランク
+S,pilot,S,50,5,1.3,,最高パイロットランク
+N,machine,N,10,1,0.92,"low rank machine|crude organic frame|thin armor|unfinished bio-mechanical structure|dim bio-reactor|fragile silhouette|patched shell|weak appearance",通常機体ランク
+R,machine,R,20,2,1,"stable organic frame|reinforced armor|improved reactor|visible biological adaptation|balanced combat silhouette",希少機体ランク
+SR,machine,SR,30,3,1.1,"advanced bio-mechanical frame|specialized combat design|large organic structures|enhanced reactor output|strong biological integration",高性能機体ランク
+SSR,machine,SSR,40,4,1.23,"elite living machine|massive organic adaptation|multiple biological organs|high-output reactor|organic and machine perfectly fused",最上位機体ランク
+UR,machine,UR,50,5,1.38,"mythic living machine|overgrown organic evolution|multiple reactor organs|massive biological structures|machine and organism indistinguishable|apex bio-mechanical weapon",究極機体ランク

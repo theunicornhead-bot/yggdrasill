@@ -155,16 +155,69 @@ function splitMasterList(value) {
   return String(value || "").split("|").map((item) => item.trim()).filter(Boolean);
 }
 
+function parseMasterStatEffects(value) {
+  if (!value) return {};
+  return String(value).split(/[;|]/).reduce((stats, pair) => {
+    const [rawKey, rawValue] = pair.split(":");
+    const key = String(rawKey || "").trim();
+    if (!key) return stats;
+    stats[key] = Number(String(rawValue || "0").trim() || 0);
+    return stats;
+  }, {});
+}
+
 function applyCsvMastersToRuntime(masterData) {
   if (Array.isArray(masterData.materialMaster) && masterData.materialMaster.length) {
     window.MaterialCatalog = masterData.materialMaster.map((item) => ({
       id: item.materialId,
       name: item.name,
-      rank: item.rank,
+      rank: item.rank || item.rarity,
       value: Number(item.value || 0),
       category: item.category,
-      prompts: splitMasterList(item.prompts),
+      prompts: splitMasterList(item.prompts || item.promptText),
       description: item.description || item.name
+    }));
+    if (Array.isArray(window.MechMaterialCatalog)) {
+      window.MechMaterialCatalog = masterData.materialMaster.map((item) => ({
+        id: item.materialId,
+        name: item.name,
+        rarity: item.rarity || item.rank || "N",
+        rank: item.rarity || item.rank || "N",
+        category: item.category || "organ",
+        stats: parseMasterStatEffects(item.statEffects),
+        statEffects: parseMasterStatEffects(item.statEffects),
+        outputCost: Math.max(1, Math.round(Number(item.value || 0) / 10)),
+        tags: [item.category].filter(Boolean),
+        prompts: splitMasterList(item.promptText || item.prompts),
+        promptText: item.promptText || item.prompts || "",
+        description: item.description || item.name
+      }));
+    }
+  }
+  if (Array.isArray(masterData.coreMaster) && masterData.coreMaster.length && Array.isArray(window.MechCoreCatalog)) {
+    window.MechCoreCatalog = masterData.coreMaster.map((item) => ({
+      id: item.coreId,
+      name: item.name || item.coreId,
+      rarity: item.rarity || item.rank || "N",
+      rank: item.rarity || item.rank || "N",
+      category: item.tagId || item.tagAdd || "general",
+      tagId: item.tagId || item.tagAdd || "general",
+      outputLimit: Number(item.outputLimit || 100),
+      prompts: splitMasterList(item.promptText || item.prompts),
+      promptText: item.promptText || item.prompts || "",
+      stats: {
+        hp: Number(item.hp || 0),
+        pp: Number(item.pp || 0),
+        sAtk: Number(item.sAtk || 0),
+        mAtk: Number(item.mAtk || 0),
+        lAtk: Number(item.lAtk || 0),
+        sDef: Number(item.sDef || 0),
+        mDef: Number(item.mDef || 0),
+        lDef: Number(item.lDef || 0),
+        speed: Number(item.speed || 0)
+      },
+      price: Number(item.price || 0),
+      description: item.description || item.name || item.coreId
     }));
   }
   if (Array.isArray(masterData.enemyMaster) && masterData.enemyMaster.length) {

@@ -318,21 +318,24 @@ function selectedMaterialHtml(material) {
 }
 
 function previewHtml(preview) {
+  const stats = preview.unitStats || {};
   return `
+    <div class="stat-row"><span>RANK</span><strong>${preview.rarity || "N"}</strong></div>
+    <div class="stat-row"><span>TAG</span><strong>${preview.tag || "general"}</strong></div>
     <div class="stat-row"><span>カテゴリ</span><strong>${preview.type}</strong></div>
     <div class="stat-row"><span>サイズ</span><strong>${preview.size}</strong></div>
     <div class="stat-row"><span>必要出力</span><strong>${preview.output.required} / ${preview.output.limit}</strong></div>
     <div class="stat-row"><span>余剰出力</span><strong>${preview.output.margin}</strong></div>
     <div class="stat-row"><span>負荷率</span><strong>${Math.round(preview.output.loadRate * 100)}%</strong></div>
-    <div class="stat-row"><span>HP</span><strong>${preview.stats.hp}</strong></div>
-    <div class="stat-row"><span>ATK</span><strong>${preview.stats.attack}</strong></div>
-    <div class="stat-row"><span>DEF</span><strong>${preview.stats.armor}</strong></div>
-    <div class="stat-row"><span>ACCURACY</span><strong>${preview.stats.accuracy}</strong></div>
-    <div class="stat-row"><span>EVASION</span><strong>${preview.stats.evasion}</strong></div>
-    <div class="stat-row"><span>SPEED</span><strong>${preview.stats.speed}</strong></div>
-    <div class="stat-row"><span>FUEL COST</span><strong>${preview.stats.fuelCost}</strong></div>
-    <div class="stat-row"><span>CARGO</span><strong>${preview.stats.cargo}</strong></div>
-    <div class="stat-row"><span>SCAN</span><strong>${preview.stats.scan}</strong></div>
+    <div class="stat-row"><span>HP</span><strong>${stats.hp || 0}</strong></div>
+    <div class="stat-row"><span>PP</span><strong>${stats.pp || 0}</strong></div>
+    <div class="stat-row"><span>S-ATK</span><strong>${stats.sAtk || 0}</strong></div>
+    <div class="stat-row"><span>M-ATK</span><strong>${stats.mAtk || 0}</strong></div>
+    <div class="stat-row"><span>L-ATK</span><strong>${stats.lAtk || 0}</strong></div>
+    <div class="stat-row"><span>S-DEF</span><strong>${stats.sDef || 0}</strong></div>
+    <div class="stat-row"><span>M-DEF</span><strong>${stats.mDef || 0}</strong></div>
+    <div class="stat-row"><span>L-DEF</span><strong>${stats.lDef || 0}</strong></div>
+    <div class="stat-row"><span>SPEED</span><strong>${stats.speed || 0}</strong></div>
     <div class="section-head" style="margin-top:10px"><h3>visualPrompt</h3></div>
     <div class="prompt-box">${preview.visualPrompt}</div>
   `;
