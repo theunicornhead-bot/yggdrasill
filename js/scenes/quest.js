@@ -254,7 +254,7 @@ window.renderQuest = function renderQuest() {
     ${renderQuestCommands()}
     <section class="explore-lower">
       <div class="panel panel-pad quest-party-panel">
-        <div class="party-list quest-party-grid">${state.mechs.map(renderPartyUnit).join("")}</div>
+        <div class="party-list quest-party-grid">${state.mechs.slice(0, 4).map(renderPartyUnit).join("")}</div>
       </div>
     </section>
     ${renderMiniMapModal()}
@@ -347,6 +347,7 @@ function renderPlanetSelect() {
         <div class="material-row"><span>推奨ランク</span><strong>${selectedPlanet.recommendedRank}</strong></div>
         <p class="muted">${selectedPlanet.description}</p>
       </div>
+      ${state.quest?.startError ? `<div class="log-line log-danger">${state.quest.startError}</div>` : ""}
       <button class="button planet-start-button" data-action="start-selected-planet-quest" ${unlocked ? "" : "disabled"}>探索開始</button>
     </section>
   `;
@@ -378,10 +379,38 @@ window.selectPlanet = function selectPlanet(planetId) {
   window.renderCurrentScene();
 };
 
+window.getSortieUnits = function getSortieUnits() {
+  return (window.GameState.mechs || []).slice(0, 4);
+};
+
+window.validateSortieParty = function validateSortieParty() {
+  const state = window.GameState;
+  const units = window.getSortieUnits();
+  if (!units.length) {
+    if (state.quest) state.quest.startError = "出撃可能な機体がありません。";
+    logMessage("bar", "出撃可能な機体がありません。", "danger");
+    return false;
+  }
+  const unassigned = units.filter((mech) => !getPilot(mech.pilotId));
+  if (unassigned.length) {
+    const names = unassigned.map((mech) => mech.name || "名称未設定").join(" / ");
+    const message = `${names} にパイロットが未搭乗です。`;
+    if (state.quest) state.quest.startError = message;
+    logMessage("bar", message, "danger");
+    return false;
+  }
+  if (state.quest) state.quest.startError = "";
+  return true;
+};
+
 window.startSelectedPlanetQuest = function startSelectedPlanetQuest() {
   const state = window.GameState;
   const planet = window.getPlanetById(state.quest?.selectedPlanetId || state.selectedPlanetId);
-  if (!planet || !window.isPlanetUnlocked(planet)) return;
+  if (!planet || !window.isPlanetUnlocked(planet)) return false;
+  if (!window.validateSortieParty()) {
+    window.renderCurrentScene();
+    return false;
+  }
   state.selectedPlanetId = planet.id;
   if (state.quest) {
     state.quest.selectedPlanetId = planet.id;
@@ -393,6 +422,7 @@ window.startSelectedPlanetQuest = function startSelectedPlanetQuest() {
   }
   window.generateDungeonFloor(1, planet.id);
   window.renderCurrentScene();
+  return true;
 };
 window.renderCockpitView = function renderCockpitView() {
   const quest = window.GameState.quest;

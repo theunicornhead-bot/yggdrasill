@@ -162,7 +162,7 @@ window.createMechFromMaster = function createMechFromMaster(mechMasterId) {
   const unique = String(master.unique) === "true";
   const customizable = String(master.customizable) === "true";
   const hp = Number(master.hp);
-  return {
+  const mech = {
     id: `mech_${serial}`,
     baseId: master.mech_id,
     name: master.mech_name,
@@ -176,6 +176,14 @@ window.createMechFromMaster = function createMechFromMaster(mechMasterId) {
     atk: Number(master.atk),
     def: Number(master.def),
     mobility: Number(master.mobility),
+    mainWeapon: {
+      id: `${master.mech_id}_main_weapon`,
+      name: `${master.mech_name} Main Weapon`,
+      weaponType: master.type === "scout" ? "ranged" : master.type === "guard" ? "melee" : "melee",
+      power: Number(master.atk),
+      ppCost: 0
+    },
+    options: [],
     fuelCostRate: Number(master.fuel_cost_rate),
     slotCounts: {
       weapon: Number(master.slot_weapon),
@@ -183,6 +191,7 @@ window.createMechFromMaster = function createMechFromMaster(mechMasterId) {
       core: Number(master.slot_core),
       option: Number(master.slot_option)
     },
+    optionalSlots: Number(master.slot_option),
     traits: [],
     parts: { weapon: null, armor: null, core: null, option: null },
     overdriveId: master.overdrive_id || null,
@@ -192,6 +201,8 @@ window.createMechFromMaster = function createMechFromMaster(mechMasterId) {
     promptTags: [],
     description: master.description
   };
+  if (typeof window.normalizeMachineStatus === "function") window.normalizeMachineStatus(mech);
+  return mech;
 };
 
 window.initializeStartingMechs = function initializeStartingMechs() {
@@ -201,5 +212,6 @@ window.initializeStartingMechs = function initializeStartingMechs() {
   const first = createMechFromMaster("frame_s_001");
   const second = createMechFromMaster("frame_m_001");
   state.mechs = [first, second].filter(Boolean);
+  if (typeof window.normalizeAllUnitStatuses === "function") window.normalizeAllUnitStatuses();
   state.selectedMechId = state.mechs[0]?.id || null;
 };

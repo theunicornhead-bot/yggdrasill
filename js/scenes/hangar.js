@@ -6,19 +6,20 @@ function slotLabel(slot) {
 
 window.getPilotMechCompatibility = function getPilotMechCompatibility(pilot, mech) {
   if (!pilot || !mech) return { label: "未搭乗", bonusText: "パイロット未設定", matched: false };
-  if (pilot.traitId === "large_specialist" && (mech.size === "L" || mech.size === "XL")) {
+  const hasTrait = typeof window.hasPilotTraitSkill === "function" ? (traitId) => window.hasPilotTraitSkill(pilot, traitId) : (traitId) => pilot.traitId === traitId;
+  if (hasTrait("large_specialist") && (mech.size === "L" || mech.size === "XL")) {
     return { label: "大型適性", bonusText: "大型機性能 +", matched: true };
   }
-  if (pilot.traitId === "medium_specialist" && mech.size === "M") {
+  if (hasTrait("medium_specialist") && mech.size === "M") {
     return { label: "中型適性", bonusText: "中型機性能 +", matched: true };
   }
-  if (pilot.traitId === "small_specialist" && mech.size === "S") {
+  if (hasTrait("small_specialist") && mech.size === "S") {
     return { label: "小型適性", bonusText: "小型機性能 +", matched: true };
   }
-  if (pilot.traitId === "fuel_saver") {
+  if (hasTrait("fuel_saver")) {
     return { label: "燃費補助", bonusText: "探索燃料消費を補助", matched: true };
   }
-  if (pilot.traitId === "lucky") {
+  if (hasTrait("lucky")) {
     return { label: "探索向き", bonusText: "素材発見に期待", matched: true };
   }
   return { label: "標準", bonusText: "特別な適性なし", matched: false };
@@ -73,7 +74,7 @@ window.renderHangar = function renderHangar() {
       `}
     ` : ""}
     ${state.hangarTab === "mechs" ? `
-      ${state.hangarView === "mech-detail" && selected ? renderMechDetail(selected) : `
+      ${state.hangarView === "mech-detail" && selected ? renderMechDetailV2(selected) : `
         <section class="panel panel-pad">
           <div class="section-head"><h2>所持機体一覧</h2><span>${state.mechs.length} / 4</span></div>
           <div class="mech-list">${state.mechs.map((mech, index) => renderMechCard(mech, index)).join("")}</div>
@@ -100,6 +101,10 @@ function renderMechCard(mech, index) {
   const pilot = displayPilot(mech.pilotId);
   const realPilot = getPilot(mech.pilotId);
   const salePrice = getMechSalePrice(mech);
+  if (typeof window.normalizeMachineStatus === "function") window.normalizeMachineStatus(mech);
+  const unitStats = typeof window.calculateUnitStats === "function" ? window.calculateUnitStats(realPilot || null, mech) : (mech.stats || {});
+  const mainWeapon = typeof window.getMainWeapon === "function" ? window.getMainWeapon(mech) : mech.mainWeapon;
+  const attackPower = typeof window.calculateWeaponAttackPower === "function" ? window.calculateWeaponAttackPower(realPilot || null, mech, mainWeapon) : Math.max(unitStats.sAtk || 0, unitStats.mAtk || 0, unitStats.lAtk || 0);
   return `
     <article class="mech-card panel ${window.GameState.selectedMechId === mech.id ? "selected" : ""}">
       <div class="section-head"><h3>${String(index + 1).padStart(2, "0")} ${mech.name}</h3><span class="tag">${mech.size}</span></div>
@@ -108,14 +113,14 @@ function renderMechCard(mech, index) {
         ${realPilot ? window.renderPilotPortraitImage(realPilot, "pilot-portrait--hangar") : ""}
       </div>
       <div class="tag-row">
-        <span class="tag">${mech.type || "hybrid"}</span>
+        ${renderMachineTags(mech)}
         <span class="tag">RANK ${mech.rank || mech.rarity || "-"}</span>
       </div>
       <div>HP ${formatNumber(mech.hp)} / ${formatNumber(mech.maxHp)}</div>
-      <div class="bar" style="--value:${(mech.hp / mech.maxHp) * 100}%"><span></span></div>
-      <div class="stat-row"><span>ATK</span><strong>${mech.atk}</strong></div>
-      <div class="stat-row"><span>DEF</span><strong>${mech.def}</strong></div>
-      <div class="stat-row"><span>MOBILITY</span><strong>${mech.mobility}</strong></div>
+      <div class="bar" style="--value:${Math.max(0, (mech.hp / Math.max(1, mech.maxHp)) * 100)}%"><span></span></div>
+      <div class="stat-row"><span>MAIN</span><strong>${mainWeapon?.name || "なし"}</strong></div>
+      <div class="stat-row"><span>POWER</span><strong>${formatNumber(attackPower)}</strong></div>
+      <div class="stat-row"><span>SPEED</span><strong>${formatNumber(unitStats.speed || 0)}</strong></div>
       <div class="material-row"><span>搭乗者</span><strong>${pilot.name}</strong></div>
       <button class="button" data-action="open-mech-detail" data-mech="${mech.id}" style="width:100%">詳細</button>
       <button class="button danger" data-action="sell-mech" data-mech="${mech.id}" ${canSellMech(mech.id) ? "" : "disabled"} style="width:100%;margin-top:6px">売却 ${formatNumber(salePrice)} G</button>
@@ -123,12 +128,14 @@ function renderMechCard(mech, index) {
   `;
 }
 
-function renderMechDetail(mech) {
+function renderMechDetailV2(mech) {
   const pilot = displayPilot(mech.pilotId);
   const realPilot = getPilot(mech.pilotId);
-  const overdrive = getOverdriveById(mech.overdriveId);
-  const compatibility = realPilot ? getPilotMechCompatibility(realPilot, mech) : null;
-  const traitTags = (mech.traits && mech.traits.length ? mech.traits : ["特性なし"]).map((trait) => `<span class="tag">${trait}</span>`).join("");
+  if (typeof window.normalizeMachineStatus === "function") window.normalizeMachineStatus(mech);
+  const unitStats = typeof window.calculateUnitStats === "function" ? window.calculateUnitStats(realPilot || null, mech) : {};
+  const mainWeapon = typeof window.getMainWeapon === "function" ? window.getMainWeapon(mech) : (mech.mainWeapon || null);
+  const pilotName = realPilot ? pilot.name : "パイロット未搭乗";
+  const pilotRank = realPilot ? `RANK ${pilot.rank || "-"}` : "なし";
   return `
     <div class="panel panel-pad">
       <div class="section-head">
@@ -136,38 +143,42 @@ function renderMechDetail(mech) {
         <button class="button" data-action="close-mech-detail" type="button">戻る</button>
       </div>
       <div class="muted">${mech.unique ? "固有機体" : "通常機体"} / ${mech.customizable ? "カスタム可" : "カスタム不可"}</div>
-      <h3>${mech.name}</h3>
+      <h3>${mech.name || "Machine"}</h3>
       <div class="pilot-overlay-anchor pilot-overlay-anchor--hangar-detail">
         ${window.renderMechImage(mech, "detail")}
         ${realPilot ? window.renderPilotPortraitImage(realPilot, "pilot-portrait--hangar") : ""}
       </div>
       <div class="tag-row">
-        <span class="tag">SIZE ${mech.size}</span>
-        <span class="tag">${mech.type || "-"}</span>
+        <span class="tag">SIZE ${mech.size || "-"}</span>
         <span class="tag">RANK ${mech.rank || mech.rarity || "-"}</span>
       </div>
-      <div class="stat-row"><span>HP</span><strong>${formatNumber(mech.hp)} / ${formatNumber(mech.maxHp)}</strong></div>
-      <div class="stat-row"><span>ATK</span><strong>${mech.atk}</strong></div>
-      <div class="stat-row"><span>DEF</span><strong>${mech.def}</strong></div>
-      <div class="stat-row"><span>MOBILITY</span><strong>${mech.mobility}</strong></div>
-      <div class="stat-row"><span>fuelCostRate</span><strong>${Number(mech.fuelCostRate).toFixed(1)}</strong></div>
-      ${renderGeneratedStatRows(mech)}
-      ${renderOutputRows(mech)}
-      <div class="section-head" style="margin-top:10px"><h3>traits</h3></div>
-      <div class="tag-row">${traitTags}</div>
-      <div class="section-head" style="margin-top:10px"><h3>overdrive</h3></div>
-      <div class="material-row"><span>${overdrive ? overdrive.overdrive_name : "なし"}</span><strong>${overdrive ? `燃料 ${overdrive.fuel_cost}` : "-"}</strong></div>
       <div class="section-head" style="margin-top:10px"><h3>搭乗パイロット</h3></div>
-      <div class="material-row"><span>${pilot.name}</span><strong>RANK ${pilot.rank}</strong></div>
-      ${compatibility ? `<div class="material-row"><span>${compatibility.label}</span><strong>${compatibility.bonusText}</strong></div>` : ""}
-      <div class="section-head" style="margin-top:10px"><h3>パーツスロット</h3></div>
-      <div class="compact-list">${renderPartSlots(mech)}</div>
+      <div class="material-row"><span>${pilotName}</span><strong>${pilotRank}</strong></div>
+      ${renderMachineCompatibilityRows(realPilot, mech)}
+      <div class="section-head" style="margin-top:10px"><h3>UNIT STATUS</h3></div>
+      <div class="compact-list">${renderUnitStatRows(unitStats)}</div>
+      <div class="section-head" style="margin-top:10px"><h3>MAIN WEAPON</h3></div>
+      <div class="compact-list">${renderMainWeaponRows(mainWeapon)}</div>
+      <div class="section-head" style="margin-top:10px"><h3>OPTIONS</h3></div>
+      <div class="compact-list">${renderMachineOptions(mech)}</div>
+      <div class="section-head" style="margin-top:10px"><h3>TAGS</h3></div>
+      <div class="tag-row">${renderMachineTags(mech)}</div>
       <div class="section-head" style="margin-top:10px"><h3>売却</h3></div>
       <div class="material-row"><span>売却価格</span><strong>${formatNumber(getMechSalePrice(mech))} G</strong></div>
       <button class="button danger" data-action="sell-mech" data-mech="${mech.id}" ${canSellMech(mech.id) ? "" : "disabled"} style="width:100%;margin-top:8px">この機体を売却</button>
       <p class="muted">${mech.description || ""}</p>
     </div>
   `;
+}
+
+function renderMachineCompatibilityRows(pilot, mech) {
+  if (!pilot || !mech) return "";
+  const tagMultiplier = typeof window.getMachineTagCompatibilityMultiplier === "function" ? window.getMachineTagCompatibilityMultiplier(pilot, mech) : 1;
+  const rankMultiplier = typeof window.getRankCompatibilityMultiplier === "function" ? window.getRankCompatibilityMultiplier(pilot, mech) : 1;
+  const rows = [];
+  if (tagMultiplier !== 1) rows.push(`<div class="material-row"><span>タグ相性</span><strong>x${tagMultiplier.toFixed(1)}</strong></div>`);
+  if (rankMultiplier !== 1) rows.push(`<div class="material-row"><span>ランク差補正</span><strong>x${rankMultiplier.toFixed(2)}</strong></div>`);
+  return rows.length ? `<div class="compact-list" style="margin-top:6px">${rows.join("")}</div>` : "";
 }
 
 function getMechSalePrice(mech) {
@@ -205,28 +216,6 @@ window.sellMech = function sellMech(mechId) {
   renderCurrentScene();
 };
 
-function renderGeneratedStatRows(mech) {
-  if (!mech.stats) return "";
-  return `
-    <div class="stat-row"><span>ACCURACY</span><strong>${mech.stats.accuracy}</strong></div>
-    <div class="stat-row"><span>EVASION</span><strong>${mech.stats.evasion}</strong></div>
-    <div class="stat-row"><span>SPEED</span><strong>${mech.stats.speed}</strong></div>
-    <div class="stat-row"><span>FUEL COST</span><strong>${mech.stats.fuelCost}</strong></div>
-    <div class="stat-row"><span>CARGO</span><strong>${mech.stats.cargo}</strong></div>
-    <div class="stat-row"><span>SCAN</span><strong>${mech.stats.scan}</strong></div>
-  `;
-}
-
-function renderOutputRows(mech) {
-  if (!mech.output) return "";
-  return `
-    <div class="section-head" style="margin-top:10px"><h3>output</h3></div>
-    <div class="stat-row"><span>STATE</span><strong>${mech.output.state}</strong></div>
-    <div class="stat-row"><span>LIMIT / REQUIRED</span><strong>${mech.output.limit} / ${mech.output.required}</strong></div>
-    <div class="stat-row"><span>MARGIN</span><strong>${mech.output.margin}</strong></div>
-  `;
-}
-
 function renderMechThumb(mech) {
   return window.renderMechImage(mech, "card");
 }
@@ -240,7 +229,8 @@ function renderPartSlots(mech) {
 }
 
 function renderStoredPilot(pilot) {
-  const traitMaster = getTraitById(pilot.traitId) || { trait_name: pilot.traitId };
+  if (typeof window.normalizePilotStatus === "function") window.normalizePilotStatus(pilot);
+  const pilotSkills = typeof window.getLearnedPilotSkills === "function" ? window.getLearnedPilotSkills(pilot) : [];
   const className = window.getPilotClassDisplayName(pilot.classId);
   return `
     <button class="storage-card pilot-storage-card panel" data-action="open-pilot-detail" data-pilot="${pilot.id}" type="button">
@@ -248,17 +238,26 @@ function renderStoredPilot(pilot) {
       <strong>${pilot.name}</strong><br>
       <span class="muted">RANK ${pilot.rank}</span><br>
       <span class="muted">${className}</span><br>
-      <span class="muted">${traitMaster.trait_name} ${pilot.traitRank || ""}</span>
+      <span class="muted">${pilotSkills[0]?.name || "No skills"}</span>
     </button>
   `;
 }
 
 function renderPilotDetailView(pilot) {
-  const traitMaster = getTraitById(pilot.traitId) || { trait_name: pilot.traitId };
+  if (typeof window.normalizePilotStatus === "function") window.normalizePilotStatus(pilot);
   const className = window.getPilotClassDisplayName(pilot.classId);
   const classRole = window.getPilotClassRole(pilot.classId);
-  const skills = pilot.learnedSkills.map((id) => window.GameState.masters.skills.find((item) => item.skill_id === id)?.skill_name || id);
+  const pilotSkills = typeof window.getLearnedPilotSkills === "function" ? window.getLearnedPilotSkills(pilot) : [];
+  const skillTags = pilotSkills.map((skill) => skill.name);
+  const skills = skillTags;
+  const nextClassSkill = typeof window.getNextClassSkill === "function" ? window.getNextClassSkill(pilot) : null;
   const assignedMech = window.GameState.mechs.find((mech) => mech.pilotId === pilot.id);
+  const stats = pilot.stats || {};
+  const levelCap = typeof window.getPilotLevelCap === "function" ? window.getPilotLevelCap(pilot.rank) : 50;
+  const classId = typeof window.normalizePilotClassId === "function" ? window.normalizePilotClassId(pilot.classId) : pilot.classId;
+  const classSkillTotal = Array.isArray(window.ClassSkillMaster) ? window.ClassSkillMaster.filter((skill) => skill.classId === classId).length : 0;
+  const learnedClassSkillCount = typeof window.getLearnedClassSkills === "function" ? window.getLearnedClassSkills(pilot).length : 0;
+  const rankMultiplier = assignedMech && typeof window.getRankCompatibilityMultiplier === "function" ? window.getRankCompatibilityMultiplier(pilot, assignedMech) : 1;
   return `
     <section class="panel panel-pad pilot-detail-panel">
       <div class="section-head">
@@ -268,16 +267,24 @@ function renderPilotDetailView(pilot) {
       <div class="pilot-detail-layout">
         <div class="pilot-detail-portrait">${window.renderPilotPortraitImage(pilot, "pilot-portrait--detail")}</div>
         <div class="compact-list">
-          <div class="material-row"><span>RANK</span><strong>${pilot.rank}</strong></div>
+          <div class="material-row"><span>P-RANK</span><strong>${pilot.rank}</strong></div>
           <div class="material-row"><span>CLASS</span><strong>${className}</strong></div>
           <div class="material-row"><span>ROLE</span><strong>${classRole || "-"}</strong></div>
-          <div class="material-row"><span>LEVEL</span><strong>${pilot.level || 1}</strong></div>
-          <div class="material-row"><span>TRAIT</span><strong>${traitMaster.trait_name} ${pilot.traitRank || ""}</strong></div>
+          <div class="material-row"><span>P-LV</span><strong>${pilot.level || 1} / ${levelCap}</strong></div>
+          <div class="material-row"><span>EXP</span><strong>${formatNumber(pilot.exp || 0)} / ${formatNumber(pilot.nextExp || 0)}</strong></div>
+          <div class="material-row"><span>SP</span><strong>${formatNumber(pilot.skillPoints || 0)}</strong></div>
+          <div class="material-row"><span>GROWTH</span><strong>${typeof window.getGrowthTypeLabel === "function" ? window.getGrowthTypeLabel(pilot.growthType) : pilot.growthType || "-"}</strong></div>
           <div class="material-row"><span>MECH</span><strong>${assignedMech?.name || "未搭乗"}</strong></div>
+          <div class="material-row"><span>RANK PENALTY</span><strong>${assignedMech ? `x${rankMultiplier.toFixed(2)}` : "なし"}</strong></div>
         </div>
       </div>
+      <div class="section-head" style="margin-top:10px"><h3>status</h3></div>
+      <div class="compact-list">${renderUnitStatRows(stats)}</div>
       <div class="section-head" style="margin-top:10px"><h3>skills</h3></div>
       <div class="tag-row">${skills.length ? skills.map((skill) => `<span class="tag">${skill}</span>`).join("") : `<span class="tag">初期スキルなし</span>`}</div>
+      <div class="material-row"><span>SKILL TREE</span><strong>${formatNumber(learnedClassSkillCount)} / ${formatNumber(classSkillTotal)}</strong></div>
+      <div class="section-head" style="margin-top:10px"><h3>next skill</h3></div>
+      <div class="material-row"><span>${nextClassSkill ? nextClassSkill.name : "None"}</span><strong>${nextClassSkill ? `LV ${nextClassSkill.learnLevel}` : "-"}</strong></div>
     </section>
   `;
 }
@@ -310,6 +317,41 @@ function renderPartySlot(mech, index) {
       </div>
     </article>
   `;
+}
+
+function renderUnitStatRows(stats) {
+  const labels = { hp: "HP", pp: "PP", sAtk: "S-ATK", mAtk: "M-ATK", lAtk: "L-ATK", sDef: "S-DEF", mDef: "M-DEF", lDef: "L-DEF", speed: "SPEED" };
+  return Object.entries(labels).map(([key, label]) => `<div class="material-row"><span>${label}</span><strong>${formatNumber(stats[key] || 0)}</strong></div>`).join("");
+}
+
+function weaponTypeLabel(weaponType) {
+  const normalized = typeof window.normalizeWeaponType === "function" ? window.normalizeWeaponType(weaponType) : String(weaponType || "melee");
+  return { melee: "近接", ranged: "遠距離", magic: "魔法" }[normalized] || "近接";
+}
+
+function renderMainWeaponRows(weapon) {
+  const safeWeapon = weapon || { name: "なし", weaponType: "melee", power: 0, ppCost: 0 };
+  return `
+    <div class="material-row"><span>武器名</span><strong>${safeWeapon.name || "なし"}</strong></div>
+    <div class="material-row"><span>weaponType</span><strong>${weaponTypeLabel(safeWeapon.weaponType)}</strong></div>
+    <div class="material-row"><span>power</span><strong>${formatNumber(safeWeapon.power || 0)}</strong></div>
+    <div class="material-row"><span>ppCost</span><strong>${formatNumber(safeWeapon.ppCost || 0)}</strong></div>
+  `;
+}
+
+function renderMachineOptions(machine) {
+  if (typeof window.normalizeMachineOptions === "function") window.normalizeMachineOptions(machine);
+  const options = Array.isArray(machine?.equippedOptions) ? machine.equippedOptions : Array.isArray(machine?.options) ? machine.options : [];
+  if (!options.length) return `<div class="material-row"><span>装備中オプション</span><strong>なし</strong></div>`;
+  return options.map((option) => {
+    const subWeapon = option.subWeapon ? ` / ${option.subWeapon.name || "Sub Weapon"} ${weaponTypeLabel(option.subWeapon.weaponType)} power ${formatNumber(option.subWeapon.power || 0)}` : "";
+    return `<div class="material-row"><span>${option.name || "Option"}</span><strong>${option.type || "general"}${subWeapon}</strong></div>`;
+  }).join("");
+}
+
+function renderMachineTags(machine) {
+  const labels = typeof window.getMachineTagLabels === "function" ? window.getMachineTagLabels(machine) : ["汎用"];
+  return labels.map((label) => `<span class="tag">${label}</span>`).join("");
 }
 
 function renderPilotAssignView(mech) {

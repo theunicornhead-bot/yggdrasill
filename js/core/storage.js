@@ -60,6 +60,7 @@ window.syncRuntimeStateFromPlayer = function syncRuntimeStateFromPlayer() {
 
 window.createPlayerSavePayload = function createPlayerSavePayload() {
   const state = window.GameState;
+  if (typeof window.normalizeAllUnitStatuses === "function") window.normalizeAllUnitStatuses();
   syncPlayerFromRuntimeState();
   state.player.createdAt = state.player.createdAt || nowIsoString();
   state.player.updatedAt = nowIsoString();
@@ -93,6 +94,7 @@ window.applyPlayerSavePayload = function applyPlayerSavePayload(payload) {
   state.market = payload.market && typeof payload.market === "object" ? payload.market : state.market;
   state.exploration = payload.exploration && typeof payload.exploration === "object" ? { ...state.exploration, ...payload.exploration } : state.exploration;
   state.currentScene = typeof payload.currentScene === "string" ? payload.currentScene : state.currentScene;
+  if (typeof window.normalizeAllUnitStatuses === "function") window.normalizeAllUnitStatuses();
   syncRuntimeStateFromPlayer();
   return true;
 };
@@ -102,6 +104,7 @@ window.loadPlayerData = function loadPlayerData() {
   state.storage = { available: canUseLocalStorage(), loaded: false, lastError: "" };
   state.player.createdAt = state.player.createdAt || nowIsoString();
   state.player.updatedAt = state.player.updatedAt || state.player.createdAt;
+  if (typeof window.normalizeAllUnitStatuses === "function") window.normalizeAllUnitStatuses();
   syncPlayerFromRuntimeState();
 
   if (!state.storage.available) return false;

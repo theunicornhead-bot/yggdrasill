@@ -94,6 +94,26 @@ const CORE_TYPE_MAP = {
   debuff: "Hunter",
   scout: "Scout"
 };
+const CORE_TAG_MAP = {
+  melee: "melee",
+  ranged: "ranged",
+  artillery: "ranged",
+  defense: "defense",
+  healer: "supply",
+  support: "command",
+  debuff: "jammer",
+  scout: "scout"
+};
+const CORE_WEAPON_TYPE_MAP = {
+  melee: "melee",
+  ranged: "ranged",
+  artillery: "ranged",
+  defense: "melee",
+  healer: "magic",
+  support: "ranged",
+  debuff: "magic",
+  scout: "ranged"
+};
 
 const RARITY_SCORE = { N: 1, R: 2, SR: 3, SSR: 4, UR: 5 };
 const SIZE_TABLE = [
@@ -203,6 +223,33 @@ function clampFinalStats(stats) {
   }, {});
 }
 
+function convertGeneratedStatsToUnitStats(stats, category) {
+  const attack = Number(stats.attack || 0);
+  const armor = Number(stats.armor || 0);
+  const categoryKey = String(category || "").toLowerCase();
+  const attackBias = {
+    assault: { sAtk: 1.18, mAtk: 0.82, lAtk: 0.9 },
+    shooter: { sAtk: 0.82, mAtk: 0.9, lAtk: 1.18 },
+    artillery: { sAtk: 0.78, mAtk: 1.0, lAtk: 1.25 },
+    defender: { sAtk: 1.0, mAtk: 0.85, lAtk: 0.85 },
+    medic: { sAtk: 0.78, mAtk: 1.12, lAtk: 0.9 },
+    support: { sAtk: 0.85, mAtk: 0.92, lAtk: 1.08 },
+    hunter: { sAtk: 0.82, mAtk: 1.12, lAtk: 1.0 },
+    scout: { sAtk: 0.9, mAtk: 0.85, lAtk: 1.05 }
+  }[categoryKey] || { sAtk: 1, mAtk: 1, lAtk: 1 };
+  return {
+    hp: Math.max(1, Math.round(Number(stats.hp || 0))),
+    pp: Math.max(0, Math.round(30 + Number(stats.scan || 0) * 0.2 - Number(stats.fuelCost || 0) * 0.05)),
+    sAtk: Math.max(0, Math.round(attack * attackBias.sAtk)),
+    mAtk: Math.max(0, Math.round(attack * attackBias.mAtk)),
+    lAtk: Math.max(0, Math.round(attack * attackBias.lAtk)),
+    sDef: Math.max(0, Math.round(armor * 1.05)),
+    mDef: Math.max(0, Math.round(armor * 0.95)),
+    lDef: Math.max(0, Math.round(armor)),
+    speed: Math.max(0, Math.round(Number(stats.speed || 0)))
+  };
+}
+
 window.buildMechVisualPrompt = function buildMechVisualPrompt(core, materials, size, type, stateName) {
   const promptParts = [
     "full body original mecha concept art",
@@ -287,33 +334,55 @@ window.createGeneratedMechData = function createGeneratedMechData(preview, mater
   const state = window.GameState;
   const serial = String(state.nextMechSerial || 1).padStart(3, "0");
   state.nextMechSerial = (state.nextMechSerial || 1) + 1;
-  return {
+  const unitStats = convertGeneratedStatsToUnitStats(preview.stats, preview.type);
+  const optionSlots = typeof window.getOptionSlotCountByRank === "function" ? window.getOptionSlotCountByRank(preview.rarity) : 1;
+  const mech = {
     id: `mech_${serial}`,
     name: `${preview.type}-${serial}`,
     rarity: preview.rarity,
     rank: preview.rarity,
+    level: 1,
     size: preview.size,
     type: preview.type,
     coreId: preview.core.id,
     materialIds: [...materialIds],
-    stats: preview.stats,
+    stats: unitStats,
+    legacyStats: preview.stats,
     output: preview.output,
     visualPrompt: preview.visualPrompt,
     imagePath: null,
     createdAt: new Date().toISOString(),
-    hp: preview.stats.hp,
-    maxHp: preview.stats.hp,
-    atk: preview.stats.attack,
-    def: preview.stats.armor,
-    mobility: preview.stats.speed,
+    hp: unitStats.hp,
+    maxHp: unitStats.hp,
+    atk: Math.max(unitStats.sAtk, unitStats.mAtk, unitStats.lAtk),
+    def: Math.max(unitStats.sDef, unitStats.mDef, unitStats.lDef),
+    mobility: unitStats.speed,
+    mainWeapon: {
+      id: `mech_${serial}_main_weapon`,
+      name: `${preview.type} Main Weapon`,
+      rank: preview.rarity,
+      weaponType: CORE_WEAPON_TYPE_MAP[preview.core.category] || "melee",
+      element: "none",
+      power: Math.max(1, Math.round((preview.stats.attack || 1) * 0.65)),
+      ppCost: 0,
+      overdrive: null
+    },
+    subWeapons: [],
+    optionSlots,
+    optionalSlots: optionSlots,
+    equippedOptions: [],
+    options: [],
     fuelCostRate: Math.max(0.5, Number((preview.stats.fuelCost / 100).toFixed(2))),
     traits: [preview.type, preview.output.state],
     pilotId: null,
     unique: false,
     customizable: true,
-    slotCounts: { weapon: 1, armor: 1, core: 1, option: 1 },
+    slotCounts: { weapon: 1, armor: 1, core: 1, option: optionSlots },
     parts: { weapon: null, armor: null, core: preview.core.name, option: null },
     promptTags: preview.materials.flatMap((material) => material.tags || []),
     description: preview.visualPrompt
   };
+  mech.tags = ["general", CORE_TAG_MAP[preview.core.category] || "general"].filter((tag, index, tags) => tag && tags.indexOf(tag) === index);
+  if (typeof window.normalizeMachineStatus === "function") window.normalizeMachineStatus(mech);
+  return mech;
 };

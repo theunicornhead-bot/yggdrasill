@@ -8,8 +8,10 @@ window.startBattle = function startBattle() {
     : window.EnemyCatalog;
   const pool = candidates.length ? candidates : window.EnemyCatalog;
   const template = pool[Math.floor(Math.random() * pool.length)];
+  const floor = window.GameState.quest?.floor || 1;
+  const enemyStats = typeof window.generateEnemyStats === "function" ? window.generateEnemyStats(template, floor) : {};
   window.GameState.battle = {
-    enemy: { ...template },
+    enemy: { ...template, ...enemyStats, hp: enemyStats.hp || template.hp, maxHp: enemyStats.hp || template.maxHp || template.hp },
     turn: 1,
     message: "コマンドを選択してください",
     guarded: false
@@ -69,6 +71,14 @@ window.renderBattle = function renderBattle() {
 
 function renderAllyCard(mech) {
   const pilot = displayPilot(mech.pilotId);
+  const realPilot = getPilot(mech.pilotId);
+  const unitStats = typeof window.calculateUnitStats === "function" ? window.calculateUnitStats(realPilot || null, mech) : null;
+  if (unitStats) {
+    const mainWeapon = typeof window.getMainWeapon === "function" ? window.getMainWeapon(mech) : null;
+    mech.atk = typeof window.calculateWeaponAttackPower === "function" ? window.calculateWeaponAttackPower(realPilot || null, mech, mainWeapon) : unitStats.sAtk;
+    mech.def = unitStats.sDef;
+    mech.mobility = unitStats.speed;
+  }
   return `
     <article class="ally-card panel">
       <div class="section-head"><h3>${mech.name}</h3><span class="status-pill">${mech.hp > 0 ? "行動可能" : "大破"}</span></div>
@@ -109,8 +119,22 @@ window.battleCommand = function battleCommand(type) {
   }
   const multiplier = type === "overdrive" ? 1.9 : type === "skill" ? 1.35 : 1;
   const label = type === "overdrive" ? "オーバードライブ" : type === "skill" ? "スキル" : "攻撃";
-  state.mechs.filter((mech) => mech.hp > 0).forEach((mech) => {
-    const damage = Math.max(18, Math.floor((mech.atk * multiplier) - state.battle.enemy.def + Math.random() * 45));
+  state.mechs
+    .filter((mech) => mech.hp > 0 && getPilot(mech.pilotId))
+    .sort((a, b) => {
+      const pilotA = getPilot(a.pilotId);
+      const pilotB = getPilot(b.pilotId);
+      const statsA = typeof window.calculateUnitStats === "function" ? window.calculateUnitStats(pilotA, a) : { speed: a.mobility || 0 };
+      const statsB = typeof window.calculateUnitStats === "function" ? window.calculateUnitStats(pilotB, b) : { speed: b.mobility || 0 };
+      return (statsB.speed || 0) - (statsA.speed || 0);
+    })
+    .forEach((mech) => {
+    const pilot = getPilot(mech.pilotId);
+    const unitStats = pilot && typeof window.calculateUnitStats === "function" ? window.calculateUnitStats(pilot, mech) : null;
+    const weapon = typeof window.getMainWeapon === "function" ? window.getMainWeapon(mech) : null;
+    const damage = typeof window.calculateDamage === "function"
+      ? window.calculateDamage(unitStats, state.battle.enemy, weapon, { multiplier, critical: Math.random() < 0.05, defenderElement: state.battle.enemy.element })
+      : Math.max(1, Math.floor((mech.atk * multiplier) - state.battle.enemy.def));
     state.battle.enemy.hp = Math.max(0, state.battle.enemy.hp - damage);
     logMessage("battle", `${mech.name}の${label}。${damage}ダメージ。`, damage > 520 ? "warn" : "");
   });
@@ -142,8 +166,17 @@ function enemyTurn() {
     return;
   }
   const target = alive[Math.floor(Math.random() * alive.length)];
-  const guardRate = battle.guarded ? 0.45 : 1;
-  const damage = Math.max(8, Math.floor((battle.enemy.atk - target.def * 0.22 + Math.random() * 38) * guardRate));
+  const guardRate = battle.guarded ? 0.8 : 1;
+  const targetPilot = getPilot(target.pilotId);
+  const targetStats = targetPilot && typeof window.calculateUnitStats === "function" ? window.calculateUnitStats(targetPilot, target) : null;
+  const enemyWeapon = {
+    weaponType: battle.enemy.weaponType || battle.enemy.rangeType || "melee",
+    element: battle.enemy.element || "none",
+    power: Math.max(1, Math.floor(Number(battle.enemy.level || 1) * 3))
+  };
+  const damage = targetStats && typeof window.calculateDamage === "function"
+    ? Math.floor(window.calculateDamage(battle.enemy, targetStats, enemyWeapon, { critical: Math.random() < 0.05 }) * guardRate)
+    : Math.max(1, Math.floor((battle.enemy.atk - target.def) * guardRate));
   target.hp = Math.max(0, target.hp - damage);
   logMessage("battle", `${battle.enemy.name}の反撃。${target.name}に${damage}ダメージ。`, "danger");
   battle.guarded = false;
@@ -157,6 +190,10 @@ function winBattle() {
   const enemy = state.battle.enemy;
   enemy.drops.forEach((id) => {
     if (Math.random() < 0.72) state.runMaterials[id] = (state.runMaterials[id] || 0) + 1;
+  });
+  state.mechs.forEach((mech) => {
+    const pilot = getPilot(mech.pilotId);
+    if (pilot && typeof window.addPilotExp === "function") window.addPilotExp(pilot, 35 + Number(enemy.level || 1) * 8);
   });
   logMessage("quest", `${enemy.name}を撃破。素材を回収した。`, "good");
   state.battle = null;
