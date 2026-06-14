@@ -101,4 +101,13 @@
       return loaded;
     };
   }
+
+  const originalLoadMasters = window.loadMasters;
+  if (typeof originalLoadMasters === "function") {
+    window.loadMasters = async function loadMastersWithUrTestGrant() {
+      const loaded = await originalLoadMasters();
+      window.grantUrTestMaterials();
+      return loaded;
+    };
+  }
 })();
