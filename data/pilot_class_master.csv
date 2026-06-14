@@ -1,0 +1,9 @@
+classId,displayName,role,mainStat,weaponAffinity,description
+striker,ストライカー,近接攻撃,sAtk,melee,近接戦闘に優れる
+gunner,ガンナー,遠距離攻撃,lAtk,ranged,射撃戦に優れる
+wizard,ウィザード,魔法攻撃,mAtk,magic,魔法攻撃に優れる
+engineer,エンジニア,補給修復,mAtk,magic,補給と修復に優れる
+defender,ディフェンダー,防衛,sDef,melee,防御に優れる
+commander,コマンダー,指揮支援,lAtk,ranged,支援指揮に優れる
+jammer,ジャマー,電子戦,mAtk,magic,妨害に優れる
+scout,スカウト,偵察,speed,ranged,探索と速度に優れる

@@ -1,0 +1,6 @@
+skillId,enemyId,name,type,weaponType,element,power,ppCost,cooldown,target,description
+enemy_shell_charge,shell_beast_small,甲殻突進,attack,melee,none,30,0,2,ally,突進攻撃
+enemy_wing_shot,wing_bug,飛膜針,attack,ranged,thunder,34,2,2,ally,遠距離針攻撃
+enemy_nerve_poison,nerve_eater,神経毒,ailment,magic,poison,28,4,3,ally,毒を付与
+enemy_bone_bite,bone_hound,骨牙,attack,melee,ice,42,2,2,ally,噛みつき
+enemy_organ_burst,organ_lurker,器官爆ぜ,attack,magic,fire,52,6,3,allies,火炎攻撃

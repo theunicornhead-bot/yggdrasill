@@ -1,0 +1,6 @@
+coreId,name,rank,hp,pp,sAtk,mAtk,lAtk,sDef,mDef,lDef,speed,tagAdd,price,description
+core_balanced_n,汎用コアN,N,80,4,4,4,4,4,4,4,4,general,300,汎用性能を補う
+core_melee_r,近接コアR,R,120,4,14,0,0,8,0,0,6,melee,650,近接向け
+core_ranged_r,遠距離コアR,R,100,6,0,0,14,0,0,8,8,ranged,650,遠距離向け
+core_magic_r,魔法コアR,R,90,12,0,16,0,0,10,0,4,magic,700,魔法向け
+core_command_sr,指揮コアSR,SR,160,14,0,8,10,8,8,8,12,command,1200,指揮支援向け

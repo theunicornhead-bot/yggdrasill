@@ -1,0 +1,10 @@
+tagId,displayName,category,compatibleClass,description
+general,汎用,machine,,標準分類
+melee,近接,machine,striker,近接戦向き
+ranged,遠距離,machine,gunner,遠距離戦向き
+magic,魔法,machine,wizard,魔法攻撃向き
+supply,補給,machine,engineer,補給・修復向き
+defense,防衛,machine,defender,防御向き
+command,指揮官,machine,commander,指揮支援向き
+jammer,電子戦,machine,jammer,妨害向き
+scout,偵察,machine,scout,探索・偵察向き

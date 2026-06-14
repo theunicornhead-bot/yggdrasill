@@ -1,0 +1,10 @@
+statKey,displayName,shortName,category,description
+hp,HP,HP,base,耐久値
+pp,PP,PP,base,技能・武装使用リソース
+sAtk,S-ATK,S攻,attack,近接攻撃
+mAtk,M-ATK,M攻,attack,魔法攻撃
+lAtk,L-ATK,L攻,attack,遠距離攻撃
+sDef,S-DEF,S防,defense,近接防御
+mDef,M-DEF,M防,defense,魔法防御
+lDef,L-DEF,L防,defense,遠距離防御
+speed,SPEED,速,base,行動速度

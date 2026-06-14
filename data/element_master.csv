@@ -1,0 +1,6 @@
+elementId,displayName,weakTo,strongAgainst,description
+none,無,,,無属性
+fire,火炎,ice,poison,火炎属性
+thunder,電撃,poison,ice,電撃属性
+ice,冷気,fire,thunder,冷気属性
+poison,毒,thunder,fire,毒属性

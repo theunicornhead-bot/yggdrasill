@@ -1,0 +1,6 @@
+profileId,displayName,category,preferredWeaponType,element,description
+shell,甲殻,armor,melee,none,甲殻系
+wing,飛行型,speed,ranged,thunder,飛行系
+nerve,神経型,magic,magic,poison,神経系
+organ,器官型,magic,magic,fire,器官系
+bone,骨格型,physical,melee,ice,骨格系

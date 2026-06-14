@@ -1,0 +1,11 @@
+rankId,category,displayName,levelCap,order,statMultiplier,description
+D,pilot,D,10,1,0.94,初期パイロットランク
+C,pilot,C,20,2,1,標準パイロットランク
+B,pilot,B,30,3,1.08,熟練パイロットランク
+A,pilot,A,40,4,1.18,上級パイロットランク
+S,pilot,S,50,5,1.3,最高パイロットランク
+N,machine,N,10,1,0.92,通常機体ランク
+R,machine,R,20,2,1,希少機体ランク
+SR,machine,SR,30,3,1.1,高性能機体ランク
+SSR,machine,SSR,40,4,1.23,最上位機体ランク
+UR,machine,UR,50,5,1.38,究極機体ランク

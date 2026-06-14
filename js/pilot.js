@@ -93,11 +93,17 @@ window.getPilotClassImageDefinition = function getPilotClassImageDefinition(clas
 };
 
 window.getPilotClassDisplayName = function getPilotClassDisplayName(classId) {
+  const normalizedClassId = PILOT_CLASS_IMAGE_ALIASES[classId] || classId;
+  const master = typeof window.getPilotClassMaster === "function" ? window.getPilotClassMaster(normalizedClassId) : null;
+  if (master?.displayName) return master.displayName;
   const imageSet = window.getPilotClassImageDefinition(classId);
   return imageSet?.className || classId || "";
 };
 
 window.getPilotClassRole = function getPilotClassRole(classId) {
+  const normalizedClassId = PILOT_CLASS_IMAGE_ALIASES[classId] || classId;
+  const master = typeof window.getPilotClassMaster === "function" ? window.getPilotClassMaster(normalizedClassId) : null;
+  if (master?.role) return master.role;
   const imageSet = window.getPilotClassImageDefinition(classId);
   return imageSet?.role || "";
 };

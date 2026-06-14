@@ -1,0 +1,8 @@
+effectId,displayName,category,statKey,multiplier,flatValue,duration,description
+atk_up_s,近接強化,buff,sAtk,1.2,0,3,S-ATK上昇
+atk_up_l,遠距離強化,buff,lAtk,1.2,0,3,L-ATK上昇
+atk_up_m,魔法強化,buff,mAtk,1.2,0,3,M-ATK上昇
+def_up_all,防御強化,buff,allDef,1.15,0,3,全防御上昇
+speed_up,加速,buff,speed,1.25,0,2,速度上昇
+def_down_all,防御低下,debuff,allDef,0.85,0,3,全防御低下
+speed_down,鈍化,debuff,speed,0.75,0,2,速度低下

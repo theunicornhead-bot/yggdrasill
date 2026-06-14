@@ -1,0 +1,13 @@
+optionId,name,type,rank,hp,pp,sAtk,mAtk,lAtk,sDef,mDef,lDef,speed,subWeaponId,slotCost,price,description
+opt_light_core,軽量補助炉,core_boost,N,0,8,0,0,0,0,0,0,12,,1,180,PPと速度を補助
+opt_shell_plate,甲殻追加装甲,armor,N,120,0,0,0,0,16,8,12,-4,,1,220,耐久を補助
+opt_blade_arm,副腕ブレード,subWeapon,R,0,0,8,0,0,0,0,0,0,melee_none_r,1,420,近接サブウェポン
+opt_rifle_pod,小型ライフルポッド,subWeapon,R,0,0,0,0,8,0,0,0,0,ranged_none_r,1,420,遠距離サブウェポン
+opt_mage_focus,魔導収束器,subWeapon,R,0,6,0,10,0,0,4,0,0,magic_none_r,1,460,魔法サブウェポン
+opt_assault_servo,強襲サーボ,servo,SR,0,0,20,0,0,0,0,0,10,,1,900,近接能力を補助
+opt_ballistic_link,弾道補正リンク,sensor,SR,0,0,0,0,22,0,0,4,4,,1,920,遠距離能力を補助
+opt_arcane_capacitor,魔力蓄積器,capacitor,SR,0,12,0,22,0,0,8,0,0,,1,940,魔法能力を補助
+opt_guard_frame,防衛フレーム,frame,SSR,240,0,0,0,0,30,24,28,-8,,1,1600,防御能力を補助
+opt_scout_array,偵察アレイ,sensor,SSR,0,4,0,0,8,0,0,0,28,,1,1500,速度を補助
+opt_ur_reactor,高位生体炉,reactor,UR,300,20,18,18,18,12,12,12,12,,2,3200,全性能を補助
+opt_poison_spike,毒棘射出器,subWeapon,SR,0,4,0,0,12,0,0,0,0,ranged_poison_sr,1,980,毒属性サブウェポン

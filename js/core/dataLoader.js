@@ -103,8 +103,119 @@ window.loadCsv = async function loadCsv(path) {
   return parseCsv(await response.text());
 };
 
+const MASTER_CSV_CONFIGS = [
+  { masterName: "rankMaster", path: "data/rank_master.csv", idKey: "rankId" },
+  { masterName: "tagMaster", path: "data/tag_master.csv", idKey: "tagId" },
+  { masterName: "statKeyMaster", path: "data/stat_key_master.csv", idKey: "statKey" },
+  { masterName: "elementMaster", path: "data/element_master.csv", idKey: "elementId" },
+  { masterName: "weaponTypeMaster", path: "data/weapon_type_master.csv", idKey: "weaponType" },
+  { masterName: "weaponMaster", path: "data/weapon_master.csv", idKey: "weaponId" },
+  { masterName: "optionMaster", path: "data/option_master.csv", idKey: "optionId" },
+  { masterName: "coreMaster", path: "data/core_master.csv", idKey: "coreId" },
+  { masterName: "materialMaster", path: "data/material_master.csv", idKey: "materialId" },
+  { masterName: "pilotClassMaster", path: "data/pilot_class_master.csv", idKey: "classId" },
+  { masterName: "pilotGrowthMaster", path: "data/pilot_growth_master.csv", idKey: "growthType" },
+  { masterName: "pilotSkillMaster", path: "data/pilot_skill_master.csv", idKey: "skillId" },
+  { masterName: "machineRankPromptMaster", path: "data/machine_rank_prompt_master.csv", idKey: "rank" },
+  { masterName: "enemyProfileMaster", path: "data/enemy_profile_master.csv", idKey: "profileId" },
+  { masterName: "enemyMaster", path: "data/enemy_master.csv", idKey: "enemyId" },
+  { masterName: "enemySkillMaster", path: "data/enemy_skill_master.csv", idKey: "skillId" },
+  { masterName: "floorMaster", path: "data/floor_master.csv", idKey: "floorId" },
+  { masterName: "floorEnemyMaster", path: "data/floor_enemy_master.csv", idKey: "floorId" },
+  { masterName: "statusAilmentMaster", path: "data/status_ailment_master.csv", idKey: "ailmentId" },
+  { masterName: "buffDebuffMaster", path: "data/buff_debuff_master.csv", idKey: "effectId" },
+  { masterName: "overdriveMaster", path: "data/overdrive_master.csv", idKey: "overdriveId" }
+];
+
+function buildMasterMap(rows, idKey) {
+  return new Map((rows || []).filter((row) => row[idKey]).map((row) => [row[idKey], row]));
+}
+
+async function loadCsvMasters() {
+  const loaded = {};
+  const maps = {};
+  await Promise.all(MASTER_CSV_CONFIGS.map(async (config) => {
+    try {
+      const rows = await loadCsv(config.path);
+      loaded[config.masterName] = rows;
+      maps[config.masterName] = buildMasterMap(rows, config.idKey);
+    } catch (error) {
+      loaded[config.masterName] = [];
+      maps[config.masterName] = new Map();
+    }
+  }));
+  window.masterData = loaded;
+  window.masterMaps = maps;
+  applyCsvMastersToRuntime(loaded);
+  return loaded;
+}
+
+function splitMasterList(value) {
+  return String(value || "").split("|").map((item) => item.trim()).filter(Boolean);
+}
+
+function applyCsvMastersToRuntime(masterData) {
+  if (Array.isArray(masterData.materialMaster) && masterData.materialMaster.length) {
+    window.MaterialCatalog = masterData.materialMaster.map((item) => ({
+      id: item.materialId,
+      name: item.name,
+      rank: item.rank,
+      value: Number(item.value || 0),
+      category: item.category,
+      prompts: splitMasterList(item.prompts),
+      description: item.description || item.name
+    }));
+  }
+  if (Array.isArray(masterData.enemyMaster) && masterData.enemyMaster.length) {
+    window.EnemyCatalog = masterData.enemyMaster.map((item) => ({
+      id: item.enemyId,
+      name: item.name,
+      profileId: item.profileId,
+      rank: item.rank,
+      level: Number(item.level || 1),
+      hp: Number(item.hp || 1),
+      maxHp: Number(item.hp || 1),
+      pp: Number(item.pp || 0),
+      sAtk: Number(item.sAtk || 0),
+      mAtk: Number(item.mAtk || 0),
+      lAtk: Number(item.lAtk || 0),
+      sDef: Number(item.sDef || 0),
+      mDef: Number(item.mDef || 0),
+      lDef: Number(item.lDef || 0),
+      speed: Number(item.speed || 0),
+      weaponType: item.weaponType || "melee",
+      element: item.element || "none",
+      weaponPower: Number(item.weaponPower || 1),
+      drops: splitMasterList(item.dropMaterialIds),
+      imagePath: item.imagePath || "",
+      type: masterData.enemyProfileMaster?.find((profile) => profile.profileId === item.profileId)?.displayName || item.profileId || "enemy",
+      description: item.description || ""
+    }));
+  }
+  if (Array.isArray(masterData.pilotSkillMaster) && masterData.pilotSkillMaster.length) {
+    window.ClassSkillMaster = masterData.pilotSkillMaster.map((item) => ({
+      id: item.skillId,
+      classId: item.classId,
+      name: item.name,
+      route: item.route,
+      branchGroup: item.branchGroup,
+      learnLevel: Number(item.learnLevel || 1),
+      spCost: Number(item.spCost || 0),
+      prerequisiteSkillIds: splitMasterList(item.prerequisiteSkillIds),
+      type: item.type || "passive",
+      rangeType: item.weaponType || "none",
+      weaponType: item.weaponType || "none",
+      power: Number(item.power || 0),
+      ppCost: Number(item.ppCost || 0),
+      target: item.target || "self",
+      description: item.description || ""
+    }));
+  }
+}
+
 window.loadMasters = async function loadMasters() {
   const state = window.GameState;
+  await loadCsvMasters();
   try {
     const [classes, traits, skills, pilotNames, mechs, mechTraits, overdrives] = await Promise.all([
       loadCsv("data/class_master.csv"),
@@ -150,7 +261,41 @@ window.getMechTraitById = function getMechTraitById(traitId) {
 
 window.getOverdriveById = function getOverdriveById(overdriveId) {
   if (!overdriveId) return null;
-  return window.GameState.masters.overdrives.find((item) => item.overdrive_id === overdriveId) || null;
+  return window.getMasterById("overdriveMaster", "overdriveId", overdriveId)
+    || window.GameState.masters.overdrives.find((item) => item.overdrive_id === overdriveId || item.overdriveId === overdriveId)
+    || null;
+};
+
+window.getMasterById = function getMasterById(masterName, idKey, id) {
+  if (!masterName || !id) return null;
+  const map = window.masterMaps?.[masterName];
+  if (map instanceof Map && map.has(id)) return map.get(id);
+  const rows = window.masterData?.[masterName];
+  return Array.isArray(rows) ? rows.find((row) => row[idKey] === id) || null : null;
+};
+
+window.getTagMaster = function getTagMaster(tagId) {
+  return window.getMasterById("tagMaster", "tagId", tagId);
+};
+
+window.getWeaponMaster = function getWeaponMaster(weaponId) {
+  return window.getMasterById("weaponMaster", "weaponId", weaponId);
+};
+
+window.getOptionMaster = function getOptionMaster(optionId) {
+  return window.getMasterById("optionMaster", "optionId", optionId);
+};
+
+window.getPilotClassMaster = function getPilotClassMaster(classId) {
+  return window.getMasterById("pilotClassMaster", "classId", classId);
+};
+
+window.getPilotSkillMaster = function getPilotSkillMaster(skillId) {
+  return window.getMasterById("pilotSkillMaster", "skillId", skillId);
+};
+
+window.getEnemyMaster = function getEnemyMaster(enemyId) {
+  return window.getMasterById("enemyMaster", "enemyId", enemyId);
 };
 
 window.createMechFromMaster = function createMechFromMaster(mechMasterId) {

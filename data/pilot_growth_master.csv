@@ -1,0 +1,5 @@
+growthType,displayName,initialFactor,levelFactor,description
+early,早熟,1.12,0.9,初期値が高く伸びは控えめ
+normal,標準,1,1,標準的に成長
+late,晩成,0.92,1.1,後半に伸びる
+superLate,超晩成,0.84,1.2,終盤に大きく伸びる

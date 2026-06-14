@@ -1,0 +1,6 @@
+rank,baseQualityPrompt,negativePrompt,addPrompt,description
+N,"simple organic mech, rough frame","luxury, over detailed","low rank, worn parts",Nランク生成
+R,"standard organic mech, clean silhouette","broken, low quality","stable frame, modest detail",Rランク生成
+SR,"advanced organic mech, strong armor","cheap, crude","high detail, refined frame",SRランク生成
+SSR,"elite organic mech, imposing design","plain, weak","premium armor, complex biological structure",SSRランク生成
+UR,"legendary organic mech, transcendent frame","ordinary, dull","mythic detail, unique silhouette, radiant core",URランク生成

@@ -90,6 +90,22 @@ function statusNumber(value, fallback = 0) {
   return Number.isFinite(number) ? number : fallback;
 }
 
+function masterRows(masterName) {
+  const rows = window.masterData?.[masterName];
+  return Array.isArray(rows) ? rows : [];
+}
+
+function masterById(masterName, idKey, id) {
+  if (!id) return null;
+  if (typeof window.getMasterById === "function") return window.getMasterById(masterName, idKey, id);
+  return masterRows(masterName).find((row) => row[idKey] === id) || null;
+}
+
+function rankMasterRow(category, rank) {
+  const normalized = String(rank || "").toUpperCase();
+  return masterRows("rankMaster").find((row) => row.category === category && String(row.rankId).toUpperCase() === normalized) || null;
+}
+
 function emptyStats() {
   return UNIT_STATUS_KEYS.reduce((stats, key) => {
     stats[key] = 0;
@@ -121,27 +137,39 @@ function multiplyStats(source, multiplier) {
 }
 
 window.normalizePilotRank = function normalizePilotRank(rank) {
-  return LEGACY_PILOT_RANK_ALIASES[String(rank || "D").toUpperCase()] || "D";
+  const candidate = String(rank || "D").toUpperCase();
+  if (rankMasterRow("pilot", candidate)) return candidate;
+  return LEGACY_PILOT_RANK_ALIASES[candidate] || "D";
 };
 
 window.normalizeMachineRank = function normalizeMachineRank(rank) {
-  return LEGACY_MACHINE_RANK_ALIASES[String(rank || "N").toUpperCase()] || "N";
+  const candidate = String(rank || "N").toUpperCase();
+  if (rankMasterRow("machine", candidate)) return candidate;
+  return LEGACY_MACHINE_RANK_ALIASES[candidate] || "N";
 };
 
 window.getPilotRankIndex = function getPilotRankIndex(rank) {
-  return PILOT_RANKS.indexOf(window.normalizePilotRank(rank));
+  const normalized = window.normalizePilotRank(rank);
+  const row = rankMasterRow("pilot", normalized);
+  return row ? Math.max(0, statusNumber(row.order, 1) - 1) : PILOT_RANKS.indexOf(normalized);
 };
 
 window.getMachineRankIndex = function getMachineRankIndex(rank) {
-  return MACHINE_RANKS.indexOf(window.normalizeMachineRank(rank));
+  const normalized = window.normalizeMachineRank(rank);
+  const row = rankMasterRow("machine", normalized);
+  return row ? Math.max(0, statusNumber(row.order, 1) - 1) : MACHINE_RANKS.indexOf(normalized);
 };
 
 window.getPilotLevelCap = function getPilotLevelCap(rank) {
-  return PILOT_LEVEL_CAPS[window.normalizePilotRank(rank)] || PILOT_LEVEL_CAPS.D;
+  const normalized = window.normalizePilotRank(rank);
+  const row = rankMasterRow("pilot", normalized);
+  return Math.max(1, Math.floor(statusNumber(row?.levelCap, PILOT_LEVEL_CAPS[normalized] || PILOT_LEVEL_CAPS.D)));
 };
 
 window.getMachineLevelCap = function getMachineLevelCap(rank) {
-  return MACHINE_LEVEL_CAPS[window.normalizeMachineRank(rank)] || MACHINE_LEVEL_CAPS.N;
+  const normalized = window.normalizeMachineRank(rank);
+  const row = rankMasterRow("machine", normalized);
+  return Math.max(1, Math.floor(statusNumber(row?.levelCap, MACHINE_LEVEL_CAPS[normalized] || MACHINE_LEVEL_CAPS.N)));
 };
 
 window.getRankCompatibilityMultiplier = function getRankCompatibilityMultiplier(pilot, machine) {
@@ -244,16 +272,20 @@ window.hasPilotTraitSkill = function hasPilotTraitSkill(pilot, traitId) {
 };
 
 window.normalizeWeaponType = function normalizeWeaponType(weaponType) {
-  return WEAPON_TYPE_ALIASES[String(weaponType || "").toLowerCase()] || "melee";
+  const normalized = String(weaponType || "").toLowerCase();
+  if (masterById("weaponTypeMaster", "weaponType", normalized)) return normalized;
+  return WEAPON_TYPE_ALIASES[normalized] || "melee";
 };
 
 window.normalizeElement = function normalizeElement(element) {
   const normalized = String(element || "none").toLowerCase();
+  if (masterById("elementMaster", "elementId", normalized)) return normalized;
   return ["none", "fire", "thunder", "ice", "poison"].includes(normalized) ? normalized : "none";
 };
 
 window.normalizeMachineTag = function normalizeMachineTag(tag) {
   const normalized = String(tag || "general").trim().toLowerCase();
+  if (masterById("tagMaster", "tagId", normalized)) return normalized;
   return TAG_LABELS[normalized] ? normalized : (TAG_ALIASES[normalized] || "general");
 };
 
@@ -265,7 +297,7 @@ window.normalizeMachineTags = function normalizeMachineTags(tags) {
 
 window.getMachineTagLabels = function getMachineTagLabels(machine) {
   const tags = window.normalizeMachineTags(machine?.tags);
-  return tags.map((tag) => TAG_LABELS[tag] || TAG_LABELS.general);
+  return tags.map((tag) => masterById("tagMaster", "tagId", tag)?.displayName || TAG_LABELS[tag] || TAG_LABELS.general);
 };
 
 window.getMachineTagCompatibilityMultiplier = function getMachineTagCompatibilityMultiplier(pilot, machine) {
@@ -413,9 +445,8 @@ window.calculateFinalUnitStats = function calculateFinalUnitStats(pilot, machine
   window.normalizeMachineStatus(machine);
   const pilotStats = pilot ? copyStats(pilot.stats) : emptyStats();
   const machineStats = window.calculateMachineStatsWithOptions(machine);
-  const tagMultiplier = window.getMachineTagCompatibilityMultiplier(pilot, machine);
   const rankMultiplier = window.getRankCompatibilityMultiplier(pilot, machine);
-  const adjustedMachineStats = multiplyStats(machineStats, tagMultiplier * rankMultiplier);
+  const adjustedMachineStats = multiplyStats(machineStats, rankMultiplier);
   return addStats(pilotStats, adjustedMachineStats);
 };
 
@@ -429,6 +460,8 @@ window.getMainWeapon = function getMainWeapon(machine) {
 
 window.getAttackStatByWeaponType = function getAttackStatByWeaponType(unitStats, weaponType) {
   const type = window.normalizeWeaponType(weaponType);
+  const statKey = masterById("weaponTypeMaster", "weaponType", type)?.attackStat;
+  if (statKey) return statusNumber(unitStats?.[statKey], 0);
   if (type === "magic") return statusNumber(unitStats?.mAtk, 0);
   if (type === "ranged") return statusNumber(unitStats?.lAtk, 0);
   return statusNumber(unitStats?.sAtk, 0);
@@ -436,6 +469,8 @@ window.getAttackStatByWeaponType = function getAttackStatByWeaponType(unitStats,
 
 window.getDefenseStatByWeaponType = function getDefenseStatByWeaponType(unitStats, weaponType) {
   const type = window.normalizeWeaponType(weaponType);
+  const statKey = masterById("weaponTypeMaster", "weaponType", type)?.defenseStat;
+  if (statKey) return statusNumber(unitStats?.[statKey], 0);
   if (type === "magic") return statusNumber(unitStats?.mDef, 0);
   if (type === "ranged") return statusNumber(unitStats?.lDef, 0);
   return statusNumber(unitStats?.sDef, 0);

@@ -1,0 +1,4 @@
+weaponType,displayName,attackStat,defenseStat,description
+melee,近接,sAtk,sDef,近接武器
+ranged,遠距離,lAtk,lDef,遠距離武器
+magic,魔法,mAtk,mDef,魔法武器

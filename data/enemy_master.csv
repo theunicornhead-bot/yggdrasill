@@ -1,0 +1,6 @@
+enemyId,name,profileId,rank,level,hp,pp,sAtk,mAtk,lAtk,sDef,mDef,lDef,speed,weaponType,element,weaponPower,dropMaterialIds,imagePath,description
+shell_beast_small,小型甲殻獣,shell,N,6,980,0,118,86,92,48,38,42,28,melee,none,18,broken_shell|brittle_bone,,小型の甲殻獣
+wing_bug,飛膜蟲,wing,R,9,1260,8,104,112,146,46,54,58,52,ranged,thunder,22,thin_membrane|broken_shell|wilted_bloodfilm,,飛膜を持つ蟲
+nerve_eater,神経喰らい,nerve,R,12,1580,12,120,172,124,54,66,58,44,magic,poison,26,dry_nerve|wilted_bloodfilm|aged_scale,,神経束を喰らう個体
+bone_hound,骨格猟犬,bone,R,14,1720,4,188,90,118,72,48,60,58,melee,ice,30,brittle_bone|ancient_bone|black_tendon,,骨格型の高速個体
+organ_lurker,器官潜伏体,organ,SR,18,2300,18,130,220,150,82,96,78,42,magic,fire,38,blue_gland|spark_organ|pure_bloodfilm,,器官型の高出力個体

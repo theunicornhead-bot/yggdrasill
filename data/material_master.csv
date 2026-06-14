@@ -1,0 +1,22 @@
+materialId,name,rank,value,category,prompts,description
+broken_shell,欠けた甲殻,E,20,shell,small shell|rough armor|damaged plating,欠けた甲殻
+thin_membrane,薄い飛膜,D,45,wing,thin insect wing|fragile membrane,薄い飛膜
+dry_nerve,乾いた神経束,C,60,nerve,dry nerve fiber|minor bio circuit,乾いた神経束
+brittle_bone,脆い骨片,E,30,bone,small bone shard|brittle frame,脆い骨片
+aged_scale,劣化した外骨,C,75,shell,aged exoskeleton|worn plating,劣化した外骨
+wilted_bloodfilm,朽ちた血管膜,D,35,organ,withered bio film|vascular mesh,朽ちた血管膜
+hard_shell,硬質甲殻,B,120,shell,hard shell|thick armor,硬質甲殻
+crimson_membrane,紅い飛膜,B,135,wing,red membrane|bio wing,紅い飛膜
+live_nerve,生きた神経束,A,180,nerve,living cable|active nerve,生きた神経束
+ancient_bone,古代骨格片,A,210,bone,ancient bone|relic frame,古代骨格片
+reactive_scale,反応外骨,S,300,shell,reactive armor|living plating,反応外骨
+pure_bloodfilm,純血管膜,S,320,organ,pure vascular mesh|red bio film,純血管膜
+ash_core,灰化炉心,C,90,core,ash core|burnt reactor,灰化炉心
+blue_gland,蒼い腺核,B,145,organ,blue gland|bio capacitor,蒼い腺核
+spark_organ,帯電器官,B,150,organ,electric organ|spark tissue,帯電器官
+frozen_lens,凍結レンズ,B,150,sensor,frozen lens|cold crystal,凍結レンズ
+toxic_sac,毒嚢,B,150,organ,poison sac|toxic gland,毒嚢
+mirror_eye,反射眼球,A,220,sensor,mirror eye|optic organ,反射眼球
+black_tendon,黒腱,A,230,frame,black tendon|strong muscle,黒腱
+golden_marrows,黄金髄,S,360,bone,golden marrow|rare bone,黄金髄
+void_shell,虚殻,S,420,shell,void shell|deep armor,虚殻

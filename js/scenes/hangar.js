@@ -327,6 +327,8 @@ function renderUnitStatRows(stats) {
 
 function weaponTypeLabel(weaponType) {
   const normalized = typeof window.normalizeWeaponType === "function" ? window.normalizeWeaponType(weaponType) : String(weaponType || "melee");
+  const master = typeof window.getMasterById === "function" ? window.getMasterById("weaponTypeMaster", "weaponType", normalized) : null;
+  if (master?.displayName) return master.displayName;
   return { melee: "近接", ranged: "遠距離", magic: "魔法" }[normalized] || "近接";
 }
 
