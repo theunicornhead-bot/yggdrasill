@@ -227,9 +227,6 @@ function renderHireView() {
 
 function renderCandidateCard(pilot) {
   if (typeof window.normalizePilotStatus === "function") window.normalizePilotStatus(pilot);
-  const skill = (typeof window.getLearnedPilotSkills === "function" ? window.getLearnedPilotSkills(pilot) : [])
-    .map((item) => item.name)
-    .join(", ");
   const className = window.getPilotClassDisplayName(pilot.classId);
   return `
     <article class="pilot-card panel">
@@ -237,10 +234,7 @@ function renderCandidateCard(pilot) {
       <div class="pilot-meta">
         <h3>${pilot.name}</h3>
         <div>RANK <strong>${pilot.rank}</strong></div>
-        <div class="muted">${className}</div>
-        <div class="tag-row">
-          <span class="tag">${skill || "初期スキルなし"}</span>
-        </div>
+        <div class="muted pilot-class-name">${className}</div>
       </div>
       <div class="cost-box">
         <span class="muted">雇用費用</span>

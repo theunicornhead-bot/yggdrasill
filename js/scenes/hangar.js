@@ -175,7 +175,10 @@ function renderMechDetailV2(mech) {
         <button class="button" data-action="close-mech-detail" type="button">戻る</button>
       </div>
       <div class="muted">${mech.unique ? "固有機体" : "通常機体"} / ${mech.customizable ? "カスタム可" : "カスタム不可"}</div>
-      <h3>${mech.name || "Machine"}</h3>
+      <div class="mech-detail-name-row">
+        <h3>${mech.name || "Machine"}</h3>
+        <button class="button" data-action="rename-mech" data-mech="${mech.id}" type="button">名称変更</button>
+      </div>
       <div class="pilot-overlay-anchor pilot-overlay-anchor--hangar-detail">
         ${window.renderMechImage(mech, "detail")}
         ${realPilot ? window.renderPilotPortraitImage(realPilot, "pilot-portrait--hangar") : ""}
@@ -248,6 +251,24 @@ window.sellMech = function sellMech(mechId) {
   renderCurrentScene();
 };
 
+window.renameMech = function renameMech(mechId) {
+  const mech = getMech(mechId);
+  if (!mech) return;
+  const currentName = String(mech.name || "Machine");
+  const nextName = window.prompt ? window.prompt("機体の表示名を入力してください。", currentName) : currentName;
+  if (nextName === null) return;
+  const trimmedName = String(nextName).trim();
+  if (!trimmedName) {
+    logMessage("bar", "機体名は空にできません。", "danger");
+    renderCurrentScene();
+    return;
+  }
+  mech.name = trimmedName.slice(0, 24);
+  window.GameState.selectedMechId = mech.id;
+  logMessage("bar", `${currentName}の表示名を${mech.name}に変更しました。`, "good");
+  renderCurrentScene();
+};
+
 function renderMechThumb(mech) {
   return window.renderMechImage(mech, "card");
 }
@@ -262,15 +283,13 @@ function renderPartSlots(mech) {
 
 function renderStoredPilot(pilot) {
   if (typeof window.normalizePilotStatus === "function") window.normalizePilotStatus(pilot);
-  const pilotSkills = typeof window.getLearnedPilotSkills === "function" ? window.getLearnedPilotSkills(pilot) : [];
   const className = window.getPilotClassDisplayName(pilot.classId);
   return `
     <button class="storage-card pilot-storage-card panel" data-action="open-pilot-detail" data-pilot="${pilot.id}" type="button">
       <div class="pilot-face-frame">${window.renderPilotPortraitImage(pilot, "pilot-portrait--face")}</div>
       <strong>${pilot.name}</strong><br>
       <span class="muted">RANK ${pilot.rank}</span><br>
-      <span class="muted">${className}</span><br>
-      <span class="muted">${pilotSkills[0]?.name || "No skills"}</span>
+      <span class="muted pilot-class-name">${className}</span>
     </button>
   `;
 }
@@ -303,8 +322,7 @@ function renderPilotDetailView(pilot) {
       </div>
       ${mode === "skill-tree" ? renderPilotSkillTreeView(pilot) : `
       <div class="pilot-detail-layout">
-        <div class="pilot-detail-portrait pilot-overlay-anchor pilot-overlay-anchor--pilot-detail">
-          ${assignedMech ? window.renderMechImage(assignedMech, "detail") : ""}
+        <div class="pilot-detail-portrait">
           ${window.renderPilotPortraitImage(pilot, "pilot-portrait--detail")}
         </div>
         <div class="compact-list">
@@ -493,13 +511,13 @@ function renderPilotAssignCandidate(pilot, mech, slot) {
   const className = window.getPilotClassDisplayName(pilot.classId);
   const status = isCurrent ? "この機体に搭乗中" : isAssignedElsewhere ? "別機体に搭乗中" : "未編成";
   return `
-    <article class="pilot-card panel">
-      <div class="portrait" ${pilotPortraitStyle(pilot)}>${window.renderPilotPortraitImage(pilot, "pilot-portrait--card")}</div>
+    <article class="pilot-card pilot-assign-card panel">
+      <div class="pilot-card-portrait">${window.renderPilotPortraitImage(pilot, "pilot-portrait--tavern-card")}</div>
       <div class="pilot-meta">
         <h3>${pilot.name}</h3>
-        <div>RANK <strong>${pilot.rank}</strong> / ${className}</div>
+        <div>RANK <strong>${pilot.rank}</strong></div>
+        <div class="muted pilot-class-name">${className}</div>
         <div class="tag-row"><span class="tag">${status}</span><span class="tag">${compatibility.label}</span></div>
-        <div class="muted">${compatibility.bonusText}</div>
       </div>
       <div class="cost-box">
         <button class="button" data-action="assign-pilot" data-slot="${slot}" data-mech="${mech.id}" data-pilot="${pilot.id}" type="button" ${isCurrent || isAssignedElsewhere ? "disabled" : ""}>${isCurrent ? "搭乗中" : "乗せる"}</button>

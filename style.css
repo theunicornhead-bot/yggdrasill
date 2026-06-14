@@ -22,9 +22,18 @@
   box-sizing: border-box;
 }
 
+html {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 body {
+  width: 100%;
+  max-width: 100%;
   min-height: 100vh;
   margin: 0;
+  overflow-x: hidden;
   color: var(--text);
   background:
     radial-gradient(circle at 50% 0%, rgba(19, 92, 100, 0.28), transparent 42%),
@@ -33,6 +42,8 @@ body {
 
 button {
   font: inherit;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .phone-shell {
@@ -75,6 +86,9 @@ button {
 .screen {
   position: relative;
   z-index: 1;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 100vh;
   padding: 14px 12px calc(var(--nav-h) + 18px);
 }
@@ -207,6 +221,10 @@ button {
 }
 
 .panel {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   border: 1px solid var(--line-soft);
   background: linear-gradient(180deg, var(--panel), rgba(2, 9, 11, 0.88));
   box-shadow: inset 0 0 24px rgba(103, 232, 249, 0.035), 0 0 20px rgba(0, 0, 0, 0.25);
@@ -214,6 +232,8 @@ button {
 }
 
 .panel-pad {
+  min-width: 0;
+  max-width: 100%;
   padding: 12px;
 }
 
@@ -244,8 +264,12 @@ button {
 }
 
 .button {
+  min-width: 0;
+  max-width: 100%;
   min-height: 42px;
   padding: 9px 12px;
+  overflow: hidden;
+  overflow-wrap: anywhere;
   color: var(--text);
   border: 1px solid var(--line);
   background: linear-gradient(180deg, rgba(13, 36, 40, 0.96), rgba(3, 9, 11, 0.96));
@@ -360,6 +384,8 @@ button {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
+  min-width: 0;
+  max-width: 100%;
   margin-bottom: 10px;
 }
 
@@ -396,6 +422,8 @@ button {
 }
 
 .synthesis-vat {
+  width: 100%;
+  max-width: 100%;
   min-height: 270px;
   margin-bottom: 10px;
   position: relative;
@@ -452,22 +480,30 @@ button {
 .synthesis-layout {
   display: grid;
   gap: 10px;
+  width: 100%;
   min-width: 0;
+  max-width: 100%;
 }
 
 .synthesis-layout > * {
   min-width: 0;
+  max-width: 100%;
 }
 
 .slot-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
+  width: 100%;
   min-width: 0;
+  max-width: 100%;
 }
 
 .synth-slot {
+  display: block;
+  width: 100%;
   min-width: 0;
+  max-width: 100%;
   min-height: 68px;
   padding: 6px;
   overflow: hidden;
@@ -478,6 +514,16 @@ button {
   font-size: 14px;
   line-height: 1.25;
   overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.synth-slot strong,
+.synth-slot .muted {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .synth-slot.filled {
@@ -535,6 +581,16 @@ button {
   gap: 10px;
   align-items: center;
   padding: 8px;
+}
+
+.pilot-card .pilot-meta {
+  min-width: 0;
+}
+
+.pilot-card .pilot-meta h3 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .portrait,
@@ -625,7 +681,7 @@ button {
 
 .pilot-card-portrait {
   position: relative;
-  align-self: stretch;
+  align-self: center;
   min-height: 154px;
   overflow: visible;
   pointer-events: none;
@@ -661,7 +717,8 @@ button {
 
 .pilot-detail-portrait {
   position: relative;
-  height: 280px;
+  width: 100%;
+  aspect-ratio: 1 / 1;
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 20%, rgba(103, 232, 249, 0.14), transparent 28%),
@@ -682,9 +739,19 @@ button {
 .pilot-portrait--detail {
   position: relative;
   z-index: 4;
-  height: 310px;
+  height: 100%;
   object-position: center top;
   filter: drop-shadow(0 9px 14px rgba(0, 0, 0, 0.6));
+}
+
+.pilot-class-name {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pilot-portrait--hangar {
@@ -724,13 +791,20 @@ button {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .tag {
   display: inline-flex;
   align-items: center;
+  max-width: 100%;
   min-height: 22px;
   padding: 2px 7px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
   color: #bdf8ff;
   border: 1px solid rgba(103, 232, 249, 0.22);
   background: rgba(9, 39, 45, 0.72);
@@ -750,6 +824,8 @@ button {
 .compact-list {
   display: grid;
   gap: 6px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .material-row,
@@ -763,7 +839,11 @@ button {
 }
 
 .material-row {
+  width: 100%;
+  max-width: 100%;
   padding: 8px;
+  overflow: hidden;
+  text-align: left;
   border: 1px solid rgba(126, 222, 236, 0.1);
   background: rgba(1, 7, 8, 0.45);
 }
@@ -772,6 +852,23 @@ button {
 .stat-row > *,
 .log-line > * {
   min-width: 0;
+}
+
+.material-row > span,
+.stat-row > span {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
+}
+
+.material-row > strong,
+.stat-row > strong {
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
 .material-icon {
@@ -910,6 +1007,19 @@ button {
   border-color: rgba(103, 232, 249, 0.68);
 }
 
+.pilot-assign-card {
+  align-items: center;
+  min-height: 172px;
+}
+
+.pilot-assign-card .pilot-card-portrait {
+  min-height: 154px;
+}
+
+.pilot-assign-card .pilot-meta {
+  align-self: center;
+}
+
 .hangar-party-rank {
   display: flex;
   justify-content: center;
@@ -945,6 +1055,30 @@ button {
   padding: 9px;
 }
 
+.mech-detail-name-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 8px;
+}
+
+.mech-detail-name-row h3 {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 20px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mech-detail-name-row .button {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
 .mech-image {
   position: relative;
   overflow: hidden;
@@ -973,7 +1107,8 @@ button {
 }
 
 .mech-image-detail {
-  height: 240px;
+  width: 100%;
+  aspect-ratio: 1 / 1;
   margin: 7px 0;
   --mech-fit: contain;
   --mech-scale: 1;
@@ -1819,6 +1954,35 @@ button {
 }
 
 @media (max-width: 360px) {
+  .screen {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .panel-pad {
+    padding: 10px;
+  }
+
+  .section-head {
+    gap: 6px;
+  }
+
+  .section-head > span {
+    max-width: 42%;
+    font-size: 13px;
+  }
+
+  .slot-grid {
+    gap: 4px;
+  }
+
+  .synth-slot {
+    min-height: 58px;
+    padding: 4px 2px;
+    font-size: 12px;
+    line-height: 1.18;
+  }
+
   .title-ja {
     font-size: 22px;
   }

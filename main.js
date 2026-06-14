@@ -48,6 +48,7 @@ document.addEventListener("click", (event) => {
   if (action === "rank-up-pilot") window.rankUpPilotById(target.dataset.pilot);
   if (action === "sell-material") window.sellMaterial(target.dataset.material);
   if (action === "sell-mech") window.sellMech(target.dataset.mech);
+  if (action === "rename-mech") window.renameMech(target.dataset.mech);
   if (action === "change-hangar-tab") {
     window.GameState.hangarTab = target.dataset.tab || "party";
     window.GameState.hangarView = "list";
