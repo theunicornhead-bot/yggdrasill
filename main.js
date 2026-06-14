@@ -52,6 +52,7 @@ document.addEventListener("click", (event) => {
     window.GameState.hangarTab = target.dataset.tab || "party";
     window.GameState.hangarView = "list";
     window.GameState.assigningMechId = null;
+    window.GameState.assigningPartySlot = null;
     window.renderCurrentScene();
   }
   if (action === "open-mech-detail") {
@@ -64,13 +65,26 @@ document.addEventListener("click", (event) => {
     window.GameState.hangarView = "list";
     window.renderCurrentScene();
   }
+  if (action === "open-mech-assign") {
+    window.GameState.hangarTab = "party";
+    window.GameState.assigningPartySlot = Number(target.dataset.slot);
+    window.GameState.hangarView = "mech-assign";
+    window.renderCurrentScene();
+  }
   if (action === "open-pilot-assign") {
-    window.GameState.assigningMechId = target.dataset.mech;
+    window.GameState.hangarTab = "party";
+    window.GameState.assigningPartySlot = Number(target.dataset.slot);
     window.GameState.hangarView = "pilot-assign";
     window.renderCurrentScene();
   }
   if (action === "close-pilot-assign") {
     window.GameState.assigningMechId = null;
+    window.GameState.assigningPartySlot = null;
+    window.GameState.hangarView = "list";
+    window.renderCurrentScene();
+  }
+  if (action === "close-party-assign") {
+    window.GameState.assigningPartySlot = null;
     window.GameState.hangarView = "list";
     window.renderCurrentScene();
   }
@@ -86,6 +100,7 @@ document.addEventListener("click", (event) => {
   }
   if (action === "pilot-detail-mode") window.setPilotDetailMode(target.dataset.mode);
   if (action === "learn-pilot-skill") window.learnPilotSkillById(target.dataset.pilot, target.dataset.skill);
+  if (action === "assign-mech-to-party-slot") window.assignMechToPartySlot(target.dataset.slot, target.dataset.mech);
   if (action === "assign-pilot") window.assignPilotToMech(target.dataset.mech, target.dataset.pilot);
   if (action === "unassign-pilot") window.unassignPilotFromMech(target.dataset.mech);
   if (action === "select-mech") {

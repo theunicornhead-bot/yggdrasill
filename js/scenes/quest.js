@@ -491,7 +491,7 @@ window.selectPlanet = function selectPlanet(planetId) {
 };
 
 window.getSortieUnits = function getSortieUnits() {
-  return (window.GameState.mechs || []).filter((mech) => getPilot(mech.pilotId)).slice(0, 4);
+  return (window.GameState.mechs || []).slice(0, 4).filter((mech) => mech && getPilot(mech.pilotId));
 };
 
 window.validateSortieParty = function validateSortieParty() {

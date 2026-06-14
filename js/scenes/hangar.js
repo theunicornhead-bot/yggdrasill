@@ -60,18 +60,21 @@ window.renderMechImage = function renderMechImage(mech, variant = "card") {
 window.renderHangar = function renderHangar() {
   const state = window.GameState;
   if (!["party", "mechs", "pilots"].includes(state.hangarTab)) state.hangarTab = "party";
-  if (!["list", "mech-detail", "pilot-assign", "pilot-detail"].includes(state.hangarView)) state.hangarView = "list";
+  if (!["list", "mech-detail", "mech-assign", "pilot-assign", "pilot-detail"].includes(state.hangarView)) state.hangarView = "list";
   if (state.hangarTab !== "mechs" && state.hangarView === "mech-detail") state.hangarView = "list";
+  if (state.hangarTab !== "party" && state.hangarView === "mech-assign") state.hangarView = "list";
   if (state.hangarTab !== "party" && state.hangarView === "pilot-assign") state.hangarView = "list";
   if (state.hangarTab !== "pilots" && state.hangarView === "pilot-detail") state.hangarView = "list";
-  if (state.hangarView === "pilot-assign" && !getMech(state.assigningMechId)) {
+  if ((state.hangarView === "mech-assign" || state.hangarView === "pilot-assign") && !isValidPartySlot(state.assigningPartySlot)) {
     state.hangarView = "list";
-    state.assigningMechId = null;
+    state.assigningPartySlot = null;
   }
 
   const selected = getMech(state.selectedMechId) || state.mechs[0];
-  const assigningMech = getMech(state.assigningMechId);
-  const sortieCount = typeof window.getSortieUnits === "function" ? window.getSortieUnits().length : state.mechs.filter((mech) => getPilot(mech.pilotId)).slice(0, 4).length;
+  const assigningSlot = Number(state.assigningPartySlot);
+  const assigningMech = getPartyMech(assigningSlot);
+  const partyMechs = getPartyMechs();
+  const sortieCount = typeof window.getSortieUnits === "function" ? window.getSortieUnits().length : partyMechs.filter((mech) => mech && getPilot(mech.pilotId)).length;
   window.App.root.innerHTML = `
     ${renderHeader("ハンガー", "HANGER")}
     <section class="hangar-tabs" role="tablist" aria-label="ハンガータブ">
@@ -80,12 +83,14 @@ window.renderHangar = function renderHangar() {
       ${renderHangarTabButton("pilots", "パイロット")}
     </section>
     ${state.hangarTab === "party" ? `
-      ${state.hangarView === "pilot-assign" && assigningMech ? renderPilotAssignView(assigningMech) : `
+      ${state.hangarView === "mech-assign" ? renderMechAssignView(assigningSlot) : ""}
+      ${state.hangarView === "pilot-assign" ? renderPilotAssignView(assigningMech, assigningSlot) : ""}
+      ${state.hangarView === "list" ? `
         <section class="panel panel-pad">
           <div class="section-head"><h2>パーティ編成</h2><span>出撃機体 ${sortieCount} / 4</span></div>
-          <div class="hangar-party-grid">${state.mechs.slice(0, 4).map(renderPartySlot).join("")}</div>
+          <div class="hangar-party-grid">${Array.from({ length: 4 }, (_, index) => renderPartySlot(partyMechs[index], index)).join("")}</div>
         </section>
-      `}
+      ` : ""}
     ` : ""}
     ${state.hangarTab === "mechs" ? `
       ${state.hangarView === "mech-detail" && selected ? renderMechDetailV2(selected) : `
@@ -105,6 +110,19 @@ window.renderHangar = function renderHangar() {
     ` : ""}
   `;
 };
+
+function isValidPartySlot(slot) {
+  const index = Number(slot);
+  return Number.isInteger(index) && index >= 0 && index < 4;
+}
+
+function getPartyMechs() {
+  return (window.GameState.mechs || []).slice(0, 4);
+}
+
+function getPartyMech(slot) {
+  return isValidPartySlot(slot) ? (window.GameState.mechs || [])[Number(slot)] || null : null;
+}
 
 function renderHangarTabButton(tab, label) {
   const active = window.GameState.hangarTab === tab;
@@ -345,20 +363,25 @@ function renderPilotSkillTreeCard(pilot, skill) {
 }
 
 function renderPartySlot(mech, index) {
-  const pilot = displayPilot(mech.pilotId);
-  const realPilot = getPilot(mech.pilotId);
+  const hasMech = Boolean(mech);
+  const pilot = hasMech ? displayPilot(mech.pilotId) : { name: "未搭乗" };
+  const realPilot = hasMech ? getPilot(mech.pilotId) : null;
   const pilotRank = realPilot?.rank || "-";
   const pilotLevel = realPilot?.level || "-";
   return `
     <article class="party-slot panel hangar-party-card">
       <div class="hangar-card-head">
         <span>${String(index + 1).padStart(2, "0")}</span>
-        <strong>${mech.name}</strong>
+        <strong>${hasMech ? mech.name || "Machine" : "空き枠"}</strong>
       </div>
-      <div class="hangar-party-mech pilot-overlay-anchor">
-        ${window.renderMechImage(mech, "card")}
-        ${realPilot ? window.renderPilotPortraitImage(realPilot, "pilot-portrait--hangar") : ""}
-      </div>
+      ${hasMech ? `
+        <button class="hangar-party-mech pilot-overlay-anchor mech-image-button" data-action="open-mech-detail" data-mech="${mech.id}" type="button" aria-label="${mech.name || "Machine"} 詳細">
+          ${window.renderMechImage(mech, "card")}
+          ${realPilot ? window.renderPilotPortraitImage(realPilot, "pilot-portrait--hangar") : ""}
+        </button>
+      ` : `
+        <div class="hangar-party-mech hangar-empty-slot"><span>NO MECH</span></div>
+      `}
       <div class="hangar-party-pilot">
         <strong>${pilot.name}</strong>
       </div>
@@ -367,8 +390,8 @@ function renderPartySlot(mech, index) {
         <span>LV ${pilotLevel}</span>
       </div>
       <div class="hangar-card-actions">
-        <button class="button" data-action="open-mech-detail" data-mech="${mech.id}" type="button">詳細</button>
-        <button class="button" data-action="open-pilot-assign" data-mech="${mech.id}" type="button">変更</button>
+        <button class="button" data-action="open-mech-assign" data-slot="${index}" type="button">機体<br>変更</button>
+        <button class="button" data-action="open-pilot-assign" data-slot="${index}" ${hasMech ? "" : "disabled"} type="button">パイロット<br>変更</button>
       </div>
     </article>
   `;
@@ -411,26 +434,64 @@ function renderMachineTags(machine) {
   return labels.map((label) => `<span class="tag">${label}</span>`).join("");
 }
 
-function renderPilotAssignView(mech) {
-  const pilots = window.GameState.pilots;
+function renderMechAssignView(slot) {
+  const mechs = window.GameState.mechs || [];
+  const currentMech = getPartyMech(slot);
   return `
     <section class="panel panel-pad">
       <div class="section-head">
-        <h2>パイロット変更</h2>
-        <button class="button" data-action="close-pilot-assign" type="button">戻る</button>
+        <h2>機体変更</h2>
+        <button class="button" data-action="close-party-assign" type="button">戻る</button>
       </div>
-      <div class="material-row"><span>対象機体</span><strong>${mech.name}</strong></div>
-      <div class="compact-list">${pilots.length ? pilots.map((pilot) => renderPilotAssignCandidate(pilot, mech)).join("") : `<div class="muted">雇用中のパイロットがいません。</div>`}</div>
+      <div class="material-row"><span>対象枠</span><strong>${String(Number(slot) + 1).padStart(2, "0")}</strong></div>
+      <div class="compact-list">${mechs.length ? mechs.map((candidate, index) => renderMechAssignCandidate(candidate, index, slot, currentMech)).join("") : `<div class="muted">所持機体がありません。</div>`}</div>
     </section>
   `;
 }
 
-function renderPilotAssignCandidate(pilot, mech) {
+function renderMechAssignCandidate(mech, index, slot, currentMech) {
+  if (!mech) return "";
+  const isCurrent = currentMech?.id === mech.id;
+  const isPartyAssigned = index < 4 && !isCurrent;
+  const pilot = getPilot(mech.pilotId);
+  const status = isCurrent ? "この枠" : isPartyAssigned ? "別枠で編成中" : "未編成";
+  return `
+    <article class="material-row hangar-assign-row">
+      <span style="flex:1">${mech.name || "Machine"}<br><span class="muted">RANK ${mech.rank || mech.rarity || "-"} / ${pilot ? pilot.name : "未搭乗"} / ${status}</span></span>
+      <button class="button" data-action="assign-mech-to-party-slot" data-slot="${slot}" data-mech="${mech.id}" ${isCurrent || isPartyAssigned ? "disabled" : ""} type="button">${isCurrent ? "設定中" : "設定"}</button>
+    </article>
+  `;
+}
+
+function renderPilotAssignView(mech, slot) {
+  const pilots = window.GameState.pilots;
+  if (!mech) {
+    return `
+      <section class="panel panel-pad">
+        <div class="section-head"><h2>パイロット変更</h2><button class="button" data-action="close-party-assign" type="button">戻る</button></div>
+        <div class="muted">先に機体を設定してください。</div>
+      </section>
+    `;
+  }
+  return `
+    <section class="panel panel-pad">
+      <div class="section-head">
+        <h2>パイロット変更</h2>
+        <button class="button" data-action="close-party-assign" type="button">戻る</button>
+      </div>
+      <div class="material-row"><span>対象機体</span><strong>${mech.name || "Machine"}</strong></div>
+      <div class="compact-list">${pilots.length ? pilots.map((pilot) => renderPilotAssignCandidate(pilot, mech, slot)).join("") : `<div class="muted">雇用中のパイロットがいません。</div>`}</div>
+    </section>
+  `;
+}
+
+function renderPilotAssignCandidate(pilot, mech, slot) {
   const currentMech = window.GameState.mechs.find((item) => item.pilotId === pilot.id);
   const isCurrent = mech.pilotId === pilot.id;
+  const isAssignedElsewhere = currentMech && !isCurrent;
   const compatibility = getPilotMechCompatibility(pilot, mech);
   const className = window.getPilotClassDisplayName(pilot.classId);
-  const status = isCurrent ? "搭乗中" : currentMech ? "別機体に搭乗中" : "待機中";
+  const status = isCurrent ? "この機体に搭乗中" : isAssignedElsewhere ? "別機体に搭乗中" : "未編成";
   return `
     <article class="pilot-card panel">
       <div class="portrait" ${pilotPortraitStyle(pilot)}>${window.renderPilotPortraitImage(pilot, "pilot-portrait--card")}</div>
@@ -441,22 +502,37 @@ function renderPilotAssignCandidate(pilot, mech) {
         <div class="muted">${compatibility.bonusText}</div>
       </div>
       <div class="cost-box">
-        <button class="button" data-action="assign-pilot" data-mech="${mech.id}" data-pilot="${pilot.id}" type="button" ${isCurrent ? "disabled" : ""}>${isCurrent ? "搭乗中" : "乗せる"}</button>
+        <button class="button" data-action="assign-pilot" data-slot="${slot}" data-mech="${mech.id}" data-pilot="${pilot.id}" type="button" ${isCurrent || isAssignedElsewhere ? "disabled" : ""}>${isCurrent ? "搭乗中" : "乗せる"}</button>
       </div>
     </article>
   `;
 }
+
+window.assignMechToPartySlot = function assignMechToPartySlot(slot, mechId) {
+  const state = window.GameState;
+  const targetIndex = Number(slot);
+  const sourceIndex = (state.mechs || []).findIndex((mech) => mech.id === mechId);
+  if (!isValidPartySlot(targetIndex) || sourceIndex < 0) return false;
+  if (sourceIndex < 4 && sourceIndex !== targetIndex) return false;
+  const [selected] = state.mechs.splice(sourceIndex, 1);
+  state.mechs.splice(targetIndex, 0, selected);
+  state.mechs = state.mechs.filter(Boolean);
+  state.selectedMechId = selected.id;
+  state.assigningPartySlot = null;
+  state.hangarView = "list";
+  window.renderCurrentScene();
+  return true;
+};
 
 window.assignPilotToMech = function assignPilotToMech(mechId, pilotId) {
   const state = window.GameState;
   const mech = getMech(mechId);
   const pilot = getPilot(pilotId);
   if (!mech || !pilot) return;
-  state.mechs.forEach((item) => {
-    if (item.pilotId === pilotId) item.pilotId = null;
-  });
+  const currentMech = state.mechs.find((item) => item.pilotId === pilotId);
+  if (currentMech && currentMech.id !== mech.id) return;
   mech.pilotId = pilotId;
-  state.assigningMechId = null;
+  state.assigningPartySlot = null;
   state.hangarView = "list";
   renderCurrentScene();
 };
