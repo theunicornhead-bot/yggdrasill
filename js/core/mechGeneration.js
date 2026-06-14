@@ -8,8 +8,7 @@ window.MechCoreCatalog = [
   { id: "core_healer_r", name: "Medic Halo Core", rarity: "R", category: "healer", outputLimit: 82, prompts: ["repair drones", "white medical support markings"] },
   { id: "core_support_sr", name: "Support Relay Core", rarity: "SR", category: "support", outputLimit: 104, prompts: ["command antenna array", "support equipment racks"] },
   { id: "core_debuff_sr", name: "Hunter Venom Core", rarity: "SR", category: "debuff", outputLimit: 100, prompts: ["jamming emitters", "predatory angular head unit"] },
-  { id: "core_scout_r", name: "Scout Wisp Core", rarity: "R", category: "scout", outputLimit: 78, prompts: ["light recon sensors", "slim high mobility frame"] },
-  { id: "core_apex_ur", name: "Apex Yggdrasil Core", rarity: "UR", category: "melee", outputLimit: 260, prompts: ["mythic bio-reactor heart", "ancient living core", "apex organic knight silhouette"] }
+  { id: "core_scout_r", name: "Scout Wisp Core", rarity: "R", category: "scout", outputLimit: 78, prompts: ["light recon sensors", "slim high mobility frame"] }
 ];
 
 window.MechMaterialCatalog = [
@@ -82,36 +81,6 @@ window.MechMaterialCatalog = [
     outputCost: 18,
     tags: ["volcano", "heavy"],
     prompts: ["volcanic armor plating", "dark metal armor", "glowing magma energy lines"]
-  },
-  {
-    id: "apex_bone_core",
-    name: "Apex Bone Core",
-    rarity: "UR",
-    category: "frame",
-    stats: { hp: 260, pp: 20, sAtk: 32, mAtk: 16, lAtk: 18, sDef: 42, mDef: 30, lDef: 34, speed: 6 },
-    outputCost: 34,
-    tags: ["apex", "bone", "ancient"],
-    prompts: ["colossal ancient bone frame", "sacred rib cage armor", "overgrown skeletal structure"]
-  },
-  {
-    id: "world_tree_reactor",
-    name: "World Tree Reactor",
-    rarity: "UR",
-    category: "reactor",
-    stats: { hp: 140, pp: 38, sAtk: 24, mAtk: 34, lAtk: 24, sDef: 22, mDef: 38, lDef: 24, speed: 8 },
-    outputCost: 32,
-    tags: ["apex", "reactor", "world-tree"],
-    prompts: ["world tree bio-reactor", "glowing green reactor organs", "root-like energy vessels"]
-  },
-  {
-    id: "seraph_nerve_crown",
-    name: "Seraph Nerve Crown",
-    rarity: "UR",
-    category: "control",
-    stats: { hp: 80, pp: 28, sAtk: 20, mAtk: 24, lAtk: 36, sDef: 16, mDef: 24, lDef: 26, speed: 34 },
-    outputCost: 30,
-    tags: ["apex", "nerve", "crown"],
-    prompts: ["halo-like nerve crown", "golden bio-circuit halo", "angelic sensory organs"]
   }
 ];
 
