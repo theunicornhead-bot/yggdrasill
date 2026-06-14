@@ -295,6 +295,82 @@ button {
   box-shadow: 0 0 40px rgba(240, 154, 85, 0.2);
 }
 
+.tavern-master {
+  position: relative;
+  min-height: 320px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(1, 6, 7, 0.05), rgba(1, 6, 7, 0.82)),
+    linear-gradient(120deg, #0a1011, #17110e 55%, #061112);
+}
+
+.tavern-master::before {
+  content: "";
+  position: absolute;
+  inset: 26px 20px 56px;
+  border-bottom: 18px solid rgba(92, 50, 31, 0.86);
+  background:
+    linear-gradient(90deg, rgba(187, 124, 76, 0.16), transparent 18%, transparent 82%, rgba(187, 124, 76, 0.12)),
+    repeating-linear-gradient(90deg, rgba(220, 166, 99, 0.24) 0 8px, transparent 8px 38px);
+  opacity: 0.72;
+}
+
+.tavern-master-image {
+  position: absolute;
+  left: 50%;
+  bottom: -245px;
+  z-index: 2;
+  width: 560px;
+  height: 620px;
+  transform: translateX(-50%);
+  object-fit: cover;
+  object-position: center top;
+  filter: drop-shadow(0 14px 20px rgba(0, 0, 0, 0.68));
+}
+
+.tavern-speech {
+  z-index: 3;
+  right: 12px;
+  bottom: 14px;
+  width: min(62%, 240px);
+}
+
+.tavern-menu {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tavern-menu-button {
+  min-height: 64px;
+  font-size: 16px;
+}
+
+.tavern-sub-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.tavern-quest-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.tavern-quest-card p {
+  margin: 0;
+}
+
+.tavern-wide-action {
+  width: 100%;
+  margin-top: 8px;
+}
+
 .synthesis-vat {
   min-height: 270px;
   margin-bottom: 10px;

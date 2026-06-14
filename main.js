@@ -36,6 +36,9 @@ document.addEventListener("click", (event) => {
     window.generateTavernCandidates();
     window.renderCurrentScene();
   }
+  if (action === "bar-view") window.setBarView(target.dataset.view);
+  if (action === "open-tavern-candidate-detail") window.openTavernCandidateDetail(target.dataset.pilot);
+  if (action === "accept-tavern-quest") window.acceptTavernQuest(target.dataset.planet);
   if (action === "hire") window.hirePilot(target.dataset.pilot);
   if (action === "sell-material") window.sellMaterial(target.dataset.material);
   if (action === "sell-mech") window.sellMech(target.dataset.mech);
