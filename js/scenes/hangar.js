@@ -34,10 +34,10 @@ function getSafeMechImageId(mech) {
 
 window.getMechImagePath = function getMechImagePath(mech) {
   const explicitPath = String(mech?.imagePath || "").trim();
-  if (explicitPath.includes("generated/mechs/")) return explicitPath;
+  if (explicitPath) return explicitPath;
   const imageId = getSafeMechImageId(mech);
   if (imageId) return `generated/mechs/${imageId}.png`;
-  return explicitPath || BASE_MECH_IMAGE_PATH;
+  return BASE_MECH_IMAGE_PATH;
 };
 
 window.renderMechImage = function renderMechImage(mech, variant = "card") {
