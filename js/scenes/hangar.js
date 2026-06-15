@@ -53,8 +53,9 @@ window.renderMechImage = function renderMechImage(mech, variant = "card") {
   const styleAttr = style ? ` style="${style}"` : "";
   const imagePath = window.getMechImagePath(mech);
   const altText = mech?.name || "Machine";
+  const imageIdAttr = mech?.imageId ? ` data-mech-image-id="${mech.imageId}"` : "";
 
-  return `<div class="mech-image mech-image-${safeVariant}"${styleAttr}><img src="${imagePath}" alt="${altText}" onerror="this.onerror=null;this.src='${BASE_MECH_IMAGE_PATH}'"></div>`;
+  return `<div class="mech-image mech-image-${safeVariant}"${styleAttr}><img src="${imagePath}"${imageIdAttr} alt="${altText}" onerror="this.onerror=null;this.src='${BASE_MECH_IMAGE_PATH}'"></div>`;
 };
 
 window.renderHangar = function renderHangar() {
@@ -70,6 +71,8 @@ window.renderHangar = function renderHangar() {
     state.assigningPartySlot = null;
   }
 
+  if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
+  const ownedLimit = typeof window.getOwnedMechLimit === "function" ? window.getOwnedMechLimit() : 30;
   const selected = getMech(state.selectedMechId) || state.mechs[0];
   const assigningSlot = Number(state.assigningPartySlot);
   const assigningMech = getPartyMech(assigningSlot);
@@ -95,8 +98,9 @@ window.renderHangar = function renderHangar() {
     ${state.hangarTab === "mechs" ? `
       ${state.hangarView === "mech-detail" && selected ? renderMechDetailV2(selected) : `
         <section class="panel panel-pad">
-          <div class="section-head"><h2>所持機体一覧</h2><span>${state.mechs.length} / 20</span></div>
-          <div class="mech-list">${state.mechs.map((mech, index) => renderMechCard(mech, index)).join("")}</div>
+          <div class="section-head"><h2>所持機体一覧</h2><span>${state.mechs.length} / ${ownedLimit}</span></div>
+          ${state.pendingGeneratedMech ? renderPendingGeneratedMechNotice() : ""}
+          <div class="mech-list hangar-storage-list">${state.mechs.map((mech, index) => renderMechCard(mech, index)).join("")}</div>
         </section>
       `}
     ` : ""}
@@ -117,11 +121,42 @@ function isValidPartySlot(slot) {
 }
 
 function getPartyMechs() {
-  return (window.GameState.mechs || []).slice(0, 4);
+  if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
+  const mechs = window.GameState.mechs || [];
+  return (window.GameState.partyMechIds || []).map((id) => mechs.find((mech) => mech.id === id) || null);
 }
 
 function getPartyMech(slot) {
-  return isValidPartySlot(slot) ? (window.GameState.mechs || [])[Number(slot)] || null : null;
+  if (!isValidPartySlot(slot)) return null;
+  const mechId = (window.GameState.partyMechIds || [])[Number(slot)];
+  return mechId ? getMech(mechId) : null;
+}
+
+function isMechInParty(mechId) {
+  if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
+  return (window.GameState.partyMechIds || []).includes(mechId);
+}
+
+function partyMechCount() {
+  if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
+  return (window.GameState.partyMechIds || []).filter(Boolean).length;
+}
+
+function renderPendingGeneratedMechNotice() {
+  const pending = window.GameState.pendingGeneratedMech;
+  if (!pending) return "";
+  const ownedLimit = typeof window.getOwnedMechLimit === "function" ? window.getOwnedMechLimit() : 30;
+  const full = (window.GameState.mechs || []).length >= ownedLimit;
+  return `
+    <div class="panel panel-pad pending-mech-panel">
+      <div class="section-head"><h3>保存待ち機体</h3><span>${pending.name || "Machine"}</span></div>
+      <div class="muted">${full ? "格納庫が満杯です。削除して空きを作ってください。" : "生成完了後の一時保存機体です。"}</div>
+      <div class="synth-actions" style="margin-top:8px">
+        <button class="button" data-action="confirm-pending-mech" ${full ? "disabled" : ""} type="button">格納庫へ保存</button>
+        <button class="button danger" data-action="discard-pending-mech" type="button">破棄</button>
+      </div>
+    </div>
+  `;
 }
 
 function renderHangarTabButton(tab, label) {
@@ -137,9 +172,11 @@ function renderMechCard(mech, index) {
   const unitStats = typeof window.calculateUnitStats === "function" ? window.calculateUnitStats(realPilot || null, mech) : (mech.stats || {});
   const mainWeapon = typeof window.getMainWeapon === "function" ? window.getMainWeapon(mech) : mech.mainWeapon;
   const attackPower = typeof window.calculateWeaponAttackPower === "function" ? window.calculateWeaponAttackPower(realPilot || null, mech, mainWeapon) : Math.max(unitStats.sAtk || 0, unitStats.mAtk || 0, unitStats.lAtk || 0);
+  const inParty = isMechInParty(mech.id);
+  const partyFull = partyMechCount() >= (typeof window.getPartyMechLimit === "function" ? window.getPartyMechLimit() : 4);
   return `
     <article class="mech-card panel ${window.GameState.selectedMechId === mech.id ? "selected" : ""}">
-      <div class="section-head"><h3>${String(index + 1).padStart(2, "0")} ${mech.name}</h3><span class="tag">${mech.size}</span></div>
+      <div class="section-head"><h3>${String(index + 1).padStart(2, "0")} ${mech.name}</h3><span class="tag">${inParty ? "編成中" : mech.size}</span></div>
       <div class="pilot-overlay-anchor pilot-overlay-anchor--hangar-list">
         ${window.renderMechImage(mech, "card")}
         ${realPilot ? window.renderPilotPortraitImage(realPilot, "pilot-portrait--hangar") : ""}
@@ -154,8 +191,13 @@ function renderMechCard(mech, index) {
       <div class="stat-row"><span>POWER</span><strong>${formatNumber(attackPower)}</strong></div>
       <div class="stat-row"><span>SPEED</span><strong>${formatNumber(unitStats.speed || 0)}</strong></div>
       <div class="material-row"><span>搭乗者</span><strong>${pilot.name}</strong></div>
-      <button class="button" data-action="open-mech-detail" data-mech="${mech.id}" style="width:100%">詳細</button>
-      <button class="button danger" data-action="sell-mech" data-mech="${mech.id}" ${canSellMech(mech.id) ? "" : "disabled"} style="width:100%;margin-top:6px">売却 ${formatNumber(salePrice)} G</button>
+      <div class="hangar-storage-actions">
+        <button class="button" data-action="open-mech-detail" data-mech="${mech.id}" type="button">詳細</button>
+        ${inParty
+          ? `<button class="button" data-action="remove-mech-from-party" data-mech="${mech.id}" type="button">編成から外す</button>`
+          : `<button class="button" data-action="add-mech-to-party" data-mech="${mech.id}" ${partyFull ? "disabled" : ""} type="button">編成に入れる</button>`}
+        <button class="button danger" data-action="delete-mech" data-mech="${mech.id}" ${canDeleteMech(mech.id) ? "" : "disabled"} type="button">削除</button>
+      </div>
     </article>
   `;
 }
@@ -198,9 +240,8 @@ function renderMechDetailV2(mech) {
       <div class="compact-list">${renderMachineOptions(mech)}</div>
       <div class="section-head" style="margin-top:10px"><h3>TAGS</h3></div>
       <div class="tag-row">${renderMachineTags(mech)}</div>
-      <div class="section-head" style="margin-top:10px"><h3>売却</h3></div>
-      <div class="material-row"><span>売却価格</span><strong>${formatNumber(getMechSalePrice(mech))} G</strong></div>
-      <button class="button danger" data-action="sell-mech" data-mech="${mech.id}" ${canSellMech(mech.id) ? "" : "disabled"} style="width:100%;margin-top:8px">この機体を売却</button>
+      <div class="section-head" style="margin-top:10px"><h3>削除</h3></div>
+      <button class="button danger" data-action="delete-mech" data-mech="${mech.id}" ${canDeleteMech(mech.id) ? "" : "disabled"} style="width:100%;margin-top:8px">この機体を削除</button>
       <p class="muted">${mech.description || ""}</p>
     </div>
   `;
@@ -229,6 +270,11 @@ function canSellMech(mechId) {
   return Boolean(getMech(mechId)) && state.mechs.length > 1;
 }
 
+function canDeleteMech(mechId) {
+  const state = window.GameState;
+  return Boolean(getMech(mechId)) && state.mechs.length > 1;
+}
+
 window.sellMech = function sellMech(mechId) {
   const state = window.GameState;
   const mech = getMech(mechId);
@@ -243,11 +289,39 @@ window.sellMech = function sellMech(mechId) {
   if (!confirmed) return;
 
   state.mechs = state.mechs.filter((item) => item.id !== mechId);
+  state.partyMechIds = (state.partyMechIds || []).map((id) => id === mechId ? null : id);
+  if (mech.imageId && typeof window.deleteMechImageBlob === "function") {
+    window.deleteMechImageBlob(mech.imageId).catch(() => false);
+  }
   state.money += salePrice;
   if (state.selectedMechId === mechId) {
     state.selectedMechId = state.mechs[0]?.id || null;
   }
   logMessage("bar", `${mech.name}を${formatNumber(salePrice)}Gで売却しました。`, "good");
+  window.savePlayerData();
+  renderCurrentScene();
+};
+
+window.deleteMech = async function deleteMech(mechId) {
+  const state = window.GameState;
+  const mech = getMech(mechId);
+  if (!mech || !canDeleteMech(mechId)) {
+    logMessage("bar", "最後の1機は削除できません。", "danger");
+    window.savePlayerData();
+    renderCurrentScene();
+    return;
+  }
+  const confirmed = window.confirm ? window.confirm(`${mech.name || "Machine"}を削除しますか？`) : true;
+  if (!confirmed) return;
+  state.mechs = state.mechs.filter((item) => item.id !== mechId);
+  state.partyMechIds = (state.partyMechIds || []).map((id) => id === mechId ? null : id);
+  if (state.selectedMechId === mechId) state.selectedMechId = state.mechs[0]?.id || null;
+  if (mech.imageId && typeof window.deleteMechImageBlob === "function") {
+    await window.deleteMechImageBlob(mech.imageId).catch(() => false);
+  }
+  if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
+  logMessage("bar", `${mech.name || "Machine"}を削除しました。`, "warn");
+  window.savePlayerData();
   renderCurrentScene();
 };
 
@@ -266,6 +340,7 @@ window.renameMech = function renameMech(mechId) {
   mech.name = trimmedName.slice(0, 24);
   window.GameState.selectedMechId = mech.id;
   logMessage("bar", `${currentName}の表示名を${mech.name}に変更しました。`, "good");
+  window.savePlayerData();
   renderCurrentScene();
 };
 
@@ -470,7 +545,7 @@ function renderMechAssignView(slot) {
 function renderMechAssignCandidate(mech, index, slot, currentMech) {
   if (!mech) return "";
   const isCurrent = currentMech?.id === mech.id;
-  const isPartyAssigned = index < 4 && !isCurrent;
+  const isPartyAssigned = isMechInParty(mech.id) && !isCurrent;
   const pilot = getPilot(mech.pilotId);
   const status = isCurrent ? "この枠" : isPartyAssigned ? "別枠で編成中" : "未編成";
   return `
@@ -529,15 +604,83 @@ function renderPilotAssignCandidate(pilot, mech, slot) {
 window.assignMechToPartySlot = function assignMechToPartySlot(slot, mechId) {
   const state = window.GameState;
   const targetIndex = Number(slot);
-  const sourceIndex = (state.mechs || []).findIndex((mech) => mech.id === mechId);
-  if (!isValidPartySlot(targetIndex) || sourceIndex < 0) return false;
-  if (sourceIndex < 4 && sourceIndex !== targetIndex) return false;
-  const [selected] = state.mechs.splice(sourceIndex, 1);
-  state.mechs.splice(targetIndex, 0, selected);
-  state.mechs = state.mechs.filter(Boolean);
+  const selected = getMech(mechId);
+  if (!isValidPartySlot(targetIndex) || !selected) return false;
+  if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
+  if (isMechInParty(mechId) && state.partyMechIds[targetIndex] !== mechId) return false;
+  state.partyMechIds = Array.from({ length: typeof window.getPartyMechLimit === "function" ? window.getPartyMechLimit() : 4 }, (_, index) => state.partyMechIds[index] || null);
+  state.partyMechIds[targetIndex] = mechId;
   state.selectedMechId = selected.id;
   state.assigningPartySlot = null;
   state.hangarView = "list";
+  window.savePlayerData();
+  window.renderCurrentScene();
+  return true;
+};
+
+window.addMechToParty = function addMechToParty(mechId) {
+  const state = window.GameState;
+  const mech = getMech(mechId);
+  if (!mech) return false;
+  if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
+  const limit = typeof window.getPartyMechLimit === "function" ? window.getPartyMechLimit() : 4;
+  if (isMechInParty(mechId) || partyMechCount() >= limit) {
+    logMessage("bar", "編成枠は最大4機です。", "danger");
+    window.savePlayerData();
+    window.renderCurrentScene();
+    return false;
+  }
+  const targetIndex = Array.from({ length: limit }, (_, index) => state.partyMechIds[index] || null).findIndex((id) => !id);
+  state.partyMechIds = Array.from({ length: limit }, (_, index) => state.partyMechIds[index] || null);
+  state.partyMechIds[targetIndex] = mechId;
+  state.selectedMechId = mechId;
+  logMessage("bar", `${mech.name || "Machine"}を編成に入れました。`, "good");
+  window.savePlayerData();
+  window.renderCurrentScene();
+  return true;
+};
+
+window.removeMechFromParty = function removeMechFromParty(mechId) {
+  const state = window.GameState;
+  const mech = getMech(mechId);
+  state.partyMechIds = (state.partyMechIds || []).map((id) => id === mechId ? null : id);
+  logMessage("bar", `${mech?.name || "Machine"}を編成から外しました。`, "warn");
+  window.savePlayerData();
+  window.renderCurrentScene();
+  return true;
+};
+
+window.confirmPendingGeneratedMech = function confirmPendingGeneratedMech() {
+  const state = window.GameState;
+  const pending = state.pendingGeneratedMech;
+  if (!pending) return false;
+  const ownedLimit = typeof window.getOwnedMechLimit === "function" ? window.getOwnedMechLimit() : 30;
+  if ((state.mechs || []).length >= ownedLimit) {
+    logMessage("synthesis", "格納庫が満杯です。機体を削除して空きを作ってください。", "danger");
+    window.savePlayerData();
+    window.renderCurrentScene();
+    return false;
+  }
+  state.mechs.push(pending);
+  state.pendingGeneratedMech = null;
+  state.selectedMechId = pending.id;
+  if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
+  logMessage("synthesis", `${pending.name || "Machine"}を格納庫へ保存しました。`, "good");
+  window.savePlayerData();
+  window.renderCurrentScene();
+  return true;
+};
+
+window.discardPendingGeneratedMech = async function discardPendingGeneratedMech() {
+  const state = window.GameState;
+  const pending = state.pendingGeneratedMech;
+  if (!pending) return false;
+  if (pending.imageId && typeof window.deleteMechImageBlob === "function") {
+    await window.deleteMechImageBlob(pending.imageId).catch(() => false);
+  }
+  state.pendingGeneratedMech = null;
+  logMessage("synthesis", `${pending.name || "Machine"}を破棄しました。`, "warn");
+  window.savePlayerData();
   window.renderCurrentScene();
   return true;
 };
@@ -552,6 +695,7 @@ window.assignPilotToMech = function assignPilotToMech(mechId, pilotId) {
   mech.pilotId = pilotId;
   state.assigningPartySlot = null;
   state.hangarView = "list";
+  window.savePlayerData();
   renderCurrentScene();
 };
 
@@ -559,6 +703,7 @@ window.unassignPilotFromMech = function unassignPilotFromMech(mechId) {
   const mech = getMech(mechId);
   if (!mech) return;
   mech.pilotId = null;
+  window.savePlayerData();
   renderCurrentScene();
 };
 
@@ -568,6 +713,7 @@ window.cyclePilot = function cyclePilot(mechId) {
   if (!mech || !state.pilots.length) return;
   const index = state.pilots.findIndex((pilot) => pilot.id === mech.pilotId);
   mech.pilotId = state.pilots[(index + 1) % state.pilots.length].id;
+  window.savePlayerData();
   renderCurrentScene();
 };
 

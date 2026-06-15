@@ -882,6 +882,23 @@ button {
   grid-template-columns: 1fr 1fr;
 }
 
+.hangar-storage-list {
+  max-height: 68vh;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.hangar-storage-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.pending-mech-panel {
+  margin-bottom: 10px;
+}
+
 .hangar-tabs {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

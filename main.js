@@ -48,7 +48,12 @@ document.addEventListener("click", (event) => {
   if (action === "rank-up-pilot") window.rankUpPilotById(target.dataset.pilot);
   if (action === "sell-material") window.sellMaterial(target.dataset.material);
   if (action === "sell-mech") window.sellMech(target.dataset.mech);
+  if (action === "delete-mech") window.deleteMech(target.dataset.mech);
   if (action === "rename-mech") window.renameMech(target.dataset.mech);
+  if (action === "add-mech-to-party") window.addMechToParty(target.dataset.mech);
+  if (action === "remove-mech-from-party") window.removeMechFromParty(target.dataset.mech);
+  if (action === "confirm-pending-mech") window.confirmPendingGeneratedMech();
+  if (action === "discard-pending-mech") window.discardPendingGeneratedMech();
   if (action === "change-hangar-tab") {
     window.GameState.hangarTab = target.dataset.tab || "party";
     window.GameState.hangarView = "list";

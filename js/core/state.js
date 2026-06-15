@@ -17,6 +17,8 @@ window.EnemyCatalog = [
 
 window.GameState = {
   saveVersion: 1,
+  maxOwnedMechs: 30,
+  maxPartyMechs: 4,
   player: {
     id: "local_player",
     name: "名無しの探索者",
@@ -136,6 +138,8 @@ window.GameState = {
       weaponType: "capture"
     }
   ],
+  partyMechIds: ["raven", "striker", "valkyrie", "seeker"],
+  pendingGeneratedMech: null,
   materials: { broken_shell: 12, thin_membrane: 8, dry_nerve: 6, brittle_bone: 10 },
   inventory: {
     items: { repair_kit_s: 2, ether_pack_s: 1 },

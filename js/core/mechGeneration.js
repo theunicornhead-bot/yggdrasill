@@ -448,6 +448,7 @@ window.createGeneratedMechData = function createGeneratedMechData(preview, mater
     output: preview.output,
     prompt: preview.visualPrompt,
     visualPrompt: preview.visualPrompt,
+    imageId: `mech_image_${serial}`,
     imagePath: null,
     createdAt: new Date().toISOString(),
     hp: unitStats.hp,

@@ -491,7 +491,13 @@ window.selectPlanet = function selectPlanet(planetId) {
 };
 
 window.getSortieUnits = function getSortieUnits() {
-  return (window.GameState.mechs || []).slice(0, 4).filter((mech) => mech && getPilot(mech.pilotId));
+  if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
+  const mechs = window.GameState.mechs || [];
+  const partyIds = window.GameState.partyMechIds || [];
+  return partyIds
+    .map((id) => mechs.find((mech) => mech.id === id) || null)
+    .filter((mech) => mech && getPilot(mech.pilotId))
+    .slice(0, typeof window.getPartyMechLimit === "function" ? window.getPartyMechLimit() : 4);
 };
 
 window.validateSortieParty = function validateSortieParty() {

@@ -9,7 +9,9 @@ function materialCountsForSynthesis() {
 }
 
 window.canAddMech = function canAddMech() {
-  return window.GameState.mechs.length < 20;
+  const state = window.GameState;
+  const ownedLimit = typeof window.getOwnedMechLimit === "function" ? window.getOwnedMechLimit() : 30;
+  return !state.pendingGeneratedMech && (state.mechs || []).length < ownedLimit;
 };
 
 function consumeMaterial(materialId) {
@@ -210,15 +212,21 @@ function renderMaterialsStep() {
 }
 
 function renderResultStep() {
+  const pending = window.GameState.pendingGeneratedMech;
+  const ownedLimit = typeof window.getOwnedMechLimit === "function" ? window.getOwnedMechLimit() : 30;
+  const full = (window.GameState.mechs || []).length >= ownedLimit;
   return `
     <section class="synthesis-layout">
       ${renderSlotPanel(false)}
       <div class="panel panel-pad">
-        <div class="section-head"><h2>生成完了</h2><span>HANGER</span></div>
-        <div class="muted">生成した機体はハンガーに格納されました。</div>
+        <div class="section-head"><h2>生成完了</h2><span>${pending ? "PENDING" : "HANGER"}</span></div>
+        <div class="muted">${pending ? `${pending.name || "Machine"}は保存待ちです。` : "保存待ち機体はありません。"}</div>
+        ${full ? `<p class="muted">格納庫が満杯です。保存するには機体を削除してください。</p>` : ""}
         <div class="synth-actions" style="margin-top:10px">
+          <button class="button" data-action="confirm-pending-mech" ${pending && !full ? "" : "disabled"} type="button">格納庫へ保存</button>
+          <button class="button danger" data-action="discard-pending-mech" ${pending ? "" : "disabled"} type="button">破棄</button>
           <button class="button" data-screen="hangar">ハンガーへ</button>
-          <button class="button" data-action="reset-synthesis">続けて生成</button>
+          <button class="button" data-action="reset-synthesis" ${pending ? "disabled" : ""}>続けて生成</button>
         </div>
       </div>
       ${renderLogPanel()}
@@ -416,7 +424,7 @@ window.startSynthesisProcess = async function startSynthesisProcess() {
     return;
   }
   if (!window.canAddMech()) {
-    logMessage("synthesis", "ハンガーの空きがありません。", "danger");
+    logMessage("synthesis", state.pendingGeneratedMech ? "保存待ち機体を先に保存または破棄してください。" : "格納庫の空きがありません。", "danger");
     window.renderCurrentScene();
     return;
   }
@@ -427,7 +435,7 @@ window.startSynthesisProcess = async function startSynthesisProcess() {
   }
 
   const mech = window.createGeneratedMechData(preview, slots);
-  state.mechs.push(mech);
+  state.pendingGeneratedMech = mech;
   state.selectedMechId = mech.id;
   state.synthesisSlots = [];
   state.generationStatus = { busy: true, message: "画像生成APIへ送信中..." };
@@ -442,8 +450,14 @@ window.startSynthesisProcess = async function startSynthesisProcess() {
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok || !payload.ok) throw new Error(payload.error || `HTTP ${response.status}`);
-    mech.imagePath = payload.imagePath;
-    logMessage("synthesis", `${mech.name}を生成し、画像を保存しました。`, "good");
+    if (payload.imagePath && typeof window.saveMechImageFromSource === "function") {
+      await window.saveMechImageFromSource(mech.imageId, payload.imagePath);
+      mech.imagePath = null;
+      logMessage("synthesis", `${mech.name}を生成し、画像をWebPで保存しました。`, "good");
+    } else {
+      mech.imagePath = payload.imagePath || null;
+      logMessage("synthesis", `${mech.name}を生成しました。画像保存形式は旧形式です。`, "warn");
+    }
   } catch (error) {
     mech.imagePath = null;
     logMessage("synthesis", `${mech.name}を生成しました。画像生成は失敗: ${error.message || error}`, "warn");

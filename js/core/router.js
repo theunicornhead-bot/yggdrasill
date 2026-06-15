@@ -123,6 +123,7 @@ window.renderCurrentScene = function renderCurrentScene() {
   const state = window.GameState;
   const renderer = window.App.scenes[state.currentScene];
   if (renderer) renderer();
+  if (typeof window.hydrateMechImages === "function") window.hydrateMechImages(window.App.root);
 };
 
 window.sellMaterial = function sellMaterial(materialId) {

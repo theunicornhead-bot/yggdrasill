@@ -192,7 +192,11 @@ function clearDefending(side = "ally") {
 
 window.startBattle = function startBattle() {
   const state = window.GameState;
-  const allyUnits = (typeof window.getSortieUnits === "function" ? window.getSortieUnits() : state.mechs.slice(0, 4))
+  const fallbackSortieUnits = () => {
+    const ids = Array.isArray(state.partyMechIds) ? state.partyMechIds : [];
+    return ids.map((id) => (state.mechs || []).find((mech) => mech.id === id)).filter(Boolean);
+  };
+  const allyUnits = (typeof window.getSortieUnits === "function" ? window.getSortieUnits() : fallbackSortieUnits())
     .map(createAllyBattleUnit)
     .filter(Boolean);
   if (!allyUnits.length || allyUnits.every((unit) => unit.isDefeated)) {

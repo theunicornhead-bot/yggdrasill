@@ -1,6 +1,8 @@
 "use strict";
 
 window.PLAYER_SAVE_KEY = "yggdrasil_player_save_v1";
+window.MAX_OWNED_MECHS = 30;
+window.MAX_PARTY_MECHS = 4;
 
 function nowIsoString() {
   return new Date().toISOString();
@@ -23,6 +25,40 @@ function ensureInventoryState() {
 }
 
 window.ensureInventoryState = ensureInventoryState;
+
+function ensureMechRosterState() {
+  const state = window.GameState;
+  if (!Array.isArray(state.mechs)) state.mechs = [];
+  state.maxOwnedMechs = Number(state.maxOwnedMechs || window.MAX_OWNED_MECHS);
+  state.maxPartyMechs = Number(state.maxPartyMechs || window.MAX_PARTY_MECHS);
+  const ownedIds = new Set(state.mechs.map((mech) => mech?.id).filter(Boolean));
+  const sourceIds = Array.isArray(state.partyMechIds) && state.partyMechIds.length
+    ? state.partyMechIds
+    : state.mechs.slice(0, state.maxPartyMechs).map((mech) => mech?.id);
+  const usedIds = new Set();
+  const normalizedPartyIds = Array.from({ length: state.maxPartyMechs }, (_, index) => {
+    const id = sourceIds[index];
+    if (!id || !ownedIds.has(id) || usedIds.has(id)) return null;
+    usedIds.add(id);
+    return id;
+  });
+  const fallbackPartyIds = state.mechs.slice(0, state.maxPartyMechs).map((mech) => mech?.id || null);
+  state.partyMechIds = normalizedPartyIds.some(Boolean) || !state.mechs.length
+    ? normalizedPartyIds
+    : Array.from({ length: state.maxPartyMechs }, (_, index) => fallbackPartyIds[index] || null);
+  if (state.selectedMechId && !ownedIds.has(state.selectedMechId)) state.selectedMechId = state.mechs[0]?.id || null;
+  return state.partyMechIds;
+}
+
+window.ensureMechRosterState = ensureMechRosterState;
+
+window.getOwnedMechLimit = function getOwnedMechLimit() {
+  return Number(window.GameState.maxOwnedMechs || window.MAX_OWNED_MECHS);
+};
+
+window.getPartyMechLimit = function getPartyMechLimit() {
+  return Number(window.GameState.maxPartyMechs || window.MAX_PARTY_MECHS);
+};
 
 function canUseLocalStorage() {
   try {
@@ -78,6 +114,7 @@ window.createPlayerSavePayload = function createPlayerSavePayload() {
   if (typeof window.syncBattleUnitsToMechs === "function") window.syncBattleUnitsToMechs();
   if (typeof window.normalizeAllUnitStatuses === "function") window.normalizeAllUnitStatuses();
   syncPlayerFromRuntimeState();
+  ensureMechRosterState();
   state.player.createdAt = state.player.createdAt || nowIsoString();
   state.player.updatedAt = nowIsoString();
 
@@ -86,6 +123,8 @@ window.createPlayerSavePayload = function createPlayerSavePayload() {
     player: clonePlain(state.player),
     pilots: clonePlain(state.pilots || []),
     mechs: clonePlain(state.mechs || []),
+    partyMechIds: clonePlain(state.partyMechIds || []),
+    pendingGeneratedMech: state.pendingGeneratedMech ? clonePlain(state.pendingGeneratedMech) : null,
     selectedMechId: state.selectedMechId || null,
     selectedPlanetId: state.selectedPlanetId || state.quest?.planetId || null,
     nextMechSerial: state.nextMechSerial || 1,
@@ -104,6 +143,8 @@ window.applyPlayerSavePayload = function applyPlayerSavePayload(payload) {
   state.player = { ...state.player, ...(payload.player || {}) };
   state.pilots = Array.isArray(payload.pilots) ? payload.pilots : state.pilots;
   state.mechs = Array.isArray(payload.mechs) ? payload.mechs : state.mechs;
+  state.partyMechIds = Array.isArray(payload.partyMechIds) ? payload.partyMechIds : state.partyMechIds;
+  state.pendingGeneratedMech = payload.pendingGeneratedMech && typeof payload.pendingGeneratedMech === "object" ? payload.pendingGeneratedMech : null;
   state.selectedMechId = payload.selectedMechId || state.selectedMechId;
   state.selectedPlanetId = payload.selectedPlanetId || state.selectedPlanetId || payload.exploration?.planetId || null;
   state.nextMechSerial = Number(payload.nextMechSerial || state.nextMechSerial || 1);
@@ -113,6 +154,7 @@ window.applyPlayerSavePayload = function applyPlayerSavePayload(payload) {
   state.market = payload.market && typeof payload.market === "object" ? payload.market : state.market;
   state.exploration = payload.exploration && typeof payload.exploration === "object" ? { ...state.exploration, ...payload.exploration } : state.exploration;
   state.currentScene = typeof payload.currentScene === "string" ? payload.currentScene : state.currentScene;
+  ensureMechRosterState();
   if (typeof window.normalizeAllUnitStatuses === "function") window.normalizeAllUnitStatuses();
   syncRuntimeStateFromPlayer();
   return true;
@@ -124,6 +166,7 @@ window.loadPlayerData = function loadPlayerData() {
   state.player.createdAt = state.player.createdAt || nowIsoString();
   state.player.updatedAt = state.player.updatedAt || state.player.createdAt;
   ensureInventoryState();
+  ensureMechRosterState();
   if (typeof window.normalizeAllUnitStatuses === "function") window.normalizeAllUnitStatuses();
   syncPlayerFromRuntimeState();
 
