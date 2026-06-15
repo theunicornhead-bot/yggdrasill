@@ -189,9 +189,9 @@
     });
   }
 
-  window.grantUrTestMaterials = function grantUrTestMaterials() {
+  window.grantUrTestMaterials = function grantUrTestMaterials(options = {}) {
     const state = window.GameState;
-    if (!state) return;
+    if (!state) return false;
     registerTestCatalog();
 
     if (!state.materials || typeof state.materials !== "object") state.materials = {};
@@ -204,6 +204,11 @@
       : (state.inventory ||= { items: {}, options: {}, weapons: {}, cores: {} });
     if (!inventory.cores || typeof inventory.cores !== "object") inventory.cores = {};
     inventory.cores[UR_TEST_CORE.id] = Math.max(Number(inventory.cores[UR_TEST_CORE.id] || 0), 1);
+
+    if (options.save !== false && typeof window.savePlayerData === "function") {
+      window.savePlayerData();
+    }
+    return true;
   };
 
   registerTestCatalog();
@@ -212,7 +217,7 @@
   if (typeof originalLoadPlayerData === "function") {
     window.loadPlayerData = function loadPlayerDataWithUrTestGrant() {
       const loaded = originalLoadPlayerData();
-      window.grantUrTestMaterials();
+      window.grantUrTestMaterials({ save: true });
       return loaded;
     };
   }
@@ -221,7 +226,7 @@
   if (typeof originalLoadMasters === "function") {
     window.loadMasters = async function loadMastersWithUrTestGrant() {
       const loaded = await originalLoadMasters();
-      window.grantUrTestMaterials();
+      window.grantUrTestMaterials({ save: true });
       return loaded;
     };
   }
