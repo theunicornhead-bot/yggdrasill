@@ -1,0 +1,6 @@
+planetId,name,description,difficulty,recommendedRank,maxFloor,availableTerrains,fuelModifier,unlockMaxReachedFloor,promptThemes,openBackground,blockedBackground,lowFloorEnemyScale,finalFloorEnemyScale
+planet_001,ガイア,森林平原と岩場が広がる生命惑星。初期探索に適している。,1,E,50,plain|forest|rocky,1.00,,organic armor|natural frame|vast grassland|gigantic trees,ui/gaea_001.png,ui/gaea_002.png,0.80,1.00
+planet_002,サンドリア,砂漠と岩場に覆われた乾燥惑星。砂棲生物と硬質素材が多い。,2,D,50,desert|rocky,1.12,10,desert armor|sand worn frame|dry shell|bone desert,,,0.88,1.00
+planet_003,アビス,水場と水中領域を含む高圧惑星。深海由来の神経素材が眠る。,3,C,50,waterside|underwater,1.25,20,deep sea armor|bioluminescent|tentacle frame|abyssal shell,,,0.94,1.00
+planet_004,イグニス,火山帯と岩盤層で構成される高熱惑星。炉心と高出力素材の反応が強い。,4,B,50,volcanic|rocky,1.38,30,living reactor|volcanic armor|molten core|burning veins,,,0.98,1.00
+planet_005,エデン,遺跡市街地と古代施設が残る終盤惑星。王種や古代種の反応が多い。,5,A,50,ruins_city|ancient_facility,1.50,40,ancient machine frame|ruined city armor|royal organism|lost bio facility,,,1.02,1.00

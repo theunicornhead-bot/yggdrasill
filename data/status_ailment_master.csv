@@ -1,6 +1,0 @@
-ailmentId,displayName,category,duration,effectValue,description
-poison,毒,damageOverTime,3,0.05,毎ターンHP減少
-burn,炎上,damageOverTime,3,0.06,毎ターンHP減少
-shock,感電,speedDown,2,0.2,速度低下
-freeze,凍結,actionDown,1,1,行動阻害
-jammed,妨害,ppCostUp,3,1,PP消費増加

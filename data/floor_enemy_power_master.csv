@@ -1,0 +1,6 @@
+startFloor,endFloor,baseEnemyPower,bossPower
+1,10,100,220
+11,20,180,380
+21,30,300,620
+31,40,470,920
+41,50,700,1350

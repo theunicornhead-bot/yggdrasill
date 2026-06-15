@@ -182,6 +182,8 @@ function renderPilotRankUpCard(pilot) {
       const owned = window.GameState.materials?.[item.id] || 0;
       return `${material?.name || item.id} ${owned}/${item.count}`;
     }).join(" / ")
+    : requirement.generatedRequirement
+      ? formatGeneratedRankupRequirement(requirement.generatedRequirement)
     : (requirement.message || "必要素材未設定");
   return `
     <article class="panel panel-pad">
@@ -195,6 +197,27 @@ function renderPilotRankUpCard(pilot) {
       <button class="button tavern-wide-action" data-action="rank-up-pilot" data-pilot="${pilot.id}" ${canRankUp ? "" : "disabled"} type="button">ランクアップ</button>
     </article>
   `;
+}
+
+function formatGeneratedRankupRequirement(requirement) {
+  const planet = typeof window.getPlanetById === "function" ? window.getPlanetById(requirement.requiredPlanetId) : null;
+  const quality = typeof window.getMaterialQualityMaster === "function" ? window.getMaterialQualityMaster(requirement.requiredQualityId) : null;
+  const owned = countOwnedGeneratedRankupMaterials(requirement, false);
+  const ownedBoss = countOwnedGeneratedRankupMaterials(requirement, true);
+  const bossText = requirement.requiredBossMaterialCount > 0 ? ` / ボス素材 ${ownedBoss}/${requirement.requiredBossMaterialCount}` : "";
+  return `${planet?.name || "ガイア"} ${quality?.name || requirement.requiredQualityId}以上 ${owned}/${requirement.requiredMaterialCount}${bossText}`;
+}
+
+function countOwnedGeneratedRankupMaterials(requirement, bossOnly) {
+  const planetKey = { planet_001: "gaea", planet_002: "sandria", planet_003: "abyss", planet_004: "ignis", planet_005: "eden" }[requirement.requiredPlanetId];
+  return Object.entries(window.GameState.materials || {}).reduce((sum, [id, count]) => {
+    const material = typeof window.getMaterial === "function" ? window.getMaterial(id) : null;
+    if (!material || Number(material.qualityScore || 0) < Number(requirement.requiredQualityScore || 1)) return sum;
+    if (planetKey && !String(material.materialBaseId || "").startsWith(`${planetKey}_`)) return sum;
+    if (bossOnly && material.sourceType !== "boss") return sum;
+    if (!bossOnly && material.sourceType === "boss") return sum;
+    return sum + Number(count || 0);
+  }, 0);
 }
 
 window.rankUpPilotById = function rankUpPilotById(pilotId) {

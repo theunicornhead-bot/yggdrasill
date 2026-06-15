@@ -1,6 +1,61 @@
-enemyId,name,profileId,rank,level,hp,pp,sAtk,mAtk,lAtk,sDef,mDef,lDef,speed,weaponType,element,weaponPower,dropMaterialIds,imagePath,description
-shell_beast_small,小型甲殻獣,shell,N,6,980,0,118,86,92,48,38,42,28,melee,none,18,broken_shell|brittle_bone,,小型の甲殻獣
-wing_bug,飛膜蟲,wing,R,9,1260,8,104,112,146,46,54,58,52,ranged,thunder,22,thin_membrane|broken_shell|wilted_bloodfilm,,飛膜を持つ蟲
-nerve_eater,神経喰らい,nerve,R,12,1580,12,120,172,124,54,66,58,44,magic,poison,26,dry_nerve|wilted_bloodfilm|aged_scale,,神経束を喰らう個体
-bone_hound,骨格猟犬,bone,R,14,1720,4,188,90,118,72,48,60,58,melee,ice,30,brittle_bone|ancient_bone|black_tendon,,骨格型の高速個体
-organ_lurker,器官潜伏体,organ,SR,18,2300,18,130,220,150,82,96,78,42,magic,fire,38,blue_gland|spark_organ|pure_bloodfilm,,器官型の高出力個体
+enemyId,planetId,name,role,enemyTier,size,attackType,element,description,profileId,rank,level,hp,pp,sAtk,mAtk,lAtk,sDef,mDef,lDef,speed,weaponType,weaponPower,dropMaterialIds,imagePath,promptParts,variantIds
+gaea_morizume_wolf,planet_001,モリヅメウルフ,attacker,beast,M,melee,poison,緑の甲殻をまとった狼型,beast,N,1,,,,,,,,,,melee,,,,緑の甲殻をまとった狼型,blue|red|yellow|green|pink|white|black|gold
+gaea_kokegara_beetle,planet_001,コケガラビートル,tank,insect,S,melee,acid,苔むした甲殻虫,insect,N,1,,,,,,,,,,melee,,,,苔むした甲殻虫,blue|red|yellow|green|pink|white|black|gold
+gaea_hanemaku_dori,planet_001,ハネマクドリ,speed,wing,S,ranged,sonic,薄い翼膜を持つ鳥型,wing,N,1,,,,,,,,,,ranged,,,,薄い翼膜を持つ鳥型,blue|red|yellow|green|pink|white|black|gold
+gaea_nezuru_snake,planet_001,ネヅルスネーク,debuffer,serpent,M,magic,poison,根のような胴体の蛇型,serpent,N,11,,,,,,,,,,magic,,,,根のような胴体の蛇型,blue|red|yellow|green|pink|white|black|gold
+gaea_tsunogoke_boar,planet_001,ツノゴケボア,attacker,beast,M,melee,acid,角と苔甲殻を持つ猪型,beast,R,21,,,,,,,,,,melee,,,,角と苔甲殻を持つ猪型,blue|red|yellow|green|pink|white|black|gold
+gaea_kamakiri_gara,planet_001,カマキリガラ,speed,insect,M,melee,sonic,鎌状の前脚を持つ虫型,insect,R,31,,,,,,,,,,melee,,,,鎌状の前脚を持つ虫型,blue|red|yellow|green|pink|white|black|gold
+gaea_oojukara,planet_001,オオジュカラ,tank,beast,L,melee,poison,樹木と甲殻が融合した大型獣,beast,SR,41,,,,,,,,,,melee,,,,樹木と甲殻が融合した大型獣,blue|red|yellow|green|pink|white|black|gold
+gaea_tsutagara_nushi,planet_001,ツタガラヌシ,boss,boss,L,melee,fire,ガイア10Fのボス。主素材はツタガラ森核。,boss,R,10,,,,,,,,,,melee,,,,ガイア boss ツタガラ森核,blue|red|yellow|green|pink|white|black|gold
+gaea_ootsunomorigami,planet_001,オオツノモリガミ,boss,boss,L,melee,acid,ガイア20Fのボス。主素材は大角森獣核。,boss,R,20,,,,,,,,,,melee,,,,ガイア boss 大角森獣核,blue|red|yellow|green|pink|white|black|gold
+gaea_jukai_no_haha,planet_001,ジュカイノハハ,boss,boss,L,ranged,fire,ガイア30Fのボス。主素材は樹海女王核。,boss,SR,30,,,,,,,,,,ranged,,,,ガイア boss 樹海女王核,blue|red|yellow|green|pink|white|black|gold
+gaea_kodaikiba_ookami,planet_001,コダイキバオオカミ,boss,boss,XL,ranged,acid,ガイア40Fのボス。主素材は古狼生命核。,boss,SR,40,,,,,,,,,,ranged,,,,ガイア boss 古狼生命核,blue|red|yellow|green|pink|white|black|gold
+gaea_ou_gara,planet_001,ガイアオウガラ,boss,boss,XL,ranged,fire,ガイア50Fのボス。主素材はガイア王核。,boss,SSR,50,,,,,,,,,,ranged,,,,ガイア boss ガイア王核,blue|red|yellow|green|pink|white|black|gold
+sandria_sunakiba_worm,planet_002,スナキバワーム,attacker,worm,M,melee,gravity,牙だらけの砂虫,worm,N,1,,,,,,,,,,melee,,,,牙だらけの砂虫,blue|red|yellow|green|pink|white|black|gold
+sandria_dokubari_sasori,planet_002,ドクバリサソリ,debuffer,insect,S,melee,poison,毒針尾を持つ蠍型,insect,N,1,,,,,,,,,,melee,,,,毒針尾を持つ蠍型,blue|red|yellow|green|pink|white|black|gold
+sandria_honegara_lizard,planet_002,ホネガラリザード,tank,lizard,M,melee,fire,骨板を背負う蜥蜴型,lizard,N,1,,,,,,,,,,melee,,,,骨板を背負う蜥蜴型,blue|red|yellow|green|pink|white|black|gold
+sandria_sabikamakiri,planet_002,サビカマキリ,speed,insect,M,melee,acid,錆色の鎌脚を持つ虫型,insect,N,11,,,,,,,,,,melee,,,,錆色の鎌脚を持つ虫型,blue|red|yellow|green|pink|white|black|gold
+sandria_sunatsuno_crab,planet_002,スナツノクラブ,tank,crab,M,melee,gravity,角のある砂蟹型,crab,R,21,,,,,,,,,,melee,,,,角のある砂蟹型,blue|red|yellow|green|pink|white|black|gold
+sandria_dry_viper,planet_002,ドライバイパー,debuffer,serpent,M,magic,poison,乾燥した毒蛇型,serpent,R,31,,,,,,,,,,magic,,,,乾燥した毒蛇型,blue|red|yellow|green|pink|white|black|gold
+sandria_ganseki_balga,planet_002,ガンセキバルガ,tank,beast,L,melee,gravity,岩のような大型甲殻獣,beast,SR,41,,,,,,,,,,melee,,,,岩のような大型甲殻獣,blue|red|yellow|green|pink|white|black|gold
+sandria_sunagara_golem,planet_002,スナガラゴーレム,boss,boss,L,melee,acid,サンドリア10Fのボス。主素材は砂殻重核。,boss,R,10,,,,,,,,,,melee,,,,サンドリア boss 砂殻重核,blue|red|yellow|green|pink|white|black|gold
+sandria_dokubari_ou,planet_002,ドクバリオウ,boss,boss,L,melee,gravity,サンドリア20Fのボス。主素材は蠍王毒核。,boss,R,20,,,,,,,,,,melee,,,,サンドリア boss 蠍王毒核,blue|red|yellow|green|pink|white|black|gold
+sandria_honezuka_king,planet_002,ホネヅカキング,boss,boss,L,ranged,acid,サンドリア30Fのボス。主素材は骨塚王核。,boss,SR,30,,,,,,,,,,ranged,,,,サンドリア boss 骨塚王核,blue|red|yellow|green|pink|white|black|gold
+sandria_sajin_hydra,planet_002,サジンヒュドラ,boss,boss,XL,ranged,gravity,サンドリア40Fのボス。主素材は砂塵再生核。,boss,SR,40,,,,,,,,,,ranged,,,,サンドリア boss 砂塵再生核,blue|red|yellow|green|pink|white|black|gold
+sandria_ou_gara,planet_002,サンドリアオウガラ,boss,boss,XL,ranged,acid,サンドリア50Fのボス。主素材はサンドリア王核。,boss,SSR,50,,,,,,,,,,ranged,,,,サンドリア boss サンドリア王核,blue|red|yellow|green|pink|white|black|gold
+abyss_fukame_fish,planet_003,フカメフィッシュ,balanced,fish,S,ranged,nerve,大きな感覚眼を持つ魚型,fish,N,1,,,,,,,,,,ranged,,,,大きな感覚眼を持つ魚型,blue|red|yellow|green|pink|white|black|gold
+abyss_noukurage,planet_003,ノウクラゲ,caster,jellyfish,M,magic,nerve,神経束が透けるクラゲ型,jellyfish,N,1,,,,,,,,,,magic,,,,神経束が透けるクラゲ型,blue|red|yellow|green|pink|white|black|gold
+abyss_kaigara_ray,planet_003,カイガラレイ,tank,ray,M,ranged,cooling,貝殻を背負ったエイ型,ray,N,1,,,,,,,,,,ranged,,,,貝殻を背負ったエイ型,blue|red|yellow|green|pink|white|black|gold
+abyss_numeri_arm,planet_003,ヌメリアーム,debuffer,mollusk,M,magic,nerve,粘液触手を持つ軟体型,mollusk,N,11,,,,,,,,,,magic,,,,粘液触手を持つ軟体型,blue|red|yellow|green|pink|white|black|gold
+abyss_eye,planet_003,アビスアイ,caster,eye,M,magic,thunder,巨大な眼球器官の浮遊体,eye,R,21,,,,,,,,,,magic,,,,巨大な眼球器官の浮遊体,blue|red|yellow|green|pink|white|black|gold
+abyss_kouatsu_manta,planet_003,コウアツマンタ,tank,manta,L,ranged,gravity,高圧殻を持つ大型マンタ,manta,R,31,,,,,,,,,,ranged,,,,高圧殻を持つ大型マンタ,blue|red|yellow|green|pink|white|black|gold
+abyss_nemuri_uogara,planet_003,ネムリウオガラ,debuffer,fish,M,magic,nerve,睡眠毒を持つ深海魚型,fish,SR,41,,,,,,,,,,magic,,,,睡眠毒を持つ深海魚型,blue|red|yellow|green|pink|white|black|gold
+abyss_kaigara_nushi,planet_003,カイガラヌシ,boss,boss,L,magic,thunder,アビス10Fのボス。主素材は水底貝核。,boss,R,10,,,,,,,,,,magic,,,,アビス boss 水底貝核,blue|red|yellow|green|pink|white|black|gold
+abyss_noukurage_ou,planet_003,ノウクラゲオウ,boss,boss,L,magic,nerve,アビス20Fのボス。主素材は王神経核。,boss,R,20,,,,,,,,,,magic,,,,アビス boss 王神経核,blue|red|yellow|green|pink|white|black|gold
+abyss_fukame_no_ou,planet_003,フカメノオウ,boss,boss,L,magic,thunder,アビス30Fのボス。主素材は深眼王核。,boss,SR,30,,,,,,,,,,magic,,,,アビス boss 深眼王核,blue|red|yellow|green|pink|white|black|gold
+abyss_ryuuguu_worm,planet_003,リュウグウワーム,boss,boss,XL,magic,nerve,アビス40Fのボス。主素材は竜宮高圧核。,boss,SR,40,,,,,,,,,,magic,,,,アビス boss 竜宮高圧核,blue|red|yellow|green|pink|white|black|gold
+abyss_ou_gara,planet_003,アビスオウガラ,boss,boss,XL,magic,thunder,アビス50Fのボス。主素材はアビス王核。,boss,SSR,50,,,,,,,,,,magic,,,,アビス boss アビス王核,blue|red|yellow|green|pink|white|black|gold
+ignis_hizume_lizard,planet_004,ヒヅメリザード,attacker,lizard,M,melee,fire,焼けた爪を持つ蜥蜴型,lizard,N,1,,,,,,,,,,melee,,,,焼けた爪を持つ蜥蜴型,blue|red|yellow|green|pink|white|black|gold
+ignis_yougan_beetle,planet_004,ヨウガンビートル,tank,insect,M,melee,fire,溶岩を含む甲殻虫,insect,N,1,,,,,,,,,,melee,,,,溶岩を含む甲殻虫,blue|red|yellow|green|pink|white|black|gold
+ignis_homura_bat,planet_004,ホムラバット,speed,bat,S,ranged,fire,火膜の翼を持つ蝙蝠型,bat,N,1,,,,,,,,,,ranged,,,,火膜の翼を持つ蝙蝠型,blue|red|yellow|green|pink|white|black|gold
+ignis_magma_worm,planet_004,マグマワーム,caster,worm,M,magic,fire,炉心を抱えた火山虫,worm,N,11,,,,,,,,,,magic,,,,炉心を抱えた火山虫,blue|red|yellow|green|pink|white|black|gold
+ignis_yaketsuno_boar,planet_004,ヤケツノボア,attacker,beast,M,melee,fire,焼けた角を持つ猪型,beast,R,21,,,,,,,,,,melee,,,,焼けた角を持つ猪型,blue|red|yellow|green|pink|white|black|gold
+ignis_enkamakiri,planet_004,エンカマキリ,speed,insect,M,melee,fire,炎を帯びる鎌虫型,insect,R,31,,,,,,,,,,melee,,,,炎を帯びる鎌虫型,blue|red|yellow|green|pink|white|black|gold
+ignis_kaen_drake,planet_004,カエンドレイク,attacker,dragon,L,melee,fire,竜骨と炉心を持つ小型竜,dragon,SR,41,,,,,,,,,,melee,,,,竜骨と炉心を持つ小型竜,blue|red|yellow|green|pink|white|black|gold
+ignis_yougan_nushi,planet_004,ヨウガンヌシ,boss,boss,L,melee,cooling,イグニス10Fのボス。主素材は溶岩主核。,boss,R,10,,,,,,,,,,melee,,,,イグニス boss 溶岩主核,blue|red|yellow|green|pink|white|black|gold
+ignis_homura_chimera,planet_004,ホムラキメラ,boss,boss,L,melee,gravity,イグニス20Fのボス。主素材は火炎異形核。,boss,R,20,,,,,,,,,,melee,,,,イグニス boss 火炎異形核,blue|red|yellow|green|pink|white|black|gold
+ignis_kazan_core_gara,planet_004,カザンコアガラ,boss,boss,L,ranged,cooling,イグニス30Fのボス。主素材は火山炉核。,boss,SR,30,,,,,,,,,,ranged,,,,イグニス boss 火山炉核,blue|red|yellow|green|pink|white|black|gold
+ignis_akaryuu_gara,planet_004,アカリュウガラ,boss,boss,XL,ranged,gravity,イグニス40Fのボス。主素材は赤竜炉核。,boss,SR,40,,,,,,,,,,ranged,,,,イグニス boss 赤竜炉核,blue|red|yellow|green|pink|white|black|gold
+ignis_ou_gara,planet_004,イグニスオウガラ,boss,boss,XL,ranged,cooling,イグニス50Fのボス。主素材はイグニス王核。,boss,SSR,50,,,,,,,,,,ranged,,,,イグニス boss イグニス王核,blue|red|yellow|green|pink|white|black|gold
+eden_iseki_kiba_dog,planet_005,イセキキバドッグ,attacker,beast,M,melee,erosion,古代装甲をまとった犬型,beast,N,1,,,,,,,,,,melee,,,,古代装甲をまとった犬型,blue|red|yellow|green|pink|white|black|gold
+eden_kanmuri_gara,planet_005,カンムリガラ,tank,insect,M,melee,optical,冠状の甲殻を持つ虫型,insect,N,1,,,,,,,,,,melee,,,,冠状の甲殻を持つ虫型,blue|red|yellow|green|pink|white|black|gold
+eden_nou_drone,planet_005,ノウドローン,caster,drone,S,magic,nerve,神経冠で浮く小型生体兵器,drone,N,1,,,,,,,,,,magic,,,,神経冠で浮く小型生体兵器,blue|red|yellow|green|pink|white|black|gold
+eden_shiro_megan,planet_005,シロメガン,caster,eye,M,magic,optical,白い巨大眼を持つ監視体,eye,N,11,,,,,,,,,,magic,,,,白い巨大眼を持つ監視体,blue|red|yellow|green|pink|white|black|gold
+eden_outsuno_beast,planet_005,オウツノビースト,attacker,beast,L,melee,sonic,王種の角を持つ獣型,beast,R,21,,,,,,,,,,melee,,,,王種の角を持つ獣型,blue|red|yellow|green|pink|white|black|gold
+eden_tsugihagi_tender,planet_005,ツギハギテンダー,debuffer,mender,M,magic,erosion,修復触手を持つ継ぎ接ぎ体,mender,R,31,,,,,,,,,,magic,,,,修復触手を持つ継ぎ接ぎ体,blue|red|yellow|green|pink|white|black|gold
+eden_seikotsu_guard,planet_005,セイコツガード,tank,guardian,L,melee,optical,聖骨格を持つ守護兵,guardian,SR,41,,,,,,,,,,melee,,,,聖骨格を持つ守護兵,blue|red|yellow|green|pink|white|black|gold
+eden_iseki_guardian,planet_005,イセキガーディアン,boss,boss,L,melee,erosion,エデン10Fのボス。主素材は遺跡守護核。,boss,R,10,,,,,,,,,,melee,,,,エデン boss 遺跡守護核,blue|red|yellow|green|pink|white|black|gold
+eden_kanmuri_oujuu,planet_005,カンムリオウジュウ,boss,boss,L,melee,nerve,エデン20Fのボス。主素材は王冠獣核。,boss,R,20,,,,,,,,,,melee,,,,エデン boss 王冠獣核,blue|red|yellow|green|pink|white|black|gold
+eden_seraph_gara,planet_005,セラフガラ,boss,boss,L,ranged,sonic,エデン30Fのボス。主素材はセラフ聖核。,boss,SR,30,,,,,,,,,,ranged,,,,エデン boss セラフ聖核,blue|red|yellow|green|pink|white|black|gold
+eden_kodai_core_beast,planet_005,コダイコアビースト,boss,boss,XL,ranged,erosion,エデン40Fのボス。主素材は古代炉心核。,boss,SR,40,,,,,,,,,,ranged,,,,エデン boss 古代炉心核,blue|red|yellow|green|pink|white|black|gold
+eden_ou_gara,planet_005,エデンオウガラ,boss,boss,XL,ranged,erosion,エデン50Fのボス。主素材はエデン王核。,boss,SSR,50,,,,,,,,,,ranged,,,,エデン boss エデン王核,blue|red|yellow|green|pink|white|black|gold

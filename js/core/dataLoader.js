@@ -111,20 +111,33 @@ const MASTER_CSV_CONFIGS = [
   { masterName: "weaponTypeMaster", path: "data/weapon_type_master.csv", idKey: "weaponType" },
   { masterName: "weaponMaster", path: "data/weapon_master.csv", idKey: "weaponId" },
   { masterName: "optionMaster", path: "data/option_master.csv", idKey: "optionId" },
-  { masterName: "coreMaster", path: "data/core_master.csv", idKey: "coreId" },
   { masterName: "materialMaster", path: "data/material_master.csv", idKey: "materialId" },
   { masterName: "itemMaster", path: "data/item_master.csv", idKey: "itemId" },
   { masterName: "pilotClassMaster", path: "data/pilot_class_master.csv", idKey: "classId" },
   { masterName: "pilotGrowthMaster", path: "data/pilot_growth_master.csv", idKey: "growthType" },
   { masterName: "pilotSkillMaster", path: "data/pilot_skill_master.csv", idKey: "skillId" },
   { masterName: "machineRankPromptMaster", path: "data/machine_rank_prompt_master.csv", idKey: "rank" },
+  { masterName: "planetMaster", path: "data/planet_master.csv", idKey: "planetId" },
+  { masterName: "materialQualityMaster", path: "data/material_quality_master.csv", idKey: "qualityId" },
+  { masterName: "colorMaster", path: "data/color_master.csv", idKey: "colorId" },
+  { masterName: "floorQualityTable", path: "data/floor_quality_table.csv", idKey: "startFloor" },
+  { masterName: "floorColorTable", path: "data/floor_color_table.csv", idKey: "planetId" },
+  { masterName: "floorEnemyPowerMaster", path: "data/floor_enemy_power_master.csv", idKey: "startFloor" },
+  { masterName: "enemyRoleMaster", path: "data/enemy_role_master.csv", idKey: "role" },
+  { masterName: "planetCombatStyleMaster", path: "data/planet_combat_style_master.csv", idKey: "planetId" },
   { masterName: "enemyProfileMaster", path: "data/enemy_profile_master.csv", idKey: "profileId" },
   { masterName: "enemyMaster", path: "data/enemy_master.csv", idKey: "enemyId" },
   { masterName: "enemySkillMaster", path: "data/enemy_skill_master.csv", idKey: "skillId" },
-  { masterName: "floorMaster", path: "data/floor_master.csv", idKey: "floorId" },
-  { masterName: "floorEnemyMaster", path: "data/floor_enemy_master.csv", idKey: "floorId" },
-  { masterName: "statusAilmentMaster", path: "data/status_ailment_master.csv", idKey: "ailmentId" },
-  { masterName: "buffDebuffMaster", path: "data/buff_debuff_master.csv", idKey: "effectId" },
+  { masterName: "planetEnemyTable", path: "data/planet_enemy_table.csv", idKey: "enemyId" },
+  { masterName: "materialBaseMaster", path: "data/material_base_master.csv", idKey: "materialBaseId" },
+  { masterName: "materialElementMaster", path: "data/material_element_master.csv", idKey: "materialBaseId" },
+  { masterName: "enemyMaterialMaster", path: "data/enemy_material_master.csv", idKey: "enemyId" },
+  { masterName: "enemyWeaknessMaster", path: "data/enemy_weakness_master.csv", idKey: "enemyId" },
+  { masterName: "enemyResistanceMaster", path: "data/enemy_resistance_master.csv", idKey: "enemyId" },
+  { masterName: "enemySkillSetMaster", path: "data/enemy_skill_set_master.csv", idKey: "enemyId" },
+  { masterName: "pilotRankupRequirementMaster", path: "data/pilot_rankup_requirement_master.csv", idKey: "fromRank" },
+  { masterName: "classRankPlanetMaster", path: "data/class_rank_planet_master.csv", idKey: "classId" },
+  { masterName: "statusEffectMaster", path: "data/status_effect_master.csv", idKey: "statusEffectId" },
   { masterName: "overdriveMaster", path: "data/overdrive_master.csv", idKey: "overdriveId" }
 ];
 
@@ -166,7 +179,198 @@ function parseMasterStatEffects(value) {
   }, {});
 }
 
+function masterRowsByName(masterName) {
+  const rows = window.masterData?.[masterName];
+  return Array.isArray(rows) ? rows : [];
+}
+
+function rowInFloorRange(row, floor) {
+  const value = Number(floor || 1);
+  return value >= Number(row.startFloor || 1) && value <= Number(row.endFloor || row.startFloor || 1);
+}
+
+window.parseWeightTable = function parseWeightTable(text) {
+  if (Array.isArray(text)) return text;
+  return String(text || "").split("|").map((pair) => {
+    const [rawId, rawWeight] = pair.split(":");
+    const id = String(rawId || "").trim();
+    return id ? { id, weight: Math.max(0, Number(rawWeight || 0)) } : null;
+  }).filter(Boolean);
+};
+
+window.pickWeighted = function pickWeighted(table) {
+  const entries = (table || []).filter((entry) => entry && Number(entry.weight) > 0);
+  if (!entries.length) return null;
+  let roll = Math.random() * entries.reduce((sum, entry) => sum + Number(entry.weight || 0), 0);
+  for (const entry of entries) {
+    roll -= Number(entry.weight || 0);
+    if (roll <= 0) return entry.id ?? entry;
+  }
+  return entries[0].id ?? entries[0];
+};
+
+window.getFloorQualityWeights = function getFloorQualityWeights(floor) {
+  const row = masterRowsByName("floorQualityTable").find((item) => rowInFloorRange(item, floor));
+  return window.parseWeightTable(row?.qualityWeights || "broken:45|cracked:35|normal:17|good:3|high:0|best:0");
+};
+
+window.rollMaterialQuality = function rollMaterialQuality(floor) {
+  return window.pickWeighted(window.getFloorQualityWeights(floor)) || "normal";
+};
+
+window.getFloorColorWeights = function getFloorColorWeights(planetId, floor) {
+  const row = masterRowsByName("floorColorTable").find((item) => item.planetId === planetId && rowInFloorRange(item, floor));
+  return window.parseWeightTable(row?.colorWeights || "blue:20|red:20|yellow:15|green:20|pink:8|white:8|black:6|gold:3");
+};
+
+window.rollEnemyColor = function rollEnemyColor(planetId, floor) {
+  return window.pickWeighted(window.getFloorColorWeights(planetId, floor)) || "blue";
+};
+
+window.getColorMaster = function getColorMaster(colorId) {
+  return window.getMasterById("colorMaster", "colorId", colorId) || { colorId: colorId || "blue", name: "青", prefix: "青い", imageSuffix: colorId || "blue", hpRate: "1", atkRate: "1", defRate: "1", speedRate: "1", dropBonusRate: "1" };
+};
+
+window.getMaterialQualityMaster = function getMaterialQualityMaster(qualityId) {
+  return window.getMasterById("materialQualityMaster", "qualityId", qualityId) || { qualityId: qualityId || "normal", name: "普通の", qualityScore: "3", statMultiplier: "1", priceMultiplier: "1", baseDropWeight: "55" };
+};
+
+window.getMaterialBaseMaster = function getMaterialBaseMaster(materialBaseId) {
+  return window.getMasterById("materialBaseMaster", "materialBaseId", materialBaseId);
+};
+
+window.encodeGeneratedMaterialId = function encodeGeneratedMaterialId(materialBaseId, colorId, qualityId) {
+  return [materialBaseId, colorId || "blue", qualityId || "normal"].join("__");
+};
+
+window.parseGeneratedMaterialId = function parseGeneratedMaterialId(materialId) {
+  const parts = String(materialId || "").split("__");
+  if (parts.length !== 3) return null;
+  return { materialBaseId: parts[0], colorId: parts[1], qualityId: parts[2] };
+};
+
+function qualityScoreToMachineRarity(score) {
+  if (score >= 6) return "UR";
+  if (score >= 5) return "SSR";
+  if (score >= 4) return "SR";
+  if (score >= 3) return "R";
+  return "N";
+}
+
+function elementRowsForMaterial(materialBaseId) {
+  return masterRowsByName("materialElementMaster").filter((row) => row.materialBaseId === materialBaseId);
+}
+
+window.buildMaterialDisplayName = function buildMaterialDisplayName(materialBaseId, colorId, qualityId) {
+  const base = window.getMaterialBaseMaster(materialBaseId);
+  const color = window.getColorMaster(colorId);
+  const quality = window.getMaterialQualityMaster(qualityId);
+  return `${color.prefix || ""}${quality.name || ""}${base?.name || materialBaseId}`.trim();
+};
+
+window.buildGeneratedMaterial = function buildGeneratedMaterial(materialBaseId, colorId = "blue", qualityId = "normal") {
+  const base = window.getMaterialBaseMaster(materialBaseId);
+  if (!base) return null;
+  const color = window.getColorMaster(colorId);
+  const quality = window.getMaterialQualityMaster(qualityId);
+  const qualityScore = Number(quality.qualityScore || 3);
+  const statMultiplier = Number(quality.statMultiplier || 1);
+  const priceMultiplier = Number(quality.priceMultiplier || 1);
+  const stats = parseMasterStatEffects(base.baseStatEffects);
+  Object.keys(stats).forEach((key) => {
+    stats[key] = Math.round(Number(stats[key] || 0) * statMultiplier);
+  });
+  const elementRows = elementRowsForMaterial(materialBaseId);
+  const resists = {};
+  elementRows.forEach((row) => {
+    const elementId = row.elementId;
+    const resistKey = `${elementId}Resist`;
+    resists[resistKey] = Math.min(100, Math.round(Number(row.resistAffinity || 0) * qualityScore * 20));
+    if (elementId && row.weaponType) {
+      stats[row.weaponType === "magic" ? "mAtk" : row.weaponType === "ranged" ? "lAtk" : "sAtk"] = Math.round((stats[row.weaponType === "magic" ? "mAtk" : row.weaponType === "ranged" ? "lAtk" : "sAtk"] || 0) + Number(row.attackAffinity || 1) * qualityScore * 4);
+    }
+  });
+  const id = window.encodeGeneratedMaterialId(materialBaseId, colorId, qualityId);
+  const rarity = qualityScoreToMachineRarity(qualityScore);
+  const prompts = [base.description, color.name, quality.name, ...elementRows.map((row) => row.elementId)].filter(Boolean);
+  return {
+    id,
+    materialBaseId,
+    colorId,
+    qualityId,
+    qualityScore,
+    name: window.buildMaterialDisplayName(materialBaseId, colorId, qualityId),
+    baseName: base.name,
+    rarity,
+    rank: rarity,
+    category: base.category || "organ",
+    slotType: base.slotType || "special",
+    materialRole: base.materialRole || "part",
+    sourceType: base.sourceType || "normal",
+    value: Math.max(1, Math.round(Number(base.baseValue || 0) * priceMultiplier)),
+    stats,
+    statEffects: stats,
+    resists,
+    outputCost: Math.max(4, Math.round(Number(base.baseValue || 40) / 10 * statMultiplier)),
+    tags: [base.category, base.materialRole, base.sourceType, ...elementRows.map((row) => row.elementId)].filter(Boolean),
+    visualTags: [base.category, ...elementRows.map((row) => row.elementId)].filter(Boolean),
+    accentColor: colorId,
+    prompts,
+    promptText: prompts.join("|"),
+    description: base.description || base.name
+  };
+};
+
+window.resolveEnemyImagePath = function resolveEnemyImagePath(planetId, enemyId, colorId) {
+  if (!planetId || !enemyId || !colorId) return "";
+  return `img/enemies/${planetId}/${enemyId}_${colorId}.webp`;
+};
+
+window.getEnemyWeakness = function getEnemyWeakness(enemyId) {
+  return window.getMasterById("enemyWeaknessMaster", "enemyId", enemyId) || null;
+};
+
+window.getEnemyResistance = function getEnemyResistance(enemyId) {
+  return window.getMasterById("enemyResistanceMaster", "enemyId", enemyId) || null;
+};
+
+window.calculateWeaknessDamageMultiplier = function calculateWeaknessDamageMultiplier(weaponType, elementId, enemyId) {
+  let multiplier = 1;
+  const weakness = window.getEnemyWeakness(enemyId);
+  const resistance = window.getEnemyResistance(enemyId);
+  if (weakness?.weaponWeakType && weakness.weaponWeakType === weaponType) multiplier *= Number(weakness.weaponWeakRate || 1.5);
+  const weakElement = weakness?.elementWeakType;
+  const weakRate = weakness?.elementWeakRate || 1.5;
+  if (weakElement && weakElement === elementId) multiplier *= Number(weakRate);
+  if (resistance?.weaponResistType && resistance.weaponResistType === weaponType) multiplier *= Number(resistance.weaponResistRate || 0.75);
+  const resistElement = resistance?.elementResistType;
+  const resistRate = resistance?.elementResistRate || 0.75;
+  if (resistElement && resistElement === elementId) multiplier *= Number(resistRate);
+  return multiplier;
+};
+
 function applyCsvMastersToRuntime(masterData) {
+  if (Array.isArray(masterData.planetMaster) && masterData.planetMaster.length) {
+    window.PlanetMaster = masterData.planetMaster.map((item) => ({
+      id: item.planetId,
+      planetId: item.planetId,
+      name: item.name,
+      description: item.description,
+      difficulty: Number(item.difficulty || 1),
+      recommendedRank: item.recommendedRank || "E",
+      maxFloor: Number(item.maxFloor || 50),
+      availableTerrains: splitMasterList(item.availableTerrains),
+      enemyPool: [],
+      materialPool: [],
+      fuelModifier: Number(item.fuelModifier || 1),
+      unlockCondition: item.unlockMaxReachedFloor ? { maxReachedFloor: Number(item.unlockMaxReachedFloor || 1) } : null,
+      promptThemes: splitMasterList(item.promptThemes),
+      openBackground: item.openBackground || "",
+      blockedBackground: item.blockedBackground || "",
+      lowFloorEnemyScale: Number(item.lowFloorEnemyScale || 1),
+      finalFloorEnemyScale: Number(item.finalFloorEnemyScale || 1)
+    }));
+  }
   if (Array.isArray(masterData.materialMaster) && masterData.materialMaster.length) {
     window.MaterialCatalog = masterData.materialMaster.map((item) => ({
       id: item.materialId,
@@ -200,38 +404,16 @@ function applyCsvMastersToRuntime(masterData) {
       }));
     }
   }
-  if (Array.isArray(masterData.coreMaster) && masterData.coreMaster.length && Array.isArray(window.MechCoreCatalog)) {
-    window.MechCoreCatalog = masterData.coreMaster.map((item) => ({
-      id: item.coreId,
-      name: item.name || item.coreId,
-      rarity: item.rarity || item.rank || "N",
-      rank: item.rarity || item.rank || "N",
-      category: item.tagId || item.tagAdd || "general",
-      tagId: item.tagId || item.tagAdd || "general",
-      outputLimit: Number(item.outputLimit || 100),
-      mainColor: item.mainColor || "",
-      prompts: splitMasterList(item.promptText || item.prompts),
-      promptText: item.promptText || item.prompts || "",
-      stats: {
-        hp: Number(item.hp || 0),
-        pp: Number(item.pp || 0),
-        sAtk: Number(item.sAtk || 0),
-        mAtk: Number(item.mAtk || 0),
-        lAtk: Number(item.lAtk || 0),
-        sDef: Number(item.sDef || 0),
-        mDef: Number(item.mDef || 0),
-        lDef: Number(item.lDef || 0),
-        speed: Number(item.speed || 0)
-      },
-      price: Number(item.price || 0),
-      description: item.description || item.name || item.coreId
-    }));
-  }
   if (Array.isArray(masterData.enemyMaster) && masterData.enemyMaster.length) {
     window.EnemyCatalog = masterData.enemyMaster.map((item) => ({
       id: item.enemyId,
+      enemyId: item.enemyId,
+      planetId: item.planetId || "",
       name: item.name,
-      profileId: item.profileId,
+      role: item.role || "balanced",
+      enemyTier: item.enemyTier || item.profileId || "normal",
+      size: item.size || "M",
+      profileId: item.profileId || item.enemyTier || item.role,
       rank: item.rank,
       level: Number(item.level || 1),
       hp: Number(item.hp || 1),
@@ -244,13 +426,15 @@ function applyCsvMastersToRuntime(masterData) {
       mDef: Number(item.mDef || 0),
       lDef: Number(item.lDef || 0),
       speed: Number(item.speed || 0),
-      weaponType: item.weaponType || "melee",
+      weaponType: item.weaponType || item.attackType || "melee",
+      attackType: item.attackType || item.weaponType || "melee",
       element: item.element || "none",
       weaponPower: Number(item.weaponPower || 1),
       drops: splitMasterList(item.dropMaterialIds),
       variantIds: item.variantIds || "",
       promptParts: splitMasterList(item.promptParts),
       imagePath: item.imagePath || "",
+      spawnType: item.enemyTier === "boss" || item.role === "boss" ? "boss" : "normal",
       type: masterData.enemyProfileMaster?.find((profile) => profile.profileId === item.profileId)?.displayName || item.profileId || "enemy",
       description: item.description || ""
     }));
@@ -276,19 +460,47 @@ function applyCsvMastersToRuntime(masterData) {
   }
 }
 
+function buildRuntimePilotClasses() {
+  const rows = masterRowsByName("pilotClassMaster");
+  if (!rows.length) return [];
+  return rows.map((item) => ({
+    class_id: item.classId,
+    class_name: item.displayName,
+    role: item.role,
+    main_stat: item.mainStat,
+    weapon_affinity: item.weaponAffinity,
+    description: item.description || ""
+  }));
+}
+
+function buildRuntimePilotSkills() {
+  const rows = masterRowsByName("pilotSkillMaster");
+  if (!rows.length) return [];
+  return rows.map((item) => ({
+    skill_id: item.skillId,
+    class_id: item.classId,
+    skill_name: item.name,
+    tier: item.learnLevel || "1",
+    cost: item.spCost || "0",
+    effect_type: item.type,
+    power: item.power || "0",
+    description: item.description || ""
+  }));
+}
+
 window.loadMasters = async function loadMasters() {
   const state = window.GameState;
   await loadCsvMasters();
   try {
-    const [classes, traits, skills, pilotNames, mechs, mechTraits, overdrives] = await Promise.all([
-      loadCsv("data/class_master.csv"),
+    const [traits, pilotNames, mechs, mechTraits, overdrives] = await Promise.all([
       loadCsv("data/trait_master.csv"),
-      loadCsv("data/skill_master.csv"),
       loadCsv("data/pilot_name_master.csv"),
       loadCsv("data/mech_master.csv"),
       loadCsv("data/mech_trait_master.csv"),
       loadCsv("data/overdrive_master.csv")
     ]);
+    const classes = buildRuntimePilotClasses();
+    const skills = buildRuntimePilotSkills();
     state.masters = { classes, traits, skills, pilotNames, mechs, mechTraits, overdrives };
     state.masterLoadMode = "csv";
   } catch (error) {

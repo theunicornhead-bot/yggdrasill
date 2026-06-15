@@ -1,0 +1,6 @@
+startFloor,endFloor,qualityWeights
+1,10,broken:45|cracked:35|normal:17|good:3|high:0|best:0
+11,20,broken:25|cracked:35|normal:28|good:10|high:2|best:0
+21,30,broken:10|cracked:25|normal:35|good:22|high:7|best:1
+31,40,broken:4|cracked:14|normal:30|good:32|high:17|best:3
+41,50,broken:1|cracked:7|normal:20|good:34|high:28|best:10

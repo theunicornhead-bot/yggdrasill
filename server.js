@@ -175,6 +175,7 @@ function contentType(filePath) {
     ".css": "text/css; charset=utf-8",
     ".csv": "text/csv; charset=utf-8",
     ".png": "image/png",
+    ".webp": "image/webp",
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg"
   }[ext] || "application/octet-stream";

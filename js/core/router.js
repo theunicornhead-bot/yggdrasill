@@ -24,7 +24,13 @@ window.allMaterialCounts = function allMaterialCounts() {
 };
 
 window.getMaterial = function getMaterial(id) {
-  return window.MaterialCatalog.find((material) => material.id === id);
+  return window.MaterialCatalog.find((material) => material.id === id)
+    || (typeof window.parseGeneratedMaterialId === "function" && typeof window.buildGeneratedMaterial === "function"
+      ? (() => {
+        const parsed = window.parseGeneratedMaterialId(id);
+        return parsed ? window.buildGeneratedMaterial(parsed.materialBaseId, parsed.colorId, parsed.qualityId) : null;
+      })()
+      : null);
 };
 
 window.getPilot = function getPilot(id) {
@@ -97,10 +103,11 @@ window.materialRows = function materialRows() {
   if (!entries.length) return `<div class="muted">素材はありません。</div>`;
   return entries.map(([id, count]) => {
     const material = getMaterial(id);
+    if (!material) return "";
     return `
       <div class="material-row">
         <div class="material-icon"></div>
-        <span style="flex:1">${material.name}<br><span class="muted">RANK ${material.rank} / ${material.prompts[0]}</span></span>
+        <span style="flex:1">${material.name}<br><span class="muted">RANK ${material.rank} / ${(material.prompts || [material.category || "-"])[0]}</span></span>
         <strong>x${count}</strong>
         <span>${material.value} G</span>
         <button class="button" data-action="sell-material" data-material="${id}">売却</button>

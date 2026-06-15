@@ -461,8 +461,21 @@ window.startSynthesisProcess = async function startSynthesisProcess() {
     window.renderCurrentScene();
     return;
   }
+  const selectedCoreMaterial = typeof window.getMaterial === "function" ? window.getMaterial(state.selectedCoreId) : null;
+  const selectedCoreIsMaterial = selectedCoreMaterial && (selectedCoreMaterial.materialRole === "boss_core" || selectedCoreMaterial.materialRole === "core");
+  const materialCounts = typeof allMaterialCounts === "function" ? allMaterialCounts() : {};
+  if (selectedCoreIsMaterial && Number(materialCounts[state.selectedCoreId] || 0) <= 0) {
+    logMessage("synthesis", "Core material is missing.", "danger");
+    window.renderCurrentScene();
+    return;
+  }
   if (!slots.every(consumeMaterial)) {
     logMessage("synthesis", "素材消費に失敗しました。", "danger");
+    window.renderCurrentScene();
+    return;
+  }
+  if (selectedCoreIsMaterial && !consumeMaterial(state.selectedCoreId)) {
+    logMessage("synthesis", "コア素材の消費に失敗しました。", "danger");
     window.renderCurrentScene();
     return;
   }

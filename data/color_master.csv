@@ -1,0 +1,9 @@
+colorId,name,prefix,imageSuffix,hpRate,atkRate,defRate,speedRate,dropBonusRate,description
+blue,青,青い,blue,1.00,0.98,1.03,1.00,1.00,防御寄り
+red,赤,赤い,red,0.98,1.05,0.98,1.00,1.00,攻撃寄り
+yellow,黄,黄色い,yellow,0.98,1.02,0.98,1.05,1.00,速度寄り
+green,緑,緑の,green,1.05,0.98,1.02,0.98,1.00,生命力寄り
+pink,ピンク,桃色の,pink,1.00,1.00,1.00,1.02,1.05,やや希少
+white,白,白い,white,1.02,1.00,1.05,0.98,1.08,高品質素材が出やすい
+black,黒,黒い,black,0.98,1.06,1.00,1.02,1.10,危険だが素材が良い
+gold,金,金色の,gold,1.05,1.05,1.05,1.00,1.20,希少で強いが報酬が良い

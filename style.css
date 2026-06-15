@@ -1859,6 +1859,19 @@ button {
   z-index: 2;
 }
 
+.enemy-image {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  z-index: 3;
+  width: min(62%, 260px);
+  max-height: 78%;
+  object-fit: contain;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 16px 24px rgba(0, 0, 0, 0.55));
+  pointer-events: none;
+}
+
 .battle-side {
   display: grid;
   grid-template-columns: 1fr 1fr;

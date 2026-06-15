@@ -280,7 +280,7 @@ window.normalizeWeaponType = function normalizeWeaponType(weaponType) {
 window.normalizeElement = function normalizeElement(element) {
   const normalized = String(element || "none").toLowerCase();
   if (masterById("elementMaster", "elementId", normalized)) return normalized;
-  return ["none", "fire", "thunder", "ice", "poison"].includes(normalized) ? normalized : "none";
+  return ["none", "fire", "cooling", "thunder", "ice", "acid", "poison", "nerve", "sonic", "gravity", "optical", "erosion"].includes(normalized) ? normalized : "none";
 };
 
 window.normalizeMachineTag = function normalizeMachineTag(tag) {
@@ -497,6 +497,13 @@ function elementMultiplier(attackerElement, defenderElement) {
   return ELEMENT_WEAKNESS[attack]?.[defense] || 1;
 }
 
+function elementResistanceMultiplier(defenderStats, elementId) {
+  const element = String(elementId || "none");
+  if (!element || element === "none") return 1;
+  const resistValue = statusNumber(defenderStats?.resists?.[`${element}Resist`] ?? defenderStats?.[`${element}Resist`], 0);
+  return Math.max(0, 1 - Math.min(100, resistValue) / 100);
+}
+
 window.calculateDamage = function calculateDamage(attackerStats, defenderStats, weapon, options = {}) {
   const normalizedWeapon = weapon || { weaponType: "melee", power: 0, element: "none" };
   const attack = window.getAttackStatByWeaponType(attackerStats, normalizedWeapon.weaponType) + statusNumber(normalizedWeapon.power, 0);
@@ -505,7 +512,11 @@ window.calculateDamage = function calculateDamage(attackerStats, defenderStats, 
   const criticalMultiplier = options.critical ? 1.5 : 1;
   const skillMultiplier = statusNumber(options.multiplier, 1);
   const affinity = elementMultiplier(normalizedWeapon.element, options.defenderElement || defenderStats?.element);
-  return Math.max(1, Math.floor((attack * skillMultiplier - defense) * affinity * guardMultiplier * criticalMultiplier));
+  const weaknessMultiplier = typeof window.calculateWeaknessDamageMultiplier === "function" && (options.defenderEnemyId || defenderStats?.enemyId)
+    ? window.calculateWeaknessDamageMultiplier(window.normalizeWeaponType(normalizedWeapon.weaponType), window.normalizeElement(normalizedWeapon.element), options.defenderEnemyId || defenderStats.enemyId)
+    : 1;
+  const resistMultiplier = elementResistanceMultiplier(defenderStats, normalizedWeapon.element);
+  return Math.max(1, Math.floor((attack * skillMultiplier - defense) * affinity * weaknessMultiplier * resistMultiplier * guardMultiplier * criticalMultiplier));
 };
 
 window.applyBuffDebuff = function applyBuffDebuff(target, effect) {
@@ -566,8 +577,55 @@ window.equipOption = function equipOption(machine, option) {
   return true;
 };
 
+function findFloorPowerRow(floor) {
+  const rows = Array.isArray(window.masterData?.floorEnemyPowerMaster) ? window.masterData.floorEnemyPowerMaster : [];
+  return rows.find((row) => floor >= Number(row.startFloor || 1) && floor <= Number(row.endFloor || row.startFloor || 1)) || null;
+}
+
+function planetEnemyScale(planet, floor) {
+  const low = statusNumber(planet?.lowFloorEnemyScale, 1);
+  const final = statusNumber(planet?.finalFloorEnemyScale, 1);
+  return low + (final - low) * ((Math.max(1, floor) - 1) / 49);
+}
+
+function rateRow(masterName, idKey, id, fallback = {}) {
+  if (typeof window.getMasterById === "function") return window.getMasterById(masterName, idKey, id) || fallback;
+  return fallback;
+}
+
 window.generateEnemyStats = function generateEnemyStats(enemy, floor = 1) {
   const level = Math.max(1, Math.floor(statusNumber(enemy?.level, floor)));
+  const planet = typeof window.getPlanetById === "function" ? window.getPlanetById(enemy?.planetId) : null;
+  const isBoss = enemy?.spawnType === "boss" || enemy?.enemyTier === "boss" || enemy?.role === "boss";
+  const powerRow = findFloorPowerRow(floor);
+  const masterPower = statusNumber(isBoss ? powerRow?.bossPower : powerRow?.baseEnemyPower, 0);
+  const role = rateRow("enemyRoleMaster", "role", enemy?.role || (isBoss ? "boss" : "balanced"), { hpRate: 1, atkRate: 1, defRate: 1, speedRate: 1 });
+  const style = rateRow("planetCombatStyleMaster", "planetId", enemy?.planetId, { hpRate: 1, atkRate: 1, defRate: 1, speedRate: 1 });
+  const color = rateRow("colorMaster", "colorId", enemy?.colorId, { hpRate: 1, atkRate: 1, defRate: 1, speedRate: 1 });
+  const scale = planetEnemyScale(planet, floor);
+  if (masterPower > 0) {
+    const hpBase = masterPower * (isBoss ? 8.5 : 5.2);
+    const atkBase = masterPower * 1.08;
+    const defBase = masterPower * 0.52;
+    const speedBase = 28 + masterPower * 0.12;
+    const hp = Math.max(1, Math.round(hpBase * scale * statusNumber(role.hpRate, 1) * statusNumber(style.hpRate, 1) * statusNumber(color.hpRate, 1)));
+    const atk = Math.max(1, Math.round(atkBase * scale * statusNumber(role.atkRate, 1) * statusNumber(style.atkRate, 1) * statusNumber(color.atkRate, 1)));
+    const def = Math.max(0, Math.round(defBase * scale * statusNumber(role.defRate, 1) * statusNumber(style.defRate, 1) * statusNumber(color.defRate, 1)));
+    const speed = Math.max(1, Math.round(speedBase * scale * statusNumber(role.speedRate, 1) * statusNumber(style.speedRate, 1) * statusNumber(color.speedRate, 1)));
+    const type = window.normalizeWeaponType(enemy?.weaponType || enemy?.attackType || "melee");
+    return {
+      hp,
+      pp: Math.max(0, Math.round(masterPower * 0.08)),
+      sAtk: type === "melee" ? atk : Math.round(atk * 0.72),
+      mAtk: type === "magic" ? atk : Math.round(atk * 0.72),
+      lAtk: type === "ranged" ? atk : Math.round(atk * 0.72),
+      sDef: def,
+      mDef: Math.round(def * 0.95),
+      lDef: Math.round(def),
+      speed,
+      enemyId: enemy?.id || enemy?.enemyId
+    };
+  }
   const baseAtk = statusNumber(enemy?.atk, 60 + level * 8);
   const baseDef = statusNumber(enemy?.def, 28 + level * 4);
   return {
@@ -579,7 +637,8 @@ window.generateEnemyStats = function generateEnemyStats(enemy, floor = 1) {
     sDef: Math.floor(statusNumber(enemy?.sDef, baseDef)),
     mDef: Math.floor(statusNumber(enemy?.mDef, baseDef)),
     lDef: Math.floor(statusNumber(enemy?.lDef, baseDef)),
-    speed: Math.floor(statusNumber(enemy?.speed, level * 4))
+    speed: Math.floor(statusNumber(enemy?.speed, level * 4)),
+    enemyId: enemy?.id || enemy?.enemyId
   };
 };
 
@@ -650,16 +709,51 @@ window.getNextPilotRank = function getNextPilotRank(rank) {
 window.getPilotRankUpRequirement = function getPilotRankUpRequirement(pilot) {
   const nextRank = window.getNextPilotRank(pilot?.rank);
   if (!nextRank) return { nextRank: null, materials: [], message: "最高ランクです。" };
-  const table = {
-    C: [{ id: "thin_membrane", count: 2 }],
-    B: [{ id: "dry_nerve", count: 2 }],
-    A: [{ id: "aged_scale", count: 3 }],
-    S: [{ id: "live_nerve", count: 2 }]
+  const fromRank = window.normalizePilotRank(pilot?.rank);
+  const rows = Array.isArray(window.masterData?.pilotRankupRequirementMaster) ? window.masterData.pilotRankupRequirementMaster : [];
+  const requirement = rows.find((row) => row.fromRank === fromRank && row.toRank === nextRank);
+  if (!requirement) {
+    const fallback = { C: [{ id: "thin_membrane", count: 2 }], B: [{ id: "dry_nerve", count: 2 }], A: [{ id: "aged_scale", count: 3 }], S: [{ id: "live_nerve", count: 2 }] }[nextRank] || [];
+    return { nextRank, materials: fallback, message: fallback.length ? "" : "必要素材未設定" };
+  }
+  const classPlanetRows = Array.isArray(window.masterData?.classRankPlanetMaster) ? window.masterData.classRankPlanetMaster : [];
+  const classPlanet = classPlanetRows.find((row) => row.classId === window.normalizePilotClassId(pilot?.classId) && row.fromRank === fromRank && row.toRank === nextRank);
+  const requiredPlanetId = classPlanet?.requiredPlanetId || (nextRank === "C" ? "planet_001" : "");
+  const requiredQuality = window.getMaterialQualityMaster ? window.getMaterialQualityMaster(requirement.requiredQualityId) : { qualityScore: 1 };
+  return {
+    nextRank,
+    materials: [],
+    generatedRequirement: {
+      requiredPlanetId,
+      requiredQualityId: requirement.requiredQualityId,
+      requiredQualityScore: Number(requiredQuality.qualityScore || 1),
+      requiredBossMaterialCount: Math.max(0, Number(requirement.requiredBossMaterialCount || 0)),
+      requiredMaterialCount: Math.max(0, Number(requirement.requiredMaterialCount || 0)),
+      allowAnyColor: String(requirement.allowAnyColor) === "true"
+    },
+    message: requirement.description || ""
   };
-  const materials = table[nextRank] || [];
-  const valid = materials.length && materials.every((item) => typeof window.getMaterial === "function" ? Boolean(window.getMaterial(item.id)) : Boolean((window.MaterialCatalog || []).find((material) => material.id === item.id)));
-  return { nextRank, materials: valid ? materials : [], message: valid ? "" : "必要素材未設定" };
 };
+
+function generatedMaterialMeetsRankup(material, requirement) {
+  if (!material || !requirement) return false;
+  if (Number(material.qualityScore || 0) < Number(requirement.requiredQualityScore || 1)) return false;
+  if (requirement.requiredPlanetId) {
+    const planetKey = { planet_001: "gaea", planet_002: "sandria", planet_003: "abyss", planet_004: "ignis", planet_005: "eden" }[requirement.requiredPlanetId];
+    if (planetKey && !String(material.materialBaseId || "").startsWith(`${planetKey}_`)) return false;
+  }
+  return true;
+}
+
+function countGeneratedRankupMaterials(inventory, requirement, bossOnly) {
+  return Object.entries(inventory || {}).reduce((sum, [id, count]) => {
+    const material = typeof window.getMaterial === "function" ? window.getMaterial(id) : null;
+    if (!generatedMaterialMeetsRankup(material, requirement)) return sum;
+    if (bossOnly && material.sourceType !== "boss") return sum;
+    if (!bossOnly && material.sourceType === "boss") return sum;
+    return sum + inventoryCount({ [id]: count }, id);
+  }, 0);
+}
 
 function inventoryCount(source, id) {
   if (!source || !id) return 0;
@@ -669,17 +763,28 @@ function inventoryCount(source, id) {
 window.canRankUpPilot = function canRankUpPilot(pilot, inventory = null) {
   if (!pilot) return false;
   const requirement = window.getPilotRankUpRequirement(pilot);
-  if (!requirement.nextRank || !requirement.materials.length) return false;
+  if (!requirement.nextRank || (!requirement.generatedRequirement && !requirement.materials.length)) return false;
   const materials = inventory || window.GameState?.materials || {};
+  if (requirement.generatedRequirement) {
+    const normalCount = countGeneratedRankupMaterials(materials, requirement.generatedRequirement, false);
+    const bossCount = countGeneratedRankupMaterials(materials, requirement.generatedRequirement, true);
+    return normalCount >= requirement.generatedRequirement.requiredMaterialCount
+      && bossCount >= requirement.generatedRequirement.requiredBossMaterialCount;
+  }
   return requirement.materials.every((item) => inventoryCount(materials, item.id) >= item.count);
 };
 
 window.rankUpPilot = function rankUpPilot(pilot) {
   if (!window.canRankUpPilot(pilot, window.GameState?.materials)) return false;
   const requirement = window.getPilotRankUpRequirement(pilot);
-  requirement.materials.forEach((item) => {
-    window.GameState.materials[item.id] = Math.max(0, inventoryCount(window.GameState.materials, item.id) - item.count);
-  });
+  if (requirement.generatedRequirement) {
+    consumeGeneratedRankupMaterials(window.GameState.materials, requirement.generatedRequirement, false, requirement.generatedRequirement.requiredMaterialCount);
+    consumeGeneratedRankupMaterials(window.GameState.materials, requirement.generatedRequirement, true, requirement.generatedRequirement.requiredBossMaterialCount);
+  } else {
+    requirement.materials.forEach((item) => {
+      window.GameState.materials[item.id] = Math.max(0, inventoryCount(window.GameState.materials, item.id) - item.count);
+    });
+  }
   pilot.rank = requirement.nextRank;
   const baseStats = window.getPilotBaseStats(pilot);
   pilot.stats = UNIT_STATUS_KEYS.reduce((stats, key) => {
@@ -690,6 +795,20 @@ window.rankUpPilot = function rankUpPilot(pilot) {
   window.normalizePilotStatus(pilot);
   return true;
 };
+
+function consumeGeneratedRankupMaterials(inventory, requirement, bossOnly, needed) {
+  let remaining = Math.max(0, Number(needed || 0));
+  Object.keys(inventory || {}).forEach((id) => {
+    if (remaining <= 0) return;
+    const material = typeof window.getMaterial === "function" ? window.getMaterial(id) : null;
+    if (!generatedMaterialMeetsRankup(material, requirement)) return;
+    if (bossOnly && material.sourceType !== "boss") return;
+    if (!bossOnly && material.sourceType === "boss") return;
+    const used = Math.min(remaining, inventoryCount(inventory, id));
+    inventory[id] = Math.max(0, inventoryCount(inventory, id) - used);
+    remaining -= used;
+  });
+}
 
 window.getLearnedClassSkills = function getLearnedClassSkills(pilot) {
   if (!pilot || !Array.isArray(window.ClassSkillMaster)) return [];
@@ -806,8 +925,8 @@ window.normalizeAllUnitStatuses = function normalizeAllUnitStatuses() {
   (window.EnemyCatalog || []).forEach((enemy) => {
     const stats = window.generateEnemyStats(enemy, state.quest?.floor || 1);
     Object.assign(enemy, stats);
-    enemy.hp = statusNumber(enemy.hp, stats.hp);
-    enemy.maxHp = statusNumber(enemy.maxHp, stats.hp);
+    enemy.hp = statusNumber(enemy.hp, 0) > 1 ? statusNumber(enemy.hp, stats.hp) : stats.hp;
+    enemy.maxHp = statusNumber(enemy.maxHp, 0) > 1 ? statusNumber(enemy.maxHp, stats.hp) : stats.hp;
     enemy.atk = Math.max(enemy.sAtk, enemy.mAtk, enemy.lAtk);
     enemy.def = Math.max(enemy.sDef, enemy.mDef, enemy.lDef);
     enemy.weaponType = window.normalizeWeaponType(enemy.weaponType || enemy.rangeType || "melee");

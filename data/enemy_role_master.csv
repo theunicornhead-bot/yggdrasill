@@ -1,0 +1,8 @@
+role,hpRate,atkRate,defRate,speedRate,description
+balanced,1.00,1.00,1.00,1.00,標準型
+attacker,0.85,1.25,0.85,1.05,攻撃型
+tank,1.25,0.85,1.25,0.70,耐久型
+speed,0.75,1.05,0.75,1.35,高速型
+caster,0.85,1.10,0.85,1.00,特殊攻撃型
+debuffer,0.90,0.90,0.90,1.10,妨害型
+boss,1.50,1.25,1.20,0.90,ボス型

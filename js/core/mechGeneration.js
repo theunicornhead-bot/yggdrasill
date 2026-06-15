@@ -350,16 +350,68 @@ const CATEGORY_MODIFIERS = {
 };
 
 window.getMechCore = function getMechCore(coreId) {
-  return window.normalizeMechCore(window.MechCoreCatalog.find((core) => core.id === coreId) || null);
+  const generatedCore = typeof window.parseGeneratedMaterialId === "function" && typeof window.buildGeneratedMaterial === "function"
+    ? (() => {
+      const parsed = window.parseGeneratedMaterialId(coreId);
+      const material = parsed ? window.buildGeneratedMaterial(parsed.materialBaseId, parsed.colorId, parsed.qualityId) : null;
+      return material && (material.materialRole === "boss_core" || material.materialRole === "core") ? buildCoreFromMaterial(material) : null;
+    })()
+    : null;
+  return window.normalizeMechCore(generatedCore || window.MechCoreCatalog.find((core) => core.id === coreId) || null);
 };
 
+function buildCoreFromMaterial(material) {
+  const primaryElement = (material.tags || []).find((tag) => ["fire", "cooling", "thunder", "acid", "poison", "nerve", "sonic", "gravity", "optical", "erosion"].includes(tag)) || "none";
+  const tag = material.slotType === "weapon"
+    ? "melee"
+    : material.slotType === "wing"
+      ? "ranged"
+      : material.slotType === "reactor"
+        ? "magic"
+        : primaryElement === "erosion"
+          ? "command"
+          : "general";
+  const qualityScore = Number(material.qualityScore || 3);
+  return {
+    id: material.id,
+    materialId: material.id,
+    materialBaseId: material.materialBaseId,
+    name: material.name,
+    rarity: material.rarity || material.rank || "R",
+    rank: material.rarity || material.rank || "R",
+    category: tag,
+    tagId: tag,
+    outputLimit: Math.max(80, Math.round(Number(material.value || 120) * 0.35 + qualityScore * 32)),
+    mainColor: material.colorId || material.accentColor || "",
+    prompts: material.prompts || [],
+    promptText: material.promptText || "",
+    stats: material.stats || material.statEffects || {},
+    sourceMaterial: material,
+    isMaterialCore: true,
+    description: material.description || material.name
+  };
+}
+
 window.getMechGenerationMaterial = function getMechGenerationMaterial(materialId) {
-  return window.normalizeMechMaterial(window.MechMaterialCatalog.find((material) => material.id === materialId) || null);
+  const generated = typeof window.parseGeneratedMaterialId === "function" && typeof window.buildGeneratedMaterial === "function"
+    ? (() => {
+      const parsed = window.parseGeneratedMaterialId(materialId);
+      return parsed ? window.buildGeneratedMaterial(parsed.materialBaseId, parsed.colorId, parsed.qualityId) : null;
+    })()
+    : null;
+  return window.normalizeMechMaterial(window.MechMaterialCatalog.find((material) => material.id === materialId) || generated || null);
 };
 
 window.getOwnedCoreIds = function getOwnedCoreIds() {
   const state = window.GameState;
   if (Array.isArray(state.ownedCoreIds) && state.ownedCoreIds.length) return state.ownedCoreIds;
+  const materialCounts = typeof window.allMaterialCounts === "function" ? window.allMaterialCounts() : { ...(state.materials || {}), ...(state.runMaterials || {}) };
+  const materialCoreIds = Object.entries(materialCounts)
+    .filter(([, count]) => Number(count || 0) > 0)
+    .map(([id]) => (typeof window.getMaterial === "function" ? window.getMaterial(id) : null))
+    .filter((material) => material && (material.materialRole === "boss_core" || material.materialRole === "core"))
+    .map((material) => material.id);
+  if (materialCoreIds.length) return materialCoreIds;
   return window.MechCoreCatalog.map((core) => core.id);
 };
 
@@ -487,6 +539,27 @@ function createGeneratedUnitStats(core, materials, rarityScore, tag) {
     stats[key] = Math.max(key === "hp" ? 1 : 0, Math.round(value * (tagBias[key] || 1)));
     return stats;
   }, {});
+}
+
+function aggregateGeneratedMaterialResists(materials) {
+  return materials.reduce((resists, material) => {
+    Object.entries(material.resists || {}).forEach(([key, value]) => {
+      resists[key] = Math.min(100, Math.max(0, Math.round((resists[key] || 0) + Number(value || 0))));
+    });
+    return resists;
+  }, {});
+}
+
+function chooseGeneratedWeaponElement(materials) {
+  const counts = materials.reduce((result, material) => {
+    (material.tags || []).forEach((tag) => {
+      if (["fire", "cooling", "thunder", "acid", "poison", "nerve", "sonic", "gravity", "optical", "erosion"].includes(tag)) {
+        result[tag] = (result[tag] || 0) + 1 + Number(material.qualityScore || 0) * 0.1;
+      }
+    });
+    return result;
+  }, {});
+  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || "none";
 }
 
 function convertGeneratedStatsToUnitStats(stats) {
@@ -655,6 +728,7 @@ window.createGeneratedMechData = function createGeneratedMechData(preview, mater
     mainColor: preview.mainColor || preview.core.mainColor || "silver",
     accentColors: [...(preview.accentColors || [])],
     visualTags: [...(preview.visualTags || [])],
+    resists: aggregateGeneratedMaterialResists(preview.materials || []),
     slotMaterials: { ...(preview.slotMaterials || {}) },
     prompt: preview.visualPrompt,
     visualPrompt: preview.visualPrompt,
@@ -671,7 +745,7 @@ window.createGeneratedMechData = function createGeneratedMechData(preview, mater
       name: `${preview.type} Main Weapon`,
       rank: preview.rarity,
       weaponType: CORE_WEAPON_TYPE_MAP[preview.tag || preview.core.category] || "melee",
-      element: "none",
+      element: chooseGeneratedWeaponElement(preview.materials || []),
       power: Math.max(1, Math.round(Math.max(unitStats.sAtk, unitStats.mAtk, unitStats.lAtk) * 0.42)),
       ppCost: 0,
       overdrive: null

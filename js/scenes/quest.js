@@ -15,13 +15,14 @@ const QUEST_BACKGROUND_ASSETS = {
   }
 };
 
-window.PlanetMaster = [
+const FALLBACK_PLANET_MASTER = [
   { id: "planet_001", name: "ガイア", description: "森林平原と岩場が広がる標準探索惑星。初期探索に適している。", difficulty: 1, recommendedRank: "E", maxFloor: 20, availableTerrains: ["plain", "forest", "rocky"], enemyPool: ["shell", "wing"], materialPool: ["broken_shell", "thin_membrane", "brittle_bone", "aged_scale"], fuelModifier: 1.0, unlockCondition: null, promptThemes: ["organic armor", "natural frame"] },
   { id: "planet_002", name: "サンドリア", description: "砂漠と岩場に覆われた乾燥惑星。燃料消費と罠に注意。", difficulty: 2, recommendedRank: "D", maxFloor: 30, availableTerrains: ["desert", "rocky"], enemyPool: ["shell", "bone"], materialPool: ["broken_shell", "brittle_bone", "aged_scale"], fuelModifier: 1.12, unlockCondition: { maxReachedFloor: 5 }, promptThemes: ["desert armor", "sand worn frame"] },
   { id: "planet_003", name: "アビス", description: "水場と水中領域を含む高圧惑星。希少な生体素材が眠る。", difficulty: 3, recommendedRank: "C", maxFloor: 40, availableTerrains: ["waterside", "underwater"], enemyPool: ["nerve", "organ", "wing"], materialPool: ["thin_membrane", "dry_nerve", "wilted_bloodfilm"], fuelModifier: 1.25, unlockCondition: { maxReachedFloor: 10 }, promptThemes: ["deep sea armor", "bioluminescent", "tentacle frame"] },
   { id: "planet_004", name: "イグニス", description: "火山帯と岩盤層で構成される高熱惑星。高出力素材の反応が強い。", difficulty: 4, recommendedRank: "B", maxFloor: 45, availableTerrains: ["volcanic", "rocky"], enemyPool: ["shell", "organ"], materialPool: ["broken_shell", "aged_scale", "wilted_bloodfilm"], fuelModifier: 1.38, unlockCondition: { maxReachedFloor: 15 }, promptThemes: ["living reactor", "volcanic armor", "molten core"] },
   { id: "planet_005", name: "エデン", description: "遺跡市街地と古代施設が残る終盤惑星。宝物と危険イベントが多い。", difficulty: 5, recommendedRank: "A", maxFloor: 50, availableTerrains: ["ruins_city", "ancient_facility"], enemyPool: ["nerve", "organ", "shell"], materialPool: ["dry_nerve", "wilted_bloodfilm", "aged_scale"], fuelModifier: 1.5, unlockCondition: { maxReachedFloor: 20 }, promptThemes: ["ancient machine frame", "ruined city armor"] }
 ];
+window.PlanetMaster = Array.isArray(window.PlanetMaster) && window.PlanetMaster.length ? window.PlanetMaster : FALLBACK_PLANET_MASTER;
 
 const QUEST_TERRAIN_CONFIG = {
   plain: { label: "森林平原", fuelMultiplier: 1.0, wallChance: 0.12, enemyRate: 0.06, trapRate: 0.07, treasureRate: 0.07, fuelSpotRate: 0.08, description: "森林平原。見通しがよく、燃料消費も安定している。", text: "低い草と巨大樹の影がコックピット越しに広がっている", materialCategories: [] },
@@ -200,6 +201,11 @@ function placeEvents(map, reachable, start, floor, terrain, planet) {
     else if (roll < enemyRate + terrainConfig.fuelSpotRate + treasureRate) map[pos.y][pos.x] = createCell("treasure");
     else if (roll < enemyRate + terrainConfig.fuelSpotRate + treasureRate + trapRate) map[pos.y][pos.x] = createCell("trap");
   });
+  if (floor % 10 === 0) {
+    const bossCandidates = reachable.filter((pos) => Math.abs(pos.x - start.x) + Math.abs(pos.y - start.y) >= Math.max(2, Math.floor(map.length / 2)));
+    const pos = bossCandidates[Math.floor(Math.random() * bossCandidates.length)] || reachable.find((cellPos) => Math.abs(cellPos.x - start.x) + Math.abs(cellPos.y - start.y) > 1);
+    if (pos) map[pos.y][pos.x] = createCell("enemy");
+  }
 }
 
 window.placeStairs = function placeStairs(map, startPosition) {
@@ -550,6 +556,11 @@ window.renderCockpitView = function renderCockpitView() {
 function getQuestBackgroundImage() {
   const quest = window.GameState.quest;
   const planetId = quest?.currentPlanetId || quest?.planetId || quest?.selectedPlanetId || window.GameState.selectedPlanetId;
+  const planet = window.getPlanetById(planetId);
+  if (planet?.openBackground || planet?.blockedBackground) {
+    const front = window.getFrontCell();
+    return (!front || front.type === "wall" || front.outOfBounds) ? (planet.blockedBackground || planet.openBackground || "") : (planet.openBackground || planet.blockedBackground || "");
+  }
   const assets = QUEST_BACKGROUND_ASSETS[planetId];
   if (!assets) return "";
   const front = window.getFrontCell();
@@ -671,7 +682,7 @@ function renderQuestMaterialList() {
     return `
       <div class="material-row">
         <div class="material-icon"></div>
-        <span style="flex:1">${material.name}<br><span class="muted">RANK ${material.rank} / ${material.category}</span></span>
+        <span style="flex:1">${material.name}<br><span class="muted">RANK ${material.rank || material.rarity || "-"} / ${material.category}</span></span>
         <strong>x${count}</strong>
       </div>
     `;
@@ -847,9 +858,22 @@ function openTreasure() {
 }
 
 function pickMaterialByTerrain(terrain, planetId = null) {
+  const planet = window.getPlanetById(planetId || window.GameState.quest?.planetId);
+  const floor = window.GameState.quest?.floor || 1;
+  const baseRows = Array.isArray(window.masterData?.materialBaseMaster) ? window.masterData.materialBaseMaster : [];
+  if (baseRows.length && typeof window.buildGeneratedMaterial === "function") {
+    const nonBoss = baseRows.filter((material) => material.sourceType !== "boss" && material.materialRole !== "boss_core" && material.materialRole !== "core");
+    const planetKey = { planet_001: "gaea", planet_002: "sandria", planet_003: "abyss", planet_004: "ignis", planet_005: "eden" }[planet?.id || planet?.planetId] || "";
+    const themed = nonBoss.filter((material) => !planetKey || String(material.materialBaseId || "").startsWith(`${planetKey}_`));
+    const pool = themed.length ? themed : nonBoss;
+    const base = pool[Math.floor(Math.random() * pool.length)];
+    const colorId = typeof window.rollEnemyColor === "function" ? window.rollEnemyColor(planet?.id || planetId || "planet_001", floor) : "blue";
+    const qualityId = typeof window.rollMaterialQuality === "function" ? window.rollMaterialQuality(floor) : "normal";
+    const generated = window.buildGeneratedMaterial(base.materialBaseId, colorId, qualityId);
+    if (generated) return generated;
+  }
   const catalog = window.MaterialCatalog || [];
   if (!catalog.length) return { id: "broken_shell", name: "欠けた甲殻", rank: "E", value: 20, category: "shell", prompts: [] };
-  const planet = window.getPlanetById(planetId || window.GameState.quest?.planetId);
   const terrainCategories = window.getTerrainConfig(terrain).materialCategories;
   const planetPool = planet?.materialPool || [];
   const preferred = catalog.filter((material) => planetPool.includes(material.id) || terrainCategories.includes(material.category));

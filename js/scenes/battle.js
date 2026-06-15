@@ -75,6 +75,23 @@ function getVariantMaterialPool(variant, planet = null) {
 }
 
 function buildEnemyDropTable(template, variant, planet = null) {
+  const floor = window.GameState?.quest?.floor || 1;
+  const enemyMaterialRows = Array.isArray(window.masterData?.enemyMaterialMaster)
+    ? window.masterData.enemyMaterialMaster.filter((row) => row.enemyId === (template.enemyId || template.id))
+    : [];
+  if (enemyMaterialRows.length && typeof window.buildGeneratedMaterial === "function") {
+    const colorId = variant?.colorId || variant?.variantId || "blue";
+    const color = typeof window.getColorMaster === "function" ? window.getColorMaster(colorId) : { dropBonusRate: 1 };
+    return enemyMaterialRows.map((row) => {
+      const qualityId = typeof window.rollMaterialQuality === "function" ? window.rollMaterialQuality(floor) : "normal";
+      const material = window.buildGeneratedMaterial(row.materialBaseId, colorId, qualityId);
+      return material ? {
+        id: material.id,
+        chance: Math.min(1, Math.max(0, Number(row.dropRate || 0) / 100 * Number(color.dropBonusRate || 1))),
+        source: row.dropType || "normal"
+      } : null;
+    }).filter(Boolean);
+  }
   const baseDrops = Array.isArray(template.drops) ? template.drops : [];
   const variantPool = getVariantMaterialPool(variant, planet);
   const variantDrops = uniqueBattleList(variantPool.map((material) => material.id)).slice(0, 8);
@@ -86,7 +103,7 @@ function buildEnemyDropTable(template, variant, planet = null) {
 }
 
 function cloneBattleStats(stats = {}) {
-  return {
+  const cloned = {
     hp: Math.max(0, Math.floor(battleNumber(stats.hp, 0))),
     pp: Math.max(0, Math.floor(battleNumber(stats.pp, 0))),
     sAtk: Math.max(0, Math.floor(battleNumber(stats.sAtk, 0))),
@@ -96,8 +113,15 @@ function cloneBattleStats(stats = {}) {
     mDef: Math.max(0, Math.floor(battleNumber(stats.mDef, 0))),
     lDef: Math.max(0, Math.floor(battleNumber(stats.lDef, 0))),
     speed: Math.max(0, Math.floor(battleNumber(stats.speed, 0))),
-    element: stats.element || "none"
+    element: stats.element || "none",
+    enemyId: stats.enemyId || "",
+    resists: { ...(stats.resists || {}) }
   };
+  ["fire", "cooling", "thunder", "acid", "poison", "nerve", "sonic", "gravity", "optical", "erosion"].forEach((elementId) => {
+    const key = `${elementId}Resist`;
+    if (stats[key] !== undefined) cloned[key] = Math.max(0, Math.floor(battleNumber(stats[key], 0)));
+  });
+  return cloned;
 }
 
 function createAllyBattleUnit(mech) {
@@ -106,6 +130,7 @@ function createAllyBattleUnit(mech) {
   if (typeof window.normalizeMachineStatus === "function") window.normalizeMachineStatus(mech);
   if (typeof window.normalizePilotStatus === "function") window.normalizePilotStatus(pilot);
   const stats = cloneBattleStats(typeof window.calculateUnitStats === "function" ? window.calculateUnitStats(pilot, mech) : mech.stats);
+  stats.resists = { ...(mech.resists || {}), ...(stats.resists || {}) };
   const maxHp = Math.max(1, stats.hp);
   const maxPp = Math.max(0, stats.pp);
   const currentHp = clampBattleValue(Math.floor(battleNumber(mech.currentHp ?? mech.hp, maxHp)), 0, maxHp);
@@ -134,18 +159,22 @@ function createAllyBattleUnit(mech) {
 }
 
 function createEnemyBattleUnit(template, floor, variant = ENEMY_VARIANTS[0], planet = null) {
-  const stats = cloneBattleStats(typeof window.generateEnemyStats === "function" ? window.generateEnemyStats(template, floor) : template);
-  const maxHp = Math.max(1, Math.floor(battleNumber(template.maxHp ?? template.hp, stats.hp)));
-  const currentHp = clampBattleValue(Math.floor(battleNumber(template.hp, maxHp)), 0, maxHp);
+  const colorId = variant?.colorId || variant?.variantId || template.colorId || "blue";
+  const templateWithColor = { ...template, colorId };
+  const stats = cloneBattleStats(typeof window.generateEnemyStats === "function" ? window.generateEnemyStats(templateWithColor, floor) : templateWithColor);
+  const templateHp = battleNumber(template.maxHp ?? template.hp, 0);
+  const maxHp = Math.max(1, Math.floor(templateHp > 1 ? templateHp : stats.hp));
+  const currentHp = clampBattleValue(Math.floor(templateHp > 1 ? battleNumber(template.hp, maxHp) : maxHp), 0, maxHp);
   const dropTable = buildEnemyDropTable(template, variant, planet);
   const displayName = variant?.variantId && variant.variantId !== "normal"
-    ? `${variant.variantName}・${template.name || "Enemy"}`
+    ? `${variant.variantName || variant.name || ""}${variant.variantName?.endsWith("個体") ? "・" : ""}${template.name || "Enemy"}`
     : template.name || "Enemy";
+  const imagePath = template.imagePath || (typeof window.resolveEnemyImagePath === "function" ? window.resolveEnemyImagePath(template.planetId || planet?.id, template.enemyId || template.id, colorId) : "");
   return {
     id: "enemy:0",
     side: "enemy",
     sourceType: "enemy",
-    enemyId: template.id || template.name || "enemy",
+    enemyId: template.enemyId || template.id || template.name || "enemy",
     name: displayName,
     baseName: template.name || "Enemy",
     level: Math.max(1, Math.floor(battleNumber(template.level, floor))),
@@ -153,11 +182,13 @@ function createEnemyBattleUnit(template, floor, variant = ENEMY_VARIANTS[0], pla
     variant: { ...variant },
     variantId: variant?.variantId || "normal",
     variantName: variant?.variantName || "通常個体",
+    colorId,
+    imagePath,
     drops: uniqueBattleList(dropTable.map((drop) => drop.id)),
     dropTable,
     dropBias: [...(variant?.dropBias || [])],
     promptParts: [...(template.promptParts || []), ...(variant?.promptParts || [])],
-    stats: { ...stats, element: template.element || "none" },
+    stats: { ...stats, element: template.element || "none", enemyId: template.enemyId || template.id },
     currentHp,
     maxHp,
     currentPp: Math.max(0, Math.floor(battleNumber(template.pp, stats.pp))),
@@ -190,6 +221,55 @@ function getPrimaryEnemyUnit() {
   return getAliveBattleUnits("enemy")[0] || getBattleUnits().find((unit) => unit.side === "enemy") || null;
 }
 
+function isBossFloor(floor) {
+  return Number(floor || 1) % 10 === 0;
+}
+
+function enemyRowsForPlanetFloor(planet, floor, spawnType) {
+  const table = Array.isArray(window.masterData?.planetEnemyTable) ? window.masterData.planetEnemyTable : [];
+  const rows = table.filter((row) => (
+    row.planetId === planet?.id
+    && row.spawnType === spawnType
+    && floor >= Number(row.startFloor || 1)
+    && floor <= Number(row.endFloor || row.startFloor || 1)
+  ));
+  return rows.map((row) => {
+    const enemy = typeof window.getEnemyMaster === "function" ? window.getEnemyMaster(row.enemyId) : null;
+    const catalog = (window.EnemyCatalog || []).find((item) => item.id === row.enemyId || item.enemyId === row.enemyId);
+    return enemy || catalog ? { ...(catalog || enemy), ...enemy, tableWeight: Number(row.weight || 1), spawnType: row.spawnType, repeatable: String(row.repeatable) === "true" } : null;
+  }).filter(Boolean);
+}
+
+function selectEnemyTemplateForBattle(planet, floor) {
+  const spawnType = isBossFloor(floor) ? "boss" : "normal";
+  const tablePool = enemyRowsForPlanetFloor(planet, floor, spawnType);
+  if (tablePool.length) return weightedBattlePick(tablePool, "tableWeight");
+  const planetMaterials = planet?.materialPool || [];
+  const candidates = planet?.id
+    ? window.EnemyCatalog.filter((enemy) => enemy.planetId === planet.id)
+    : planetMaterials.length
+      ? window.EnemyCatalog.filter((enemy) => enemy.drops?.some((dropId) => planetMaterials.includes(dropId)))
+      : window.EnemyCatalog;
+  const pool = candidates.length ? candidates : window.EnemyCatalog;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function rollEnemyColorVariant(planet, floor) {
+  if (typeof window.rollEnemyColor !== "function" || !Array.isArray(window.masterData?.colorMaster) || !window.masterData.colorMaster.length) {
+    return rollEnemyVariant({});
+  }
+  const colorId = window.rollEnemyColor(planet?.id || "planet_001", floor);
+  const color = typeof window.getColorMaster === "function" ? window.getColorMaster(colorId) : null;
+  return {
+    variantId: colorId,
+    colorId,
+    variantName: color?.prefix || color?.name || colorId,
+    dropBias: [colorId],
+    promptParts: [colorId],
+    weight: 1
+  };
+}
+
 function buildTurnQueue(units) {
   return units
     .filter((unit) => !unit.isDefeated && unit.currentHp > 0)
@@ -208,6 +288,7 @@ function mirrorEnemyForLegacyUi(enemyUnit) {
   if (!enemyUnit) return null;
   return {
     name: enemyUnit.name,
+    enemyId: enemyUnit.enemyId,
     baseName: enemyUnit.baseName || enemyUnit.name,
     level: enemyUnit.level || 1,
     type: enemyUnit.type || "enemy",
@@ -296,15 +377,10 @@ window.startBattle = function startBattle() {
     return false;
   }
 
-  const planet = typeof window.getSelectedPlanet === "function" ? window.getSelectedPlanet() : null;
-  const planetMaterials = planet?.materialPool || [];
-  const candidates = planetMaterials.length
-    ? window.EnemyCatalog.filter((enemy) => enemy.drops?.some((dropId) => planetMaterials.includes(dropId)))
-    : window.EnemyCatalog;
-  const pool = candidates.length ? candidates : window.EnemyCatalog;
-  const template = pool[Math.floor(Math.random() * pool.length)];
   const floor = state.quest?.floor || 1;
-  const variant = rollEnemyVariant(template);
+  const planet = typeof window.getSelectedPlanet === "function" ? window.getSelectedPlanet() : null;
+  const template = selectEnemyTemplateForBattle(planet, floor);
+  const variant = rollEnemyColorVariant(planet, floor);
   const enemyUnit = createEnemyBattleUnit(template, floor, variant, planet);
   const battleUnits = [...allyUnits, enemyUnit];
   state.battle = {
@@ -336,6 +412,7 @@ window.renderBattle = function renderBattle() {
     <section class="battle-view panel">
       <div class="cockpit-background-layer"></div>
       <div class="enemy-shape"></div>
+      ${enemyUnit.imagePath ? `<img class="enemy-image" src="${enemyUnit.imagePath}" alt="${enemyUnit.name}" onerror="this.style.display='none'">` : ""}
       <img class="cockpit-frame-layer" src="ui/cockpit_frame.png" alt="" aria-hidden="true">
       <div class="enemy-card panel panel-pad">
         <div class="section-head"><h2>${enemyUnit.name}</h2><span>Lv. ${enemyUnit.level || 1}</span></div>
@@ -454,7 +531,7 @@ window.battleCommand = function battleCommand(type) {
         return;
       }
       const damage = typeof window.calculateDamage === "function"
-        ? window.calculateDamage(unit.stats, currentEnemy.stats, weapon, { multiplier, critical: Math.random() < 0.05, defenderElement: currentEnemy.stats?.element })
+        ? window.calculateDamage(unit.stats, currentEnemy.stats, weapon, { multiplier, critical: Math.random() < 0.05, defenderElement: currentEnemy.stats?.element, defenderEnemyId: currentEnemy.enemyId })
         : Math.max(1, Math.floor(Math.max(unit.stats.sAtk, unit.stats.mAtk, unit.stats.lAtk) * multiplier));
       applyBattleDamage(currentEnemy, damage);
       gainUnitOverdrive(unit, type === "skill" ? 18 : type === "attack" ? 12 : 8);

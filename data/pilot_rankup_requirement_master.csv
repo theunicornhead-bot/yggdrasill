@@ -1,0 +1,5 @@
+fromRank,toRank,requiredQualityId,requiredBossMaterialCount,requiredMaterialCount,allowAnyColor,description
+D,C,broken,0,3,true,ガイア素材でCへ昇格
+C,B,normal,1,5,true,普通以上の対応惑星素材とボス素材が必要
+B,A,good,1,7,true,良質以上の対応惑星素材とボス素材が必要
+A,S,high,1,10,true,高品質以上の対応惑星素材とボス素材が必要
