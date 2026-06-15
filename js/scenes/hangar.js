@@ -558,6 +558,7 @@ function renderMechAssignCandidate(mech, index, slot, currentMech) {
 
 function renderPilotAssignView(mech, slot) {
   const pilots = window.GameState.pilots;
+  const currentPilot = getPilot(mech?.pilotId);
   if (!mech) {
     return `
       <section class="panel panel-pad">
@@ -573,6 +574,11 @@ function renderPilotAssignView(mech, slot) {
         <button class="button" data-action="close-party-assign" type="button">戻る</button>
       </div>
       <div class="material-row"><span>対象機体</span><strong>${mech.name || "Machine"}</strong></div>
+      <div class="material-row">
+        <span>現在の搭乗者</span>
+        <strong>${currentPilot ? currentPilot.name : "未搭乗"}</strong>
+        <button class="button danger" data-action="unassign-pilot" data-mech="${mech.id}" ${currentPilot ? "" : "disabled"} type="button">機体から外す</button>
+      </div>
       <div class="compact-list">${pilots.length ? pilots.map((pilot) => renderPilotAssignCandidate(pilot, mech, slot)).join("") : `<div class="muted">雇用中のパイロットがいません。</div>`}</div>
     </section>
   `;
@@ -585,6 +591,7 @@ function renderPilotAssignCandidate(pilot, mech, slot) {
   const compatibility = getPilotMechCompatibility(pilot, mech);
   const className = window.getPilotClassDisplayName(pilot.classId);
   const status = isCurrent ? "この機体に搭乗中" : isAssignedElsewhere ? "別機体に搭乗中" : "未編成";
+  const actionLabel = isCurrent ? "搭乗中" : isAssignedElsewhere ? "入れ替え" : "乗せる";
   return `
     <article class="pilot-card pilot-assign-card panel">
       <div class="pilot-card-portrait">${window.renderPilotPortraitImage(pilot, "pilot-portrait--tavern-card")}</div>
@@ -595,7 +602,7 @@ function renderPilotAssignCandidate(pilot, mech, slot) {
         <div class="tag-row"><span class="tag">${status}</span><span class="tag">${compatibility.label}</span></div>
       </div>
       <div class="cost-box">
-        <button class="button" data-action="assign-pilot" data-slot="${slot}" data-mech="${mech.id}" data-pilot="${pilot.id}" type="button" ${isCurrent || isAssignedElsewhere ? "disabled" : ""}>${isCurrent ? "搭乗中" : "乗せる"}</button>
+        <button class="button" data-action="assign-pilot" data-slot="${slot}" data-mech="${mech.id}" data-pilot="${pilot.id}" type="button" ${isCurrent ? "disabled" : ""}>${actionLabel}</button>
       </div>
     </article>
   `;
@@ -691,7 +698,14 @@ window.assignPilotToMech = function assignPilotToMech(mechId, pilotId) {
   const pilot = getPilot(pilotId);
   if (!mech || !pilot) return;
   const currentMech = state.mechs.find((item) => item.pilotId === pilotId);
-  if (currentMech && currentMech.id !== mech.id) return;
+  if (currentMech && currentMech.id !== mech.id) {
+    const existingPilot = getPilot(mech.pilotId);
+    const confirmed = window.confirm
+      ? window.confirm(`${pilot.name}は${currentMech.name || "別機体"}に搭乗中です。${mech.name || "この機体"}へ入れ替えますか？`)
+      : true;
+    if (!confirmed) return;
+    currentMech.pilotId = existingPilot ? existingPilot.id : null;
+  }
   mech.pilotId = pilotId;
   state.assigningPartySlot = null;
   state.hangarView = "list";
@@ -702,7 +716,11 @@ window.assignPilotToMech = function assignPilotToMech(mechId, pilotId) {
 window.unassignPilotFromMech = function unassignPilotFromMech(mechId) {
   const mech = getMech(mechId);
   if (!mech) return;
+  const pilot = getPilot(mech.pilotId);
   mech.pilotId = null;
+  window.GameState.assigningPartySlot = null;
+  window.GameState.hangarView = "list";
+  logMessage("bar", `${mech.name || "Machine"}から${pilot?.name || "パイロット"}を外しました。`, "warn");
   window.savePlayerData();
   renderCurrentScene();
 };
