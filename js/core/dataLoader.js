@@ -174,6 +174,9 @@ function applyCsvMastersToRuntime(masterData) {
       rank: item.rank || item.rarity,
       value: Number(item.value || 0),
       category: item.category,
+      slotType: item.slotType || "",
+      accentColor: item.accentColor || "",
+      visualTags: splitMasterList(item.visualTags),
       prompts: splitMasterList(item.prompts || item.promptText),
       description: item.description || item.name
     }));
@@ -188,6 +191,9 @@ function applyCsvMastersToRuntime(masterData) {
         statEffects: parseMasterStatEffects(item.statEffects),
         outputCost: Math.max(1, Math.round(Number(item.value || 0) / 10)),
         tags: [item.category].filter(Boolean),
+        slotType: item.slotType || "",
+        accentColor: item.accentColor || "",
+        visualTags: splitMasterList(item.visualTags),
         prompts: splitMasterList(item.promptText || item.prompts),
         promptText: item.promptText || item.prompts || "",
         description: item.description || item.name
@@ -203,6 +209,7 @@ function applyCsvMastersToRuntime(masterData) {
       category: item.tagId || item.tagAdd || "general",
       tagId: item.tagId || item.tagAdd || "general",
       outputLimit: Number(item.outputLimit || 100),
+      mainColor: item.mainColor || "",
       prompts: splitMasterList(item.promptText || item.prompts),
       promptText: item.promptText || item.prompts || "",
       stats: {
@@ -241,6 +248,8 @@ function applyCsvMastersToRuntime(masterData) {
       element: item.element || "none",
       weaponPower: Number(item.weaponPower || 1),
       drops: splitMasterList(item.dropMaterialIds),
+      variantIds: item.variantIds || "",
+      promptParts: splitMasterList(item.promptParts),
       imagePath: item.imagePath || "",
       type: masterData.enemyProfileMaster?.find((profile) => profile.profileId === item.profileId)?.displayName || item.profileId || "enemy",
       description: item.description || ""

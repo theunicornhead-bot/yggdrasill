@@ -1,4 +1,29 @@
-materialId,name,rarity,value,category,statEffects,promptText,description
+materialId,name,rarity,value,category,statEffects,promptText,description,slotType,accentColor,visualTags
+ancient_dragon_fang,古竜牙,SR,190,fang,"sAtk:26;lAtk:8;hp:60","massive organic greatsword|living bone blade|dragon fang weapon|clearly visible weapon",古竜の牙,weapon,red,greatsword|bone|dragon|fire
+giant_arm_bone,巨人腕骨,SR,170,bone,"sAtk:24;sDef:10;hp:90;speed:-3","giant arm bone|two-handed bone weapon|massive organic hammer|heavy forearms",巨人の腕骨,weapon,gold,hammer|bone|king
+poison_stinger_tail,毒針尾,R,130,tail,"sAtk:14;mAtk:12;speed:8","poison stinger tail|organic lance|long piercing weapon|toxic tail weapon",毒を持つ尾針,weapon,purple,lance|tail|poison|demon
+electromagnetic_organ,電磁器官,SR,180,organ,"lAtk:28;mAtk:10;pp:8","organic railgun|living cannon|electric organ|large ranged weapon",電磁器官,weapon,cyan,railgun|cannon|lightning
+predator_tentacle,捕食触手,R,120,tentacle,"sAtk:12;mAtk:10;speed:10","living tendril whip|predatory tentacle weapon|flexible organic weapon",捕食性の触手,weapon,black,whip|tentacle|beast
+royal_shell,王種甲殻,SSR,260,shell,"hp:180;sDef:24;lDef:18;speed:-4","royal shell armor|regal chitin plating|crown-like armor silhouette",王種の甲殻,frame,gold,shell|armor|king
+holy_skeleton,聖骨格,SR,210,bone,"hp:130;sDef:14;mDef:22;pp:6","holy white bone frame|sacred skeletal armor|angelic frame",聖なる骨格,frame,white,bone|holy|angel
+dragon_scale_armor,竜鱗装甲,SR,220,scale,"hp:150;sDef:20;lDef:16;sAtk:8","overlapping dragon scale armor|draconic armor silhouette|scaled exterior",竜鱗の装甲,frame,red,scale|armor|dragon
+forest_outer_skin,森羅外皮,R,160,skin,"hp:120;mDef:14;speed:4","living bark armor|plant-like organic growth|green exterior plating",森の外皮,frame,green,armor|nature|plant
+deepsea_carapace,深海殻,SR,200,shell,"hp:150;mDef:18;lDef:14;pp:8","deep sea shell armor|blue chitin plating|aquatic organic armor",深海の殻,frame,blue,shell|armor|ice
+angel_wing_membrane,天使翼膜,SR,210,wing,"speed:20;lAtk:10;mDef:10;pp:6","large organic wings|angelic wing silhouette|white sacred membrane",天使の翼膜,wing,white,wing|angel|holy
+demon_wing_membrane,魔翼膜,SR,210,wing,"speed:18;mAtk:16;sAtk:6;pp:6","dark organic wings|demonic wing silhouette|warped membrane",悪魔の翼膜,wing,purple,wing|demon|dark
+neural_crown,神経冠,R,150,nerve,"pp:10;mAtk:14;speed:8","organic halo structure|nerve crown|floating sensor ring",神経の冠,wing,cyan,halo|lightning
+royal_horn,王角,SR,190,horn,"sAtk:16;sDef:12;hp:80","large horns|regal crown-like horns|royal armor silhouette",王の角,wing,gold,horn|king|beast
+multi_arm_organ,多腕器官,SSR,260,organ,"sAtk:18;lAtk:18;speed:10;pp:8","multiple organic arms|extra combat limbs|large organic structures",多腕の器官,wing,black,multiple_arms|muscle|dark
+flame_reactor_core,火炎炉心,SR,220,reactor,"pp:14;mAtk:22;sAtk:10","glowing reactor organs|burning reactor veins|flame organ glow",火炎の炉心,reactor,red,fire|dragon
+ice_crystal_reactor,氷晶炉心,SR,220,reactor,"pp:18;mAtk:18;mDef:14","icy bio-reactor core|cold crystal growths|blue energy veins",氷晶の炉心,reactor,blue,ice
+thunder_reactor_core,雷鳴炉心,SR,220,reactor,"pp:16;lAtk:18;speed:10","electric reactor organs|lightning conduits|cyan energy veins",雷鳴の炉心,reactor,cyan,lightning|railgun
+worldtree_reactor,世界樹炉心,SSR,300,reactor,"pp:20;mAtk:18;hp:120;mDef:16","world tree reactor|green energy veins|plant bio-organic details",世界樹の炉心,reactor,green,nature|plant
+void_reactor_core,虚無炉心,SSR,320,reactor,"pp:24;mAtk:24;mDef:18;speed:-2","void reactor organ|dark aura|shadowy organic plating",虚無の炉心,reactor,purple,dark|demon|king
+angel_factor,天使因子,SSR,280,factor,"pp:18;mDef:20;speed:10","angelic bio factor|holy white glow|sacred adaptation",天使の因子,special,white,angel|holy|wing
+demon_factor,悪魔因子,SSR,280,factor,"mAtk:22;sAtk:12;pp:14","demonic bio factor|dark warped armor|purple energy veins",悪魔の因子,special,purple,demon|dark|horn
+ancient_dragon_factor,古竜因子,UR,380,factor,"sAtk:24;lAtk:18;hp:160","ancient dragon factor|draconic armor silhouette|apex biological structure",古竜の因子,special,red,dragon|fire|king
+deepsea_factor,深海因子,SR,240,factor,"mDef:18;lDef:14;pp:18","deep sea bio factor|blue aquatic organs|cold organic shell",深海の因子,special,blue,ice|shell
+royal_factor,王種因子,UR,400,factor,"hp:180;sDef:20;mDef:20;lDef:20","royal bio factor|regal crown-like horns|gold energy veins",王種の因子,special,gold,king|armor|horn
 broken_shell,欠けた甲殻,N,20,shell,"hp:40;sDef:8;lDef:6;speed:-1","cracked shell armor|rough organic plating|patched shell|weak appearance",欠けた外殻片
 thin_membrane,薄い飛膜,N,45,wing,"speed:8;lAtk:4;hp:10","thin insect wing|fragile membrane|bio wing|vascular membrane structures",薄い飛行膜
 dry_nerve,乾いた神経束,R,60,nerve,"pp:4;mAtk:8;speed:5","nerve bundle cables|exposed bio cables|minor bio circuit",乾いた神経束

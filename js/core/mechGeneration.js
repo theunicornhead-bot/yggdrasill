@@ -126,6 +126,75 @@ const CORE_WEAPON_TYPE_MAP = {
   scout: "ranged"
 };
 
+const SYNTHESIS_SLOT_DEFS = [
+  { key: "weapon", label: "武器", accepts: ["weapon"] },
+  { key: "frame", label: "フレーム", accepts: ["frame"] },
+  { key: "wing", label: "翼・外装", accepts: ["wing"] },
+  { key: "reactor", label: "リアクター", accepts: ["reactor"] },
+  { key: "free", label: "自由枠", accepts: ["weapon", "frame", "wing", "reactor", "special"] }
+];
+const VALID_MAIN_COLORS = ["black", "white", "red", "blue", "green", "purple", "gold", "silver"];
+const VALID_ACCENT_COLORS = ["red", "blue", "green", "purple", "gold", "silver", "white", "black", "orange", "cyan"];
+const MAIN_COLOR_PROMPTS = {
+  black: ["dominant black armor", "black main color scheme", "black armor plating"],
+  white: ["dominant white armor", "white main color scheme", "white armor plating"],
+  red: ["dominant red armor", "red main color scheme", "red armor plating"],
+  blue: ["dominant blue armor", "blue main color scheme", "blue armor plating"],
+  green: ["dominant green armor", "green main color scheme", "green armor plating"],
+  purple: ["dominant purple armor", "purple main color scheme", "purple armor plating"],
+  gold: ["dominant gold armor", "gold main color scheme", "gold armor plating"],
+  silver: ["dominant silver armor", "silver main color scheme", "silver armor plating"]
+};
+const ACCENT_COLOR_PROMPTS = {
+  red: ["crimson red glowing accents", "red energy veins"],
+  blue: ["blue glowing accents", "blue energy veins"],
+  green: ["green glowing accents", "green energy veins"],
+  purple: ["purple glowing accents", "purple energy veins"],
+  gold: ["gold glowing accents", "gold energy veins"],
+  silver: ["silver metallic accents", "silver bio-metal veins"],
+  white: ["white glowing accents", "white energy veins"],
+  black: ["black secondary plating", "dark organic accents"],
+  orange: ["orange glowing accents", "orange energy veins"],
+  cyan: ["cyan glowing accents", "cyan energy veins"]
+};
+const VISUAL_TAG_PROMPTS = {
+  greatsword: ["massive organic greatsword", "living bone blade", "two-handed weapon"],
+  sword: ["organic sword", "blade held in hand", "sharp living blade"],
+  lance: ["organic lance", "long piercing weapon", "weapon held in hand"],
+  hammer: ["massive organic hammer", "heavy striking weapon", "bone hammer head"],
+  claw: ["oversized organic claws", "clawed combat arms", "predatory talons"],
+  whip: ["living tendril whip", "flexible organic weapon", "whip held in hand"],
+  rifle: ["organic rifle", "living ranged weapon", "rifle held in hand"],
+  cannon: ["living cannon", "large cannon silhouette", "organic artillery weapon"],
+  railgun: ["organic railgun", "living cannon", "large ranged weapon"],
+  bone: ["exposed bone structure", "skeletal armor"],
+  shell: ["thick shell armor", "chitin plating"],
+  scale: ["overlapping scale armor", "scaled exterior"],
+  muscle: ["visible muscle fibers", "organic tendon bundles"],
+  armor: ["reinforced armor plates", "heavy organic plating"],
+  wing: ["large organic wings", "expanded wing silhouette"],
+  halo: ["organic halo structure", "floating halo ring"],
+  horn: ["large horns", "horned head silhouette"],
+  tail: ["long organic tail", "tail stabilizer"],
+  tentacle: ["writhing organic tentacles", "tentacle appendages"],
+  multiple_arms: ["multiple organic arms", "extra combat limbs"],
+  fire: ["flame organ glow", "burning reactor veins"],
+  ice: ["cold crystal growths", "icy translucent plating"],
+  lightning: ["electric arcs", "lightning conduits"],
+  holy: ["holy white glow", "sacred bio-mechanical silhouette"],
+  dark: ["dark aura", "shadowy organic plating"],
+  nature: ["plant-like organic growth", "living bark armor"],
+  poison: ["poison sac details", "toxic purple veins"],
+  aquatic: ["aquatic organic shell", "deep sea biological details"],
+  angel: ["angelic wing silhouette", "white sacred armor"],
+  demon: ["demonic horned silhouette", "dark warped armor"],
+  dragon: ["draconic armor silhouette", "dragon bone structures"],
+  insect: ["insectoid chitin structure", "compound sensor eyes"],
+  plant: ["plant bio-organic details", "root-like cables"],
+  beast: ["beast-like predatory posture", "animalistic armor form"],
+  king: ["regal crown-like horns", "royal armor silhouette"]
+};
+
 const RARITY_SCORE = { N: 1, R: 2, SR: 3, SSR: 4, UR: 5 };
 const SCORE_RARITY = { 1: "N", 2: "R", 3: "SR", 4: "SSR", 5: "UR" };
 const MACHINE_COMMON_PROMPT = [
@@ -176,6 +245,99 @@ const SIZE_TABLE = [
   { size: "XL", minCost: 92, outputMultiplier: 1.75, stats: { hp: 1320, armor: 138, attack: 142, accuracy: 60, evasion: 28, speed: 30, fuelCost: 168, cargo: 108, scan: 34 } }
 ];
 
+function uniqueList(items) {
+  return [...new Set((items || []).map((item) => String(item || "").trim()).filter(Boolean))];
+}
+
+function normalizePromptList(value) {
+  if (Array.isArray(value)) return uniqueList(value);
+  return uniqueList(String(value || "").split("|"));
+}
+
+function normalizeColor(value, validColors, fallback) {
+  const color = String(value || "").trim().toLowerCase();
+  return validColors.includes(color) ? color : fallback;
+}
+
+function inferMainColor(core) {
+  const text = [core?.category, core?.tagId, core?.promptText, ...(core?.prompts || [])].join(" ").toLowerCase();
+  if (/black|dark|void|shadow|jammer|debuff/.test(text)) return "black";
+  if (/white|holy|halo|heal|medic|supply/.test(text)) return "white";
+  if (/red|ember|fire|assault|melee/.test(text)) return "red";
+  if (/blue|ice|ranged|shooter/.test(text)) return "blue";
+  if (/green|nature|support|scout/.test(text)) return "green";
+  if (/purple|poison|venom|magic/.test(text)) return "purple";
+  if (/gold|king|command/.test(text)) return "gold";
+  return "silver";
+}
+
+function inferSlotType(material) {
+  const text = [material?.slotType, material?.category, ...(material?.tags || []), material?.promptText, ...(material?.prompts || [])].join(" ").toLowerCase();
+  if (/greatsword|sword|lance|hammer|claw|whip|rifle|cannon|railgun|weapon|blade|fang|armbone|tentacle/.test(text)) return "weapon";
+  if (/frame|armor|shell|scale|bone|tendon|muscle|plate/.test(text)) return "frame";
+  if (/wing|halo|horn|tail|multiple_arms|membrane|crown/.test(text)) return "wing";
+  if (/reactor|core|organ|gland|bloodfilm|nerve|spark|furnace|void/.test(text)) return "reactor";
+  return "special";
+}
+
+function inferAccentColor(material) {
+  const text = [material?.accentColor, material?.category, ...(material?.tags || []), material?.promptText, ...(material?.prompts || [])].join(" ").toLowerCase();
+  if (/red|crimson|blood|fire|flame|volcano/.test(text)) return "red";
+  if (/blue|ice|frozen|deepsea|aqua/.test(text)) return "blue";
+  if (/green|nature|plant|forest|worldtree/.test(text)) return "green";
+  if (/purple|poison|toxic|demon|void/.test(text)) return "purple";
+  if (/gold|king|royal/.test(text)) return "gold";
+  if (/silver|mirror|steel/.test(text)) return "silver";
+  if (/white|holy|angel|pure/.test(text)) return "white";
+  if (/black|dark|shadow/.test(text)) return "black";
+  if (/orange|ember|magma/.test(text)) return "orange";
+  if (/cyan|lightning|electric|thunder/.test(text)) return "cyan";
+  return "silver";
+}
+
+function inferVisualTags(material) {
+  const text = [material?.category, ...(material?.tags || []), material?.promptText, ...(material?.prompts || [])].join(" ").toLowerCase();
+  const tags = [];
+  Object.keys(VISUAL_TAG_PROMPTS).forEach((tag) => {
+    const search = tag.replace("_", " ");
+    if (text.includes(tag) || text.includes(search)) tags.push(tag);
+  });
+  if (/fang|blade/.test(text)) tags.push("sword");
+  if (/armbone|bone blade/.test(text)) tags.push("greatsword", "bone");
+  if (/membrane/.test(text)) tags.push("wing");
+  if (/shell|chitin/.test(text)) tags.push("shell");
+  if (/reactor|organ|furnace/.test(text)) tags.push("reactor");
+  return uniqueList(tags);
+}
+
+window.normalizeMechCore = function normalizeMechCore(core) {
+  if (!core) return null;
+  core.prompts = normalizePromptList(core.prompts || core.promptText);
+  core.mainColor = normalizeColor(core.mainColor, VALID_MAIN_COLORS, inferMainColor(core));
+  return core;
+};
+
+window.normalizeMechMaterial = function normalizeMechMaterial(material) {
+  if (!material) return null;
+  material.prompts = normalizePromptList(material.prompts || material.promptText);
+  material.tags = uniqueList(material.tags || [material.category]);
+  material.slotType = ["weapon", "frame", "wing", "reactor", "special"].includes(material.slotType) ? material.slotType : inferSlotType(material);
+  material.accentColor = normalizeColor(material.accentColor, VALID_ACCENT_COLORS, inferAccentColor(material));
+  material.visualTags = uniqueList(material.visualTags || inferVisualTags(material));
+  return material;
+};
+
+window.getSynthesisSlotDefs = function getSynthesisSlotDefs() {
+  return SYNTHESIS_SLOT_DEFS;
+};
+
+window.canMaterialFitSynthesisSlot = function canMaterialFitSynthesisSlot(material, slotIndex) {
+  const normalized = window.normalizeMechMaterial(material);
+  const slot = SYNTHESIS_SLOT_DEFS[slotIndex];
+  if (!normalized || !slot) return false;
+  return slot.accepts.includes(normalized.slotType);
+};
+
 const CATEGORY_MODIFIERS = {
   Assault: { hp: 1.05, armor: 1.05, attack: 1.18, accuracy: 0.95, evasion: 1.02, speed: 1.04, fuelCost: 1.04, cargo: 1.0, scan: 0.9 },
   Shooter: { hp: 0.96, armor: 0.95, attack: 1.1, accuracy: 1.22, evasion: 1.03, speed: 1.0, fuelCost: 1.0, cargo: 0.95, scan: 1.0 },
@@ -188,11 +350,11 @@ const CATEGORY_MODIFIERS = {
 };
 
 window.getMechCore = function getMechCore(coreId) {
-  return window.MechCoreCatalog.find((core) => core.id === coreId) || null;
+  return window.normalizeMechCore(window.MechCoreCatalog.find((core) => core.id === coreId) || null);
 };
 
 window.getMechGenerationMaterial = function getMechGenerationMaterial(materialId) {
-  return window.MechMaterialCatalog.find((material) => material.id === materialId) || null;
+  return window.normalizeMechMaterial(window.MechMaterialCatalog.find((material) => material.id === materialId) || null);
 };
 
 window.getOwnedCoreIds = function getOwnedCoreIds() {
@@ -372,13 +534,52 @@ function createLegacyPreviewStats(unitStats) {
   };
 }
 
+function roleBasedMaterialPromptParts(materials) {
+  const parts = [];
+  const normalizedMaterials = materials.map(window.normalizeMechMaterial).filter(Boolean);
+  const grouped = normalizedMaterials.reduce((groups, material) => {
+    const key = material.slotType || "special";
+    groups[key] = groups[key] || [];
+    groups[key].push(material);
+    return groups;
+  }, {});
+  if ((grouped.weapon || []).length) {
+    parts.push("clearly visible weapon", "weapon held in hand", "large weapon silhouette");
+  }
+  if ((grouped.wing || []).length) {
+    parts.push("large organic wings", "expanded exterior silhouette", "visible back-mounted organic structures");
+  }
+  if ((grouped.reactor || []).length) {
+    parts.push("glowing reactor organs", "colored energy veins", "visible bio-reactor core");
+  }
+  normalizedMaterials.forEach((material) => {
+    parts.push(...(ACCENT_COLOR_PROMPTS[material.accentColor] || []));
+    (material.visualTags || []).forEach((tag) => {
+      parts.push(...(VISUAL_TAG_PROMPTS[tag] || []));
+    });
+  });
+  return parts;
+}
+
+function buildSlotMaterialMap(materialIds) {
+  return (materialIds || []).reduce((slots, materialId, index) => {
+    const slot = SYNTHESIS_SLOT_DEFS[index];
+    if (slot && materialId) slots[slot.key] = materialId;
+    return slots;
+  }, {});
+}
+
 window.buildMechVisualPrompt = function buildMechVisualPrompt(core, materials, size, type, stateName, rarity = "N") {
+  const normalizedCore = window.normalizeMechCore(core);
+  const normalizedMaterials = materials.map(window.normalizeMechMaterial).filter(Boolean);
   const promptParts = [
     ...MACHINE_COMMON_PROMPT,
     `${size} size ${type} mech`,
     ...getRankPromptParts(rarity),
-    ...core.prompts,
-    ...materials.flatMap((material) => material.prompts)
+    ...(MAIN_COLOR_PROMPTS[normalizedCore.mainColor] || []),
+    ...normalizedCore.prompts,
+    ...roleBasedMaterialPromptParts(normalizedMaterials),
+    ...normalizedMaterials.flatMap((material) => material.prompts)
   ];
   if (stateName === "overloaded") promptParts.push("strong biological invasion", "strained power conduits");
   if (stateName === "stable") promptParts.push("balanced reactor glow", "well integrated armor");
@@ -421,12 +622,17 @@ window.previewGeneratedMech = function previewGeneratedMech(coreId, materialIds)
       loadRate: Number(loadRate.toFixed(2)),
       state: stateName
     },
+    mainColor: core.mainColor,
+    accentColors: uniqueList(materials.map((material) => material.accentColor)),
+    visualTags: uniqueList(materials.flatMap((material) => material.visualTags || [])),
+    slotMaterials: buildSlotMaterialMap(materialIds),
     visualPrompt: window.buildMechVisualPrompt(core, materials, sizeInfo.size, type, stateName, rarity)
   };
 };
 
 window.createGeneratedMechData = function createGeneratedMechData(preview, materialIds) {
   const state = window.GameState;
+  const usedMaterialIds = (materialIds || []).filter(Boolean);
   const serial = String(state.nextMechSerial || 1).padStart(3, "0");
   state.nextMechSerial = (state.nextMechSerial || 1) + 1;
   const unitStats = convertGeneratedStatsToUnitStats(preview.unitStats || preview.stats);
@@ -440,12 +646,16 @@ window.createGeneratedMechData = function createGeneratedMechData(preview, mater
     size: preview.size,
     type: preview.type,
     coreId: preview.core.id,
-    materialIds: [...materialIds],
+    materialIds: [...usedMaterialIds],
     usedCore: preview.core.id,
-    usedMaterials: [...materialIds],
+    usedMaterials: [...usedMaterialIds],
     stats: unitStats,
     legacyStats: preview.stats,
     output: preview.output,
+    mainColor: preview.mainColor || preview.core.mainColor || "silver",
+    accentColors: [...(preview.accentColors || [])],
+    visualTags: [...(preview.visualTags || [])],
+    slotMaterials: { ...(preview.slotMaterials || {}) },
     prompt: preview.visualPrompt,
     visualPrompt: preview.visualPrompt,
     imageId: `mech_image_${serial}`,

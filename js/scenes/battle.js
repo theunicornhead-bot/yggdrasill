@@ -9,6 +9,82 @@ function clampBattleValue(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
+const ENEMY_VARIANTS = [
+  { variantId: "normal", variantName: "通常個体", mainColor: "", accentColor: "", dropBias: [], promptParts: [], weight: 50 },
+  { variantId: "red", variantName: "赤個体", mainColor: "red", accentColor: "orange", dropBias: ["fire", "red", "dragon", "weapon"], promptParts: ["red shell", "burning veins", "flame organ"], weight: 14 },
+  { variantId: "blue", variantName: "青個体", mainColor: "blue", accentColor: "cyan", dropBias: ["ice", "blue", "aquatic", "lance"], promptParts: ["blue shell", "cold crystal organs", "icy veins"], weight: 12 },
+  { variantId: "black", variantName: "黒個体", mainColor: "black", accentColor: "purple", dropBias: ["dark", "black", "king", "rare"], promptParts: ["black shell", "shadow organs", "dark crown"], weight: 9 },
+  { variantId: "white", variantName: "白個体", mainColor: "white", accentColor: "gold", dropBias: ["holy", "white", "wing", "angel"], promptParts: ["white shell", "holy glow", "pale wings"], weight: 9 },
+  { variantId: "purple", variantName: "紫個体", mainColor: "purple", accentColor: "purple", dropBias: ["poison", "purple", "demon", "reactor"], promptParts: ["purple shell", "poison veins", "warped reactor"], weight: 10 }
+];
+window.EnemyVariantCatalog = ENEMY_VARIANTS;
+
+function uniqueBattleList(items) {
+  return [...new Set((items || []).filter(Boolean))];
+}
+
+function weightedBattlePick(items, weightKey = "weight") {
+  const table = (items || []).filter(Boolean);
+  if (!table.length) return null;
+  let roll = Math.random() * table.reduce((sum, item) => sum + Math.max(0, Number(item[weightKey] || 1)), 0);
+  for (const item of table) {
+    roll -= Math.max(0, Number(item[weightKey] || 1));
+    if (roll <= 0) return item;
+  }
+  return table[0];
+}
+
+function splitBattleList(value) {
+  if (Array.isArray(value)) return value.map((item) => String(item || "").trim()).filter(Boolean);
+  return String(value || "").split("|").map((item) => item.trim()).filter(Boolean);
+}
+
+function rollEnemyVariant(template = {}) {
+  const customVariants = splitBattleList(template.variantIds)
+    .map((variantId) => ENEMY_VARIANTS.find((variant) => variant.variantId === variantId))
+    .filter(Boolean);
+  return weightedBattlePick(customVariants.length ? customVariants : ENEMY_VARIANTS) || ENEMY_VARIANTS[0];
+}
+
+function materialMatchesDropBias(material, bias) {
+  if (!material || !bias) return false;
+  const normalizedBias = String(bias).toLowerCase();
+  const rarityScore = { N: 1, R: 2, SR: 3, SSR: 4, UR: 5 }[material.rarity || material.rank] || 1;
+  if (normalizedBias === "rare") return rarityScore >= 4;
+  const parts = [
+    material.id,
+    material.name,
+    material.category,
+    material.slotType,
+    material.accentColor,
+    ...(material.visualTags || []),
+    ...(material.tags || []),
+    ...(material.prompts || [])
+  ].join(" ").toLowerCase();
+  return parts.includes(normalizedBias);
+}
+
+function getVariantMaterialPool(variant, planet = null) {
+  const catalog = window.MechMaterialCatalog || window.MaterialCatalog || [];
+  const planetPool = planet?.materialPool || [];
+  const biased = catalog.filter((material) => (
+    (variant.dropBias || []).some((bias) => materialMatchesDropBias(material, bias))
+  ));
+  const planetPreferred = biased.filter((material) => planetPool.includes(material.id));
+  return planetPreferred.length ? planetPreferred : biased;
+}
+
+function buildEnemyDropTable(template, variant, planet = null) {
+  const baseDrops = Array.isArray(template.drops) ? template.drops : [];
+  const variantPool = getVariantMaterialPool(variant, planet);
+  const variantDrops = uniqueBattleList(variantPool.map((material) => material.id)).slice(0, 8);
+  const dropTable = [
+    ...baseDrops.map((id) => ({ id, chance: 0.72, source: "base" })),
+    ...variantDrops.map((id) => ({ id, chance: variant.variantId === "normal" ? 0.18 : 0.42, source: "variant" }))
+  ];
+  return dropTable.filter((drop, index, drops) => drop.id && drops.findIndex((item) => item.id === drop.id) === index);
+}
+
 function cloneBattleStats(stats = {}) {
   return {
     hp: Math.max(0, Math.floor(battleNumber(stats.hp, 0))),
@@ -57,19 +133,30 @@ function createAllyBattleUnit(mech) {
   };
 }
 
-function createEnemyBattleUnit(template, floor) {
+function createEnemyBattleUnit(template, floor, variant = ENEMY_VARIANTS[0], planet = null) {
   const stats = cloneBattleStats(typeof window.generateEnemyStats === "function" ? window.generateEnemyStats(template, floor) : template);
   const maxHp = Math.max(1, Math.floor(battleNumber(template.maxHp ?? template.hp, stats.hp)));
   const currentHp = clampBattleValue(Math.floor(battleNumber(template.hp, maxHp)), 0, maxHp);
+  const dropTable = buildEnemyDropTable(template, variant, planet);
+  const displayName = variant?.variantId && variant.variantId !== "normal"
+    ? `${variant.variantName}・${template.name || "Enemy"}`
+    : template.name || "Enemy";
   return {
     id: "enemy:0",
     side: "enemy",
     sourceType: "enemy",
     enemyId: template.id || template.name || "enemy",
-    name: template.name || "Enemy",
+    name: displayName,
+    baseName: template.name || "Enemy",
     level: Math.max(1, Math.floor(battleNumber(template.level, floor))),
     type: template.type || "enemy",
-    drops: Array.isArray(template.drops) ? [...template.drops] : [],
+    variant: { ...variant },
+    variantId: variant?.variantId || "normal",
+    variantName: variant?.variantName || "通常個体",
+    drops: uniqueBattleList(dropTable.map((drop) => drop.id)),
+    dropTable,
+    dropBias: [...(variant?.dropBias || [])],
+    promptParts: [...(template.promptParts || []), ...(variant?.promptParts || [])],
     stats: { ...stats, element: template.element || "none" },
     currentHp,
     maxHp,
@@ -121,9 +208,14 @@ function mirrorEnemyForLegacyUi(enemyUnit) {
   if (!enemyUnit) return null;
   return {
     name: enemyUnit.name,
+    baseName: enemyUnit.baseName || enemyUnit.name,
     level: enemyUnit.level || 1,
     type: enemyUnit.type || "enemy",
+    variant: enemyUnit.variant || null,
+    variantId: enemyUnit.variantId || "normal",
+    variantName: enemyUnit.variantName || "",
     drops: Array.isArray(enemyUnit.drops) ? enemyUnit.drops : [],
+    dropTable: Array.isArray(enemyUnit.dropTable) ? enemyUnit.dropTable : [],
     hp: enemyUnit.currentHp,
     maxHp: enemyUnit.maxHp,
     pp: enemyUnit.currentPp,
@@ -212,7 +304,8 @@ window.startBattle = function startBattle() {
   const pool = candidates.length ? candidates : window.EnemyCatalog;
   const template = pool[Math.floor(Math.random() * pool.length)];
   const floor = state.quest?.floor || 1;
-  const enemyUnit = createEnemyBattleUnit(template, floor);
+  const variant = rollEnemyVariant(template);
+  const enemyUnit = createEnemyBattleUnit(template, floor, variant, planet);
   const battleUnits = [...allyUnits, enemyUnit];
   state.battle = {
     battleUnits,
@@ -248,6 +341,7 @@ window.renderBattle = function renderBattle() {
         <div class="section-head"><h2>${enemyUnit.name}</h2><span>Lv. ${enemyUnit.level || 1}</span></div>
         <div>HP ${formatNumber(enemyUnit.currentHp)} / ${formatNumber(enemyUnit.maxHp)}</div>
         <div class="bar" style="--value:${enemyHpPercent}%"><span></span></div>
+        <div class="tag-row" style="margin-top:8px"><span class="tag">${enemyUnit.variantName || "通常個体"}</span>${(enemyUnit.dropBias || []).slice(0, 3).map((bias) => `<span class="tag">${bias}</span>`).join("")}</div>
         <div class="tag-row" style="margin-top:8px"><span class="tag">${enemyUnit.type || "enemy"}</span><span class="tag">単体</span></div>
       </div>
     </section>
@@ -412,8 +506,15 @@ function winBattle() {
   const state = window.GameState;
   const enemyUnit = getPrimaryEnemyUnit() || getBattleUnits().find((unit) => unit.side === "enemy");
   if (!enemyUnit) return;
-  (enemyUnit.drops || []).forEach((id) => {
-    if (Math.random() < 0.72) state.runMaterials[id] = (state.runMaterials[id] || 0) + 1;
+  const obtained = [];
+  const dropTable = Array.isArray(enemyUnit.dropTable) && enemyUnit.dropTable.length
+    ? enemyUnit.dropTable
+    : (enemyUnit.drops || []).map((id) => ({ id, chance: 0.72, source: "base" }));
+  dropTable.forEach((drop) => {
+    if (drop.id && Math.random() < Number(drop.chance || 0)) {
+      state.runMaterials[drop.id] = (state.runMaterials[drop.id] || 0) + 1;
+      obtained.push(drop.id);
+    }
   });
   getBattleUnits().filter((unit) => unit.side === "ally").forEach((unit) => {
     const pilot = getPilot(unit.pilotId);
@@ -421,6 +522,8 @@ function winBattle() {
     unit.isDefending = false;
     syncBattleUnitToMech(unit);
   });
+  const obtainedNames = uniqueBattleList(obtained).map((id) => (getMaterial(id) || window.getMechGenerationMaterial?.(id) || { name: id }).name).join(" / ");
+  logMessage("battle", obtainedNames ? `入手素材: ${obtainedNames}` : "入手素材なし", obtainedNames ? "good" : "warn");
   logMessage("quest", `${enemyUnit.name}を撃破。素材を回収した。`, "good");
   state.battle = null;
   state.currentScene = "quest";

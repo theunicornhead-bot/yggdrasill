@@ -2,10 +2,33 @@
 
 function materialCountsForSynthesis() {
   const counts = allMaterialCounts();
-  window.GameState.synthesisSlots.forEach((id) => {
+  (window.GameState.synthesisSlots || []).filter(Boolean).forEach((id) => {
     counts[id] = Math.max(0, (counts[id] || 0) - 1);
   });
   return counts;
+}
+
+function selectedSynthesisMaterialIds() {
+  return (window.GameState.synthesisSlots || []).filter(Boolean);
+}
+
+function selectedSynthesisMaterialCount() {
+  return selectedSynthesisMaterialIds().length;
+}
+
+function synthesisSlotDefs() {
+  return typeof window.getSynthesisSlotDefs === "function"
+    ? window.getSynthesisSlotDefs()
+    : Array.from({ length: 5 }, (_, index) => ({ key: `slot${index}`, label: `SLOT ${index + 1}`, accepts: [] }));
+}
+
+function findFirstAvailableSynthesisSlot(material) {
+  const slots = window.GameState.synthesisSlots || [];
+  return synthesisSlotDefs().findIndex((slot, index) => {
+    if (slots[index]) return false;
+    if (typeof window.canMaterialFitSynthesisSlot !== "function") return true;
+    return window.canMaterialFitSynthesisSlot(material, index);
+  });
 }
 
 window.canAddMech = function canAddMech() {
@@ -53,7 +76,7 @@ window.renderSynthesis = function renderSynthesis() {
     ${state.synthesisTab === "mech-generate" ? `
     <section class="synthesis-vat panel">
       <div class="reticle"></div>
-      <div class="vat-label"><span>${stepLabel(step)}</span><span>MATERIAL ${state.synthesisSlots.length} / 5</span></div>
+      <div class="vat-label"><span>${stepLabel(step)}</span><span>MATERIAL ${selectedSynthesisMaterialCount()} / 5</span></div>
     </section>
     ${step === "core" ? renderCoreStep() : ""}
     ${step === "materials" ? renderMaterialsStep() : ""}
@@ -157,7 +180,7 @@ function renderCoreStep() {
         ${selectedCore ? selectedCoreHtml(selectedCore) : `<div class="muted">コアを選択してください。</div>`}
         <div class="synth-actions" style="margin-top:10px">
           <button class="button" data-action="synthesis-next-step" ${selectedCore ? "" : "disabled"}>次へ</button>
-          <button class="button danger" data-action="reset-synthesis" ${state.synthesisSlots.length ? "" : "disabled"}>リセット</button>
+          <button class="button danger" data-action="reset-synthesis" ${selectedSynthesisMaterialCount() ? "" : "disabled"}>リセット</button>
         </div>
       </div>
       ${renderLogPanel()}
@@ -170,7 +193,8 @@ function renderMaterialsStep() {
   const selectedCore = window.getMechCore(state.selectedCoreId);
   const selectedMaterial = window.getMechGenerationMaterial(state.selectedMaterialId) || firstOwnedGenerationMaterial();
   const preview = synthesisPreview();
-  const enoughMaterials = state.synthesisSlots.length >= 3 && state.synthesisSlots.length <= 5;
+  const materialCount = selectedSynthesisMaterialCount();
+  const enoughMaterials = materialCount >= 3 && materialCount <= 5;
   const canGenerate = Boolean(
     selectedCore &&
     preview &&
@@ -238,12 +262,12 @@ function renderSlotPanel(allowRemove) {
   const state = window.GameState;
   return `
     <div class="panel panel-pad">
-      <div class="section-head"><h2>素材スロット</h2><span>${state.synthesisSlots.length} / 5</span></div>
+      <div class="section-head"><h2>素材スロット</h2><span>${selectedSynthesisMaterialCount()} / 5</span></div>
       <div class="slot-grid">${synthesisSlotsHtml()}</div>
       ${allowRemove ? `
         <div class="synth-actions" style="margin-top:10px">
-          <button class="button" data-action="remove-synth-material" ${state.synthesisSlots.length ? "" : "disabled"}>素材を外す</button>
-          <button class="button danger" data-action="clear-synth-materials" ${state.synthesisSlots.length ? "" : "disabled"}>素材リセット</button>
+          <button class="button" data-action="remove-synth-material" ${selectedSynthesisMaterialCount() ? "" : "disabled"}>素材を外す</button>
+          <button class="button danger" data-action="clear-synth-materials" ${selectedSynthesisMaterialCount() ? "" : "disabled"}>素材リセット</button>
         </div>
       ` : ""}
     </div>
@@ -289,9 +313,10 @@ function selectedCoreHtml(core) {
 }
 
 function synthesisSlotsHtml() {
-  return Array.from({ length: 5 }, (_, index) => {
+  return synthesisSlotDefs().map((slot, index) => {
     const material = window.getMechGenerationMaterial(window.GameState.synthesisSlots[index]);
-    return `<button class="synth-slot ${material ? "filled" : ""}" data-action="select-synth-slot" data-slot="${index}" type="button">${material ? `<strong>${material.rarity}</strong><br>${material.name}` : `<span class="muted">EMPTY<br>${String(index + 1).padStart(2, "0")}</span>`}</button>`;
+    const slotType = material?.slotType || slot.key;
+    return `<button class="synth-slot ${material ? "filled" : ""}" data-action="select-synth-slot" data-slot="${index}" type="button"><span class="muted">${slot.label}</span><br>${material ? `<strong>${material.rarity}</strong><br>${material.name}<br><span class="muted">${slotType}</span>` : `<span class="muted">EMPTY<br>${String(index + 1).padStart(2, "0")}</span>`}</button>`;
   }).join("");
 }
 
@@ -301,10 +326,12 @@ function synthesisMaterialRows() {
   if (!entries.length) return `<div class="muted">生成に使える素材がありません。</div>`;
   return entries.map(([id, count]) => {
     const material = window.getMechGenerationMaterial(id);
+    const slotIndex = findFirstAvailableSynthesisSlot(material);
+    const slotLabel = slotIndex >= 0 ? synthesisSlotDefs()[slotIndex].label : "対応枠なし";
     return `
-      <button class="material-row ${window.GameState.selectedMaterialId === id ? "active" : ""}" data-action="select-synth-material" data-material="${id}" type="button">
+      <button class="material-row ${window.GameState.selectedMaterialId === id ? "active" : ""}" data-action="select-synth-material" data-material="${id}" ${slotIndex >= 0 ? "" : "disabled"} type="button">
         <div class="material-icon"></div>
-        <span style="flex:1;text-align:left">${material.name}<br><span class="muted">${material.category} / cost ${material.outputCost}</span></span>
+        <span style="flex:1;text-align:left">${material.name}<br><span class="muted">${material.slotType || material.category} / ${slotLabel} / cost ${material.outputCost}</span></span>
         <strong>x${count}</strong>
       </button>
     `;
@@ -312,16 +339,17 @@ function synthesisMaterialRows() {
 }
 
 function selectedMaterialHtml(material) {
-  const slotFull = window.GameState.synthesisSlots.length >= 5;
   const counts = materialCountsForSynthesis();
-  const canAdd = !slotFull && counts[material.id] > 0;
+  const slotIndex = findFirstAvailableSynthesisSlot(material);
+  const slotLabel = slotIndex >= 0 ? synthesisSlotDefs()[slotIndex].label : "対応する空き枠なし";
+  const canAdd = slotIndex >= 0 && counts[material.id] > 0;
   return `
     <div class="material-row">
       <div class="material-icon"></div>
-      <span style="flex:1">${material.name}<br><span class="muted">${material.category} / ${material.rarity}</span></span>
+      <span style="flex:1">${material.name}<br><span class="muted">${material.slotType || material.category} / ${slotLabel} / ${material.rarity}</span></span>
       <button class="button" data-action="add-synth-material" data-material="${material.id}" ${canAdd ? "" : "disabled"}>投入</button>
     </div>
-    <div class="tag-row" style="margin-top:8px">${material.prompts.map((prompt) => `<span class="tag">${prompt}</span>`).join("")}</div>
+    <div class="tag-row" style="margin-top:8px">${[material.accentColor, ...(material.visualTags || []), ...(material.prompts || [])].filter(Boolean).map((prompt) => `<span class="tag">${prompt}</span>`).join("")}</div>
   `;
 }
 
@@ -382,19 +410,23 @@ window.selectSynthMaterial = function selectSynthMaterial(materialId) {
 window.addSynthMaterial = function addSynthMaterial(materialId) {
   const counts = materialCountsForSynthesis();
   const material = window.getMechGenerationMaterial(materialId);
-  if (!material || window.GameState.synthesisSlots.length >= 5 || !counts[materialId]) {
+  const slotIndex = material ? findFirstAvailableSynthesisSlot(material) : -1;
+  if (!material || slotIndex < 0 || !counts[materialId]) {
     logMessage("synthesis", "投入できない素材です。", "danger");
     window.renderCurrentScene();
     return;
   }
   window.GameState.selectedMaterialId = materialId;
-  window.GameState.synthesisSlots.push(materialId);
-  logMessage("synthesis", `${material.name}を投入しました。`, "good");
+  window.GameState.synthesisSlots[slotIndex] = materialId;
+  logMessage("synthesis", `${material.name}を${synthesisSlotDefs()[slotIndex].label}に投入しました。`, "good");
   window.renderCurrentScene();
 };
 
 window.removeSynthMaterial = function removeSynthMaterial() {
-  const removedId = window.GameState.synthesisSlots.pop();
+  const slots = window.GameState.synthesisSlots || [];
+  const lastIndex = slots.map((id, index) => (id ? index : -1)).filter((index) => index >= 0).pop();
+  const removedId = lastIndex >= 0 ? slots[lastIndex] : null;
+  if (lastIndex >= 0) slots[lastIndex] = null;
   const material = window.getMechGenerationMaterial(removedId);
   if (material) logMessage("synthesis", `${material.name}を外しました。`, "warn");
   window.renderCurrentScene();
@@ -411,8 +443,9 @@ window.resetSynthesis = function resetSynthesis() {
 window.startSynthesisProcess = async function startSynthesisProcess() {
   const state = window.GameState;
   window.ensureMechGenerationState();
-  const slots = [...state.synthesisSlots];
-  const preview = window.previewGeneratedMech(state.selectedCoreId, slots);
+  const rawSlots = [...(state.synthesisSlots || [])];
+  const slots = rawSlots.filter(Boolean);
+  const preview = window.previewGeneratedMech(state.selectedCoreId, rawSlots);
   if (!preview) {
     logMessage("synthesis", "コア1個と素材3-5個が必要です。", "danger");
     window.renderCurrentScene();

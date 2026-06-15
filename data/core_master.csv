@@ -1,4 +1,4 @@
-coreId,name,rarity,tagId,promptText,hp,pp,sAtk,mAtk,lAtk,sDef,mDef,lDef,speed,price,description
+coreId,name,rarity,tagId,promptText,hp,pp,sAtk,mAtk,lAtk,sDef,mDef,lDef,speed,price,description,mainColor
 core_general_n,汎用生体核N,N,general,"balanced proportions|multi-purpose combat frame|general use design|versatile equipment|symmetrical silhouette",80,6,6,6,6,6,6,6,6,300,汎用型の生体機械核
 core_melee_r,近接生体核R,R,melee,"close combat frame|large claws|blade structures|heavy forearms|predatory silhouette|aggressive posture",120,6,18,0,0,10,4,4,8,650,近接戦闘向けの生体機械核
 core_ranged_r,遠距離生体核R,R,ranged,"long range combat frame|weapon mounts|sensor systems|precision targeting organs|slender combat silhouette",100,8,0,4,18,4,4,10,10,650,遠距離戦闘向けの生体機械核
