@@ -899,19 +899,6 @@ button {
   margin-bottom: 10px;
 }
 
-.generated-mech-preview {
-  display: grid;
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.generated-mech-preview .mech-image-detail {
-  max-height: 320px;
-  background:
-    radial-gradient(circle at 50% 35%, rgba(250, 204, 21, 0.18), transparent 28%),
-    linear-gradient(135deg, rgba(29, 39, 43, 0.92), rgba(6, 10, 12, 0.96));
-}
-
 .hangar-tabs {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1511,6 +1498,27 @@ button {
   color: #fff0b8;
   background: rgba(129, 95, 26, 0.42);
 }
+
+.quest-tactic-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.quest-tactic-button.active {
+  border-color: #ffd84a;
+  color: #ffd84a;
+}
+
+.map-enemy-blue { color: #4aa3ff !important; }
+.map-enemy-red { color: #ff4a4a !important; }
+.map-enemy-yellow { color: #ffd84a !important; }
+.map-enemy-green { color: #4dff88 !important; }
+.map-enemy-pink { color: #ff7ad9 !important; }
+.map-enemy-white { color: #f5f5f5 !important; text-shadow: 0 0 4px #fff; }
+.map-enemy-black { color: #9a6bff !important; text-shadow: 0 0 4px #000; }
+.map-enemy-gold { color: #ffd700 !important; text-shadow: 0 0 6px #ffd700; }
 
 .env-panel {
   position: absolute;

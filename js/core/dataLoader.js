@@ -138,6 +138,13 @@ const MASTER_CSV_CONFIGS = [
   { masterName: "pilotRankupRequirementMaster", path: "data/pilot_rankup_requirement_master.csv", idKey: "fromRank" },
   { masterName: "classRankPlanetMaster", path: "data/class_rank_planet_master.csv", idKey: "classId" },
   { masterName: "statusEffectMaster", path: "data/status_effect_master.csv", idKey: "statusEffectId" },
+  { masterName: "battleConditionMaster", path: "data/battle_condition_master.csv", idKey: "conditionId" },
+  { masterName: "battleActionMaster", path: "data/battle_action_master.csv", idKey: "actionId" },
+  { masterName: "battleTargetMaster", path: "data/battle_target_master.csv", idKey: "targetId" },
+  { masterName: "classBattleProgramMaster", path: "data/class_battle_program_master.csv", idKey: "classId" },
+  { masterName: "battleTacticMaster", path: "data/battle_tactic_master.csv", idKey: "tacticId" },
+  { masterName: "enemyBehaviorMaster", path: "data/enemy_behavior_master.csv", idKey: "behaviorId" },
+  { masterName: "enemyFieldRuleMaster", path: "data/enemy_field_rule_master.csv", idKey: "planetId" },
   { masterName: "overdriveMaster", path: "data/overdrive_master.csv", idKey: "overdriveId" }
 ];
 

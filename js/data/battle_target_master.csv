@@ -1,0 +1,16 @@
+targetId,name,targetSide,description
+self,自分,ally,自分自身
+ally_lowest_hp,HP最低味方,ally,HP割合が最も低い味方
+ally_highest_atk,攻撃最高味方,ally,攻撃性能が最も高い味方
+ally_pp_lowest,PP最低味方,ally,PP割合が最も低い味方
+ally_status,状態異常味方,ally,状態異常中の味方
+all_allies,味方全体,ally,生存味方全体
+enemy_default,標準敵,enemy,基本攻撃対象
+enemy_lowest_hp,HP最低敵,enemy,HP割合が最も低い敵
+enemy_highest_atk,攻撃最高敵,enemy,攻撃力が最も高い敵
+enemy_weak,弱点一致敵,enemy,条件に一致する弱点を持つ敵
+enemy_boss,ボス敵,enemy,ボスを優先
+enemy_buffed,バフ中敵,enemy,バフ中の敵
+enemy_priority,優先敵,enemy,ボスや危険度の高い敵を優先
+enemy_rare,レア敵,enemy,金色/白/黒などのレア個体を優先
+all_enemies,敵全体,enemy,生存敵全体

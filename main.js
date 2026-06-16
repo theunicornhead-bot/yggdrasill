@@ -122,6 +122,7 @@ document.addEventListener("click", (event) => {
   if (action === "quest-left") window.questAction("左へ旋回した。", 0.5);
   if (action === "quest-right") window.questAction("右へ旋回した。", 0.5);
   if (action === "quest-search") window.questAction("周囲を調べた。", 1);
+  if (action === "set-battle-tactic") window.setBattleTactic(target.dataset.tactic);
   if (action === "quest-next-floor") window.goToNextFloor();
   if (action === "open-mini-map") window.openMiniMapModal();
   if (action === "close-mini-map") window.closeMiniMapModal();

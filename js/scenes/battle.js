@@ -182,6 +182,7 @@ function createEnemyBattleUnit(template, floor, variant = ENEMY_VARIANTS[0], pla
     variant: { ...variant },
     variantId: variant?.variantId || "normal",
     variantName: variant?.variantName || "通常個体",
+    fieldEnemyId: template.fieldEnemyId || "",
     colorId,
     imagePath,
     drops: uniqueBattleList(dropTable.map((drop) => drop.id)),
@@ -207,6 +208,145 @@ function createEnemyBattleUnit(template, floor, variant = ENEMY_VARIANTS[0], pla
       ppCost: 0
     }
   };
+}
+
+function masterBattleRows(masterName) {
+  const rows = window.masterData?.[masterName];
+  return Array.isArray(rows) ? rows : [];
+}
+
+function getBattleAction(actionId) {
+  return window.getMasterById?.("battleActionMaster", "actionId", actionId) || { actionId: actionId || "attack_default", actionType: "attack", basePowerRate: "1", ppCost: "0" };
+}
+
+function getBattleProgramForUnit(unit) {
+  const mech = getMech(unit?.machineId);
+  if (Array.isArray(mech?.battleProgram) && mech.battleProgram.length) return mech.battleProgram;
+  const pilot = getPilot(unit?.pilotId);
+  const classId = window.normalizePilotClassId ? window.normalizePilotClassId(pilot?.classId) : pilot?.classId;
+  const rows = masterBattleRows("classBattleProgramMaster").filter((row) => row.classId === classId || row.classId === pilot?.classId);
+  if (rows.length) return rows.map((row) => ({ ...row, slot: Number(row.slot || 0), enabled: String(row.enabled) !== "false" })).sort((a, b) => Number(a.slot || 0) - Number(b.slot || 0));
+  return [{ slot: 1, conditionId: "always", conditionValue: "", actionId: "attack_default", targetId: "enemy_default", enabled: true }];
+}
+
+function hpPercent(unit) {
+  return Math.round((Number(unit?.currentHp || 0) / Math.max(1, Number(unit?.maxHp || 1))) * 100);
+}
+
+function ppPercent(unit) {
+  return Math.round((Number(unit?.currentPp || 0) / Math.max(1, Number(unit?.maxPp || 1))) * 100);
+}
+
+function enemyMatchesValue(enemy, value, key) {
+  return String(enemy?.[key] || enemy?.stats?.[key] || enemy?.weapon?.[key] || "").toLowerCase() === String(value || "").toLowerCase();
+}
+
+function battleConditionMet(unit, line, tacticId) {
+  const value = line.conditionValue;
+  const allies = getAliveBattleUnits("ally");
+  const enemies = getAliveBattleUnits("enemy");
+  if (tacticId === "escape" && line.actionId === "attack_default" && allies.some((ally) => hpPercent(ally) <= 35)) return false;
+  switch (line.conditionId) {
+    case "always": return true;
+    case "ally_hp_below": return allies.some((ally) => hpPercent(ally) <= battleNumber(value, 50));
+    case "ally_hp_above": return allies.some((ally) => hpPercent(ally) >= battleNumber(value, 50));
+    case "self_hp_below": return hpPercent(unit) <= battleNumber(value, 50);
+    case "self_pp_below": return ppPercent(unit) <= battleNumber(value, 30);
+    case "ally_pp_below": return allies.some((ally) => ppPercent(ally) <= battleNumber(value, 30));
+    case "enemy_hp_below": return enemies.some((enemy) => hpPercent(enemy) <= battleNumber(value, 30));
+    case "enemy_hp_above": return enemies.some((enemy) => hpPercent(enemy) >= battleNumber(value, 30));
+    case "enemy_is_boss": return enemies.some((enemy) => enemy.type === "boss" || enemy.variantId === "black" || enemy.enemyId?.includes("boss"));
+    case "enemy_has_status": return enemies.some((enemy) => (enemy.statusAilments || []).some((status) => status.id === value || status.statusEffectId === value));
+    case "ally_has_status": return allies.some((ally) => (ally.statusAilments || []).some((status) => status.id === value || status.statusEffectId === value));
+    case "enemy_weak_to_weapon": return enemies.some((enemy) => window.getEnemyWeakness?.(enemy.enemyId)?.weaponWeakType === value);
+    case "enemy_weak_to_element": return enemies.some((enemy) => window.getEnemyWeakness?.(enemy.enemyId)?.elementWeakType === value || enemyMatchesValue(enemy, value, "element"));
+    case "enemy_resists_element": return enemies.some((enemy) => window.getEnemyResistance?.(enemy.enemyId)?.elementResistType === value);
+    case "round_equals": return battleNumber(window.GameState.battle?.turn, 1) === battleNumber(value, 1);
+    case "round_greater_equal": return battleNumber(window.GameState.battle?.turn, 1) >= battleNumber(value, 1);
+    case "od_full": return battleNumber(unit?.overdrive, 0) >= 100;
+    case "enemy_count_greater_equal": return enemies.length >= battleNumber(value, 1);
+    case "ally_count_below": return allies.length <= battleNumber(value, 1);
+    case "enemy_color_is": return enemies.some((enemy) => enemy.colorId === value);
+    case "enemy_is_rare": return enemies.some((enemy) => ["gold", "white", "black"].includes(enemy.colorId));
+    default: return false;
+  }
+}
+
+function selectBattleTarget(unit, targetId) {
+  const allies = getAliveBattleUnits("ally");
+  const enemies = getAliveBattleUnits("enemy");
+  const byHpAsc = (a, b) => hpPercent(a) - hpPercent(b);
+  const byAtkDesc = (a, b) => Math.max(b.stats.sAtk, b.stats.mAtk, b.stats.lAtk) - Math.max(a.stats.sAtk, a.stats.mAtk, a.stats.lAtk);
+  if (targetId === "self") return unit;
+  if (targetId === "ally_lowest_hp") return [...allies].sort(byHpAsc)[0] || unit;
+  if (targetId === "ally_highest_atk") return [...allies].sort(byAtkDesc)[0] || unit;
+  if (targetId === "ally_pp_lowest") return [...allies].sort((a, b) => ppPercent(a) - ppPercent(b))[0] || unit;
+  if (targetId === "ally_status") return allies.find((ally) => (ally.statusAilments || []).length) || allies[0] || unit;
+  if (targetId === "enemy_lowest_hp") return [...enemies].sort(byHpAsc)[0] || null;
+  if (targetId === "enemy_highest_atk") return [...enemies].sort(byAtkDesc)[0] || null;
+  if (targetId === "enemy_boss") return enemies.find((enemy) => enemy.type === "boss") || enemies[0] || null;
+  if (targetId === "enemy_rare") return enemies.find((enemy) => ["gold", "white", "black"].includes(enemy.colorId)) || enemies[0] || null;
+  return enemies[0] || null;
+}
+
+function executeBattleProgramAction(unit, line, tacticId) {
+  const action = getBattleAction(line.actionId);
+  const target = selectBattleTarget(unit, line.targetId || "enemy_default");
+  if (!target) return false;
+  const role = action.requiredRole || "";
+  const pilot = getPilot(unit.pilotId);
+  const classId = window.normalizePilotClassId ? window.normalizePilotClassId(pilot?.classId) : pilot?.classId;
+  if (role && classId !== role && tacticId !== "standard") return false;
+  const ppCost = Math.max(0, battleNumber(action.ppCost, 0));
+  if (!spendUnitPp(unit, ppCost)) return false;
+  const actionType = action.actionType || "attack";
+  if (actionType === "heal") {
+    const amount = Math.max(1, Math.round((unit.stats.mAtk || unit.stats.sAtk || 1) * battleNumber(action.basePowerRate, 1)));
+    target.currentHp = Math.min(target.maxHp, target.currentHp + amount);
+    logMessage("battle", `${unit.name}: ${action.name || "修復"} -> ${target.name} +${amount}`, "good");
+  } else if (actionType === "supply") {
+    const amount = Math.max(1, Math.round((unit.stats.mAtk || 20) * 0.25 * battleNumber(action.basePowerRate, 1)));
+    target.currentPp = Math.min(target.maxPp, target.currentPp + amount);
+    logMessage("battle", `${unit.name}: ${action.name || "補給"} -> ${target.name} PP +${amount}`, "good");
+  } else if (actionType === "defend" || actionType === "guard") {
+    target.isDefending = true;
+    gainUnitOverdrive(target, 5);
+    logMessage("battle", `${unit.name}: ${action.name || "防御"}。`, "good");
+  } else if (actionType === "buff") {
+    window.applyBuffDebuff?.(target, { id: action.actionId, rate: 1.12, turns: 2 });
+    logMessage("battle", `${unit.name}: ${action.name || "強化"} -> ${target.name}`, "good");
+  } else if (actionType === "debuff" || actionType === "scan" || actionType === "cleanse") {
+    window.applyStatusAilment?.(target, { id: action.actionId, turns: 2 });
+    logMessage("battle", `${unit.name}: ${action.name || "解析"} -> ${target.name}`, "warn");
+  } else if (actionType === "overdrive") {
+    if (battleNumber(unit.overdrive, 0) < 100) return false;
+    unit.overdrive = 0;
+    const damage = window.calculateDamage(unit.stats, target.stats, unit.weapon, { multiplier: battleNumber(action.basePowerRate, 1.9), defenderElement: target.stats?.element, defenderEnemyId: target.enemyId });
+    applyBattleDamage(target, damage);
+    logMessage("battle", `${unit.name}: ${action.name || "OD"} -> ${target.name} ${damage}ダメージ`, "warn");
+  } else {
+    const damage = window.calculateDamage(unit.stats, target.stats, unit.weapon, { multiplier: battleNumber(action.basePowerRate, 1), defenderElement: target.stats?.element, defenderEnemyId: target.enemyId });
+    applyBattleDamage(target, damage);
+    gainUnitOverdrive(unit, 12);
+    logMessage("battle", `${unit.name}: ${action.name || "攻撃"} -> ${target.name} ${damage}ダメージ`, damage > 520 ? "warn" : "");
+  }
+  syncBattleUnitToMech(unit);
+  if (target.side === "ally") syncBattleUnitToMech(target);
+  return true;
+}
+
+function chooseProgramLine(unit, tacticId) {
+  const program = getBattleProgramForUnit(unit);
+  if (tacticId === "defense") {
+    const defensive = program.find((line) => ["ally_hp_below", "self_hp_below", "ally_pp_below"].includes(line.conditionId) && battleConditionMet(unit, line, tacticId));
+    if (defensive) return defensive;
+  }
+  if (tacticId === "attack") {
+    const attackLine = program.find((line) => ["enemy_weak_to_element", "enemy_weak_to_weapon", "enemy_hp_below", "enemy_is_rare"].includes(line.conditionId) && battleConditionMet(unit, line, tacticId));
+    if (attackLine) return attackLine;
+  }
+  return program.find((line) => String(line.enabled) !== "false" && battleConditionMet(unit, line, tacticId))
+    || { conditionId: "always", actionId: "attack_default", targetId: "enemy_default" };
 }
 
 function getBattleUnits() {
@@ -363,7 +503,7 @@ function clearDefending(side = "ally") {
   });
 }
 
-window.startBattle = function startBattle() {
+window.startBattle = function startBattle(options = {}) {
   const state = window.GameState;
   const fallbackSortieUnits = () => {
     const ids = Array.isArray(state.partyMechIds) ? state.partyMechIds : [];
@@ -379,20 +519,90 @@ window.startBattle = function startBattle() {
 
   const floor = state.quest?.floor || 1;
   const planet = typeof window.getSelectedPlanet === "function" ? window.getSelectedPlanet() : null;
-  const template = selectEnemyTemplateForBattle(planet, floor);
-  const variant = rollEnemyColorVariant(planet, floor);
+  const fieldEnemy = options.fieldEnemy || state.quest?.pendingFieldEnemy || null;
+  const fieldTemplate = fieldEnemy?.enemyId && typeof window.getEnemyMaster === "function" ? window.getEnemyMaster(fieldEnemy.enemyId) : null;
+  const template = fieldTemplate ? { ...fieldTemplate, fieldEnemyId: fieldEnemy.id, colorId: fieldEnemy.colorId } : selectEnemyTemplateForBattle(planet, floor);
+  const variant = fieldEnemy?.colorId
+    ? { variantId: fieldEnemy.colorId, colorId: fieldEnemy.colorId, variantName: window.getColorMaster?.(fieldEnemy.colorId)?.prefix || fieldEnemy.colorId, dropBias: [fieldEnemy.colorId], promptParts: [fieldEnemy.colorId], weight: 1 }
+    : rollEnemyColorVariant(planet, floor);
   const enemyUnit = createEnemyBattleUnit(template, floor, variant, planet);
   const battleUnits = [...allyUnits, enemyUnit];
   state.battle = {
     battleUnits,
     turnQueue: buildTurnQueue(battleUnits),
     turn: 1,
-    message: "コマンドを選択してください",
+    tacticId: state.quest?.battleTacticId || "standard",
+    fieldEnemyId: fieldEnemy?.id || "",
+    message: "自動戦闘プログラム実行中",
     guarded: false,
     enemy: mirrorEnemyForLegacyUi(enemyUnit)
   };
   state.logs.battle = [];
   logMessage("battle", `${enemyUnit.name}と遭遇した。`, "danger");
+  return true;
+};
+
+function autoEnemyAct(enemyUnit) {
+  const aliveAllies = getAliveBattleUnits("ally");
+  if (!enemyUnit || !aliveAllies.length) return false;
+  const target = aliveAllies[Math.floor(Math.random() * aliveAllies.length)];
+  const damage = typeof window.calculateDamage === "function"
+    ? window.calculateDamage(enemyUnit.stats, target.stats, enemyUnit.weapon, { defending: target.isDefending, critical: Math.random() < 0.05 })
+    : Math.max(1, Math.floor(Math.max(enemyUnit.stats.sAtk, enemyUnit.stats.mAtk, enemyUnit.stats.lAtk)));
+  applyBattleDamage(target, damage);
+  gainUnitOverdrive(target, 8);
+  gainUnitOverdrive(enemyUnit, 8);
+  logMessage("battle", `${enemyUnit.name}: 反撃 -> ${target.name} ${damage}ダメージ`, "danger");
+  return true;
+}
+
+window.runAutoBattle = function runAutoBattle() {
+  const state = window.GameState;
+  const battle = state.battle;
+  if (!battle) return false;
+  const tacticId = battle.tacticId || state.quest?.battleTacticId || "standard";
+  const maxRounds = getPrimaryEnemyUnit()?.type === "boss" ? 6 : 4;
+  for (let round = 1; round <= maxRounds; round += 1) {
+    battle.turn = round;
+    refreshTurnQueue();
+    const units = battle.turnQueue.map((unitId) => getBattleUnits().find((unit) => unit.id === unitId)).filter(Boolean);
+    for (const unit of units) {
+      if (unit.isDefeated || unit.currentHp <= 0) continue;
+      if (unit.side === "ally") {
+        if (tacticId === "escape" && round === 1 && Math.random() < 0.78) {
+          window.syncBattleUnitsToMechs();
+          logMessage("battle", `${unit.name}: 撤退に成功。`, "warn");
+          logMessage("quest", "戦闘から離脱した。", "warn");
+          state.battle = null;
+          state.currentScene = "quest";
+          renderCurrentScene();
+          return true;
+        }
+        const line = chooseProgramLine(unit, tacticId);
+        executeBattleProgramAction(unit, line, tacticId);
+      } else {
+        autoEnemyAct(unit);
+      }
+      if (!getAliveBattleUnits("enemy").length) {
+        winBattle();
+        return true;
+      }
+      if (!getAliveBattleUnits("ally").length) {
+        window.syncBattleUnitsToMechs();
+        forceReturn("味方が全滅した。", true);
+        return true;
+      }
+    }
+    clearDefending("ally");
+  }
+  if (!getAliveBattleUnits("enemy").length) {
+    winBattle();
+  } else if (!getAliveBattleUnits("ally").length) {
+    forceReturn("味方が全滅した。", true);
+  } else {
+    battle.message = "自動戦闘継続中";
+    window.runAutoBattle();
+  }
   return true;
 };
 
@@ -602,6 +812,10 @@ function winBattle() {
   const obtainedNames = uniqueBattleList(obtained).map((id) => (getMaterial(id) || window.getMechGenerationMaterial?.(id) || { name: id }).name).join(" / ");
   logMessage("battle", obtainedNames ? `入手素材: ${obtainedNames}` : "入手素材なし", obtainedNames ? "good" : "warn");
   logMessage("quest", `${enemyUnit.name}を撃破。素材を回収した。`, "good");
+  if (enemyUnit.fieldEnemyId && typeof window.markFieldEnemyDefeated === "function") {
+    window.markFieldEnemyDefeated(enemyUnit.fieldEnemyId);
+  }
+  if (state.quest) state.quest.pendingFieldEnemy = null;
   state.battle = null;
   state.currentScene = "quest";
   renderCurrentScene();

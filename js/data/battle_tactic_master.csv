@@ -1,0 +1,5 @@
+tacticId,name,description
+standard,標準,通常の自動戦闘
+attack,攻撃重視,弱点攻撃と追撃を優先
+defense,防御重視,回復と防御を優先
+escape,撤退優先,危険な戦闘からの離脱を優先

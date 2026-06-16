@@ -150,8 +150,13 @@ window.generateDungeonFloor = function generateDungeonFloor(floor, planetId = nu
     log: [],
     planetDifficulty: planet.difficulty,
     materialPool: planet.materialPool,
-    promptThemes: planet.promptThemes
+    promptThemes: planet.promptThemes,
+    battleTacticId: state.quest?.battleTacticId || "standard",
+    pendingFieldEnemy: null,
+    fieldEnemies: [],
+    nextFieldEnemySerial: 1
   };
+  seedFieldEnemies(map, planet, floor, startPosition);
   discoverAround(startPosition.x, startPosition.y);
   addQuestLog(`${planet.name} ${floor}Fに到達した。${size}級 / ${window.getTerrainConfig(terrain).label}区画を生成。`);
   state.floor = floor;
@@ -174,8 +179,8 @@ function createOpenMap(width, height) {
   return Array.from({ length: height }, () => Array.from({ length: width }, () => createCell("empty")));
 }
 
-function createCell(type) {
-  return { type, consumed: false };
+function createCell(type, extra = {}) {
+  return { type, consumed: false, ...extra };
 }
 
 function clearStartArea(map, start) {
@@ -206,6 +211,91 @@ function placeEvents(map, reachable, start, floor, terrain, planet) {
     const pos = bossCandidates[Math.floor(Math.random() * bossCandidates.length)] || reachable.find((cellPos) => Math.abs(cellPos.x - start.x) + Math.abs(cellPos.y - start.y) > 1);
     if (pos) map[pos.y][pos.x] = createCell("enemy");
   }
+}
+
+function questRows(masterName) {
+  const rows = window.masterData?.[masterName];
+  return Array.isArray(rows) ? rows : [];
+}
+
+function questWeightedPick(rows, weightKey = "weight") {
+  const pool = (rows || []).filter(Boolean);
+  if (!pool.length) return null;
+  let roll = Math.random() * pool.reduce((sum, row) => sum + Math.max(0, Number(row[weightKey] || 1)), 0);
+  for (const row of pool) {
+    roll -= Math.max(0, Number(row[weightKey] || 1));
+    if (roll <= 0) return row;
+  }
+  return pool[0];
+}
+
+function selectFieldEnemyTemplate(planet, floor, spawnType) {
+  const rows = questRows("planetEnemyTable").filter((row) => (
+    row.planetId === planet?.id
+    && row.spawnType === spawnType
+    && floor >= Number(row.startFloor || 1)
+    && floor <= Number(row.endFloor || row.startFloor || 1)
+  ));
+  const picked = questWeightedPick(rows, "weight");
+  if (picked && typeof window.getEnemyMaster === "function") return window.getEnemyMaster(picked.enemyId);
+  return null;
+}
+
+function getEnemyFieldRule(planetId, floor) {
+  return questRows("enemyFieldRuleMaster").find((row) => (
+    row.planetId === planetId
+    && floor >= Number(row.startFloor || 1)
+    && floor <= Number(row.endFloor || row.startFloor || 1)
+  )) || { spawnCountMin: "1", spawnCountMax: "3", bossSpawnMode: "floorBossOnly", defaultBehavior: "wander", rareBehavior: "flee" };
+}
+
+function behaviorForFieldEnemy(enemy, colorId, rule) {
+  if (enemy?.role === "boss" || enemy?.enemyTier === "boss") return "guard";
+  if (colorId === "gold" || colorId === "white") return rule.rareBehavior || "flee";
+  if (colorId === "black") return "chase";
+  return rule.defaultBehavior || "wander";
+}
+
+function buildFieldEnemy(pos, planet, floor, spawnType) {
+  const template = selectFieldEnemyTemplate(planet, floor, spawnType);
+  if (!template) return null;
+  const colorId = typeof window.rollEnemyColor === "function" ? window.rollEnemyColor(planet?.id || "planet_001", floor) : "blue";
+  const rule = getEnemyFieldRule(planet?.id, floor);
+  const quest = window.GameState.quest;
+  const id = `field_enemy_${quest.nextFieldEnemySerial || 1}`;
+  quest.nextFieldEnemySerial = (quest.nextFieldEnemySerial || 1) + 1;
+  return {
+    id,
+    enemyId: template.enemyId,
+    name: template.name,
+    planetId: planet?.id || template.planetId,
+    floor,
+    colorId,
+    spawnType,
+    behavior: behaviorForFieldEnemy(template, colorId, rule),
+    x: pos.x,
+    y: pos.y,
+    isDefeated: false
+  };
+}
+
+function seedFieldEnemies(map, planet, floor, start) {
+  const quest = window.GameState.quest;
+  const enemies = [];
+  for (let y = 0; y < map.length; y += 1) {
+    for (let x = 0; x < (map[y] || []).length; x += 1) {
+      if (map[y][x].type !== "enemy") continue;
+      const spawnType = floor % 10 === 0 && Math.abs(x - start.x) + Math.abs(y - start.y) >= Math.max(2, Math.floor(map.length / 2)) ? "boss" : "normal";
+      const fieldEnemy = buildFieldEnemy({ x, y }, planet, floor, spawnType);
+      if (!fieldEnemy) continue;
+      enemies.push(fieldEnemy);
+      map[y][x].fieldEnemyId = fieldEnemy.id;
+      map[y][x].colorId = fieldEnemy.colorId;
+      map[y][x].behavior = fieldEnemy.behavior;
+      map[y][x].enemyId = fieldEnemy.enemyId;
+    }
+  }
+  quest.fieldEnemies = enemies;
 }
 
 window.placeStairs = function placeStairs(map, startPosition) {
@@ -289,10 +379,12 @@ function renderQuestHeader(planet, quest) {
 function renderQuestReadout(terrain) {
   const front = getFrontCell();
   const currentCell = window.GameState.quest.map[window.GameState.quest.player.y][window.GameState.quest.player.x];
+  const tactic = getCurrentBattleTactic();
   return `
     <section class="quest-readout panel panel-pad">
       <div class="quest-flavor">${terrain.text}</div>
       <div class="quest-sensor-line">${describeFrontCell(front)} <span class="muted">${describeCurrentCell(currentCell)}</span></div>
+      <div class="quest-sensor-line"><span class="muted">戦闘方針</span> ${tactic.name || tactic.tacticId}</div>
       <div class="quest-log-scroll">${questLogHtml()}</div>
     </section>
   `;
@@ -300,6 +392,7 @@ function renderQuestReadout(terrain) {
 
 function renderQuestCommands() {
   const quest = window.GameState.quest;
+  const tactics = getBattleTactics();
   return `
     <section class="quest-command-panel panel panel-pad">
       <div class="quest-special-row">
@@ -316,9 +409,35 @@ function renderQuestCommands() {
           <button class="button quest-command-button quest-search-button" data-action="quest-search"><span class="cmd-icon">◇</span><span>調べる<br><span class="muted">🔥-1</span></span></button>
         </div>
       </div>
+      <div class="quest-tactic-row">
+        ${tactics.map((tactic) => `<button class="button quest-tactic-button ${quest.battleTacticId === tactic.tacticId ? "active" : ""}" data-action="set-battle-tactic" data-tactic="${tactic.tacticId}" type="button">${tactic.name || tactic.tacticId}</button>`).join("")}
+      </div>
     </section>
   `;
 }
+
+function getBattleTactics() {
+  const rows = questRows("battleTacticMaster");
+  return rows.length ? rows : [
+    { tacticId: "standard", name: "標準", description: "通常の自動戦闘" },
+    { tacticId: "attack", name: "攻撃重視", description: "弱点と追撃を優先" },
+    { tacticId: "defense", name: "防御重視", description: "防御と回復を優先" },
+    { tacticId: "escape", name: "撤退優先", description: "危険時に逃走" }
+  ];
+}
+
+function getCurrentBattleTactic() {
+  const quest = window.GameState.quest;
+  return getBattleTactics().find((tactic) => tactic.tacticId === quest?.battleTacticId) || getBattleTactics()[0];
+}
+
+window.setBattleTactic = function setBattleTactic(tacticId) {
+  const tactic = getBattleTactics().find((item) => item.tacticId === tacticId) || getBattleTactics()[0];
+  if (!window.GameState.quest) return;
+  window.GameState.quest.battleTacticId = tactic.tacticId;
+  addQuestLog(`戦闘方針を「${tactic.name || tactic.tacticId}」に変更。`, "good");
+  window.renderCurrentScene();
+};
 
 window.openExploreItemMenu = function openExploreItemMenu() {
   if (!window.GameState.quest) return;
@@ -632,8 +751,11 @@ function renderMiniMap() {
       const isPlayer = quest.player.x === x && quest.player.y === y;
       const discovered = quest.discovered[key];
       const cell = quest.map[y][x];
+      const fieldEnemy = getFieldEnemyById(cell.fieldEnemyId);
+      const colorClass = fieldEnemy?.colorId ? `map-enemy-${fieldEnemy.colorId}` : "";
       const label = isPlayer ? directionMarkers[quest.player.direction] : discovered ? QUEST_EVENT_LABELS[cell.type] || "." : "?";
-      cells.push(`<div class="quest-map-cell ${isPlayer ? "current" : ""} ${discovered ? `known ${cell.type}` : "unknown"}">${label}</div>`);
+      const title = fieldEnemy ? `${fieldEnemy.name} / ${fieldEnemy.colorId} / ${fieldEnemy.behavior}` : "";
+      cells.push(`<div class="quest-map-cell ${isPlayer ? "current" : ""} ${discovered ? `known ${cell.type}` : "unknown"} ${colorClass}" title="${title}">${label}</div>`);
     }
   }
   return `<div class="quest-map-grid" style="grid-template-columns:repeat(${quest.width},1fr)">${cells.join("")}</div>`;
@@ -761,6 +883,101 @@ window.checkFuelEmpty = function checkFuelEmpty() {
   return true;
 };
 
+function getFieldEnemyById(fieldEnemyId) {
+  const enemies = window.GameState.quest?.fieldEnemies;
+  return Array.isArray(enemies) ? enemies.find((enemy) => enemy.id === fieldEnemyId && !enemy.isDefeated) || null : null;
+}
+
+window.markFieldEnemyDefeated = function markFieldEnemyDefeated(fieldEnemyId) {
+  const quest = window.GameState.quest;
+  const fieldEnemy = getFieldEnemyById(fieldEnemyId);
+  if (!quest || !fieldEnemy) return;
+  fieldEnemy.isDefeated = true;
+  if (quest.map?.[fieldEnemy.y]?.[fieldEnemy.x]?.fieldEnemyId === fieldEnemyId) {
+    quest.map[fieldEnemy.y][fieldEnemy.x] = createCell("empty", { consumed: true });
+  }
+  quest.fieldEnemies = (quest.fieldEnemies || []).filter((enemy) => enemy.id !== fieldEnemyId);
+};
+
+function canFieldEnemyEnter(x, y, movingId = "") {
+  const quest = window.GameState.quest;
+  if (!isInside(x, y, quest.width, quest.height)) return false;
+  const cell = quest.map[y][x];
+  if (!cell || cell.type === "wall" || cell.type === "stairs") return false;
+  if (cell.fieldEnemyId && cell.fieldEnemyId !== movingId) return false;
+  return true;
+}
+
+function nextStepToward(from, to) {
+  const dx = Math.sign(to.x - from.x);
+  const dy = Math.sign(to.y - from.y);
+  const options = Math.abs(to.x - from.x) >= Math.abs(to.y - from.y)
+    ? [{ x: from.x + dx, y: from.y }, { x: from.x, y: from.y + dy }]
+    : [{ x: from.x, y: from.y + dy }, { x: from.x + dx, y: from.y }];
+  return options.find((pos) => canFieldEnemyEnter(pos.x, pos.y, from.id)) || null;
+}
+
+function nextStepAway(from, to) {
+  const dx = Math.sign(from.x - to.x);
+  const dy = Math.sign(from.y - to.y);
+  const options = [{ x: from.x + dx, y: from.y }, { x: from.x, y: from.y + dy }];
+  return options.find((pos) => canFieldEnemyEnter(pos.x, pos.y, from.id)) || null;
+}
+
+function randomFieldStep(enemy) {
+  const dirs = Object.values(QUEST_DIRS).map((dir) => ({ x: enemy.x + dir.dx, y: enemy.y + dir.dy }));
+  const candidates = dirs.filter((pos) => canFieldEnemyEnter(pos.x, pos.y, enemy.id));
+  return candidates[Math.floor(Math.random() * candidates.length)] || null;
+}
+
+function moveFieldEnemy(enemy, nextPos) {
+  const quest = window.GameState.quest;
+  if (!enemy || !nextPos || (enemy.x === nextPos.x && enemy.y === nextPos.y)) return;
+  if (quest.map?.[enemy.y]?.[enemy.x]?.fieldEnemyId === enemy.id) {
+    quest.map[enemy.y][enemy.x] = createCell("empty");
+  }
+  enemy.x = nextPos.x;
+  enemy.y = nextPos.y;
+  quest.map[enemy.y][enemy.x] = createCell("enemy", {
+    fieldEnemyId: enemy.id,
+    colorId: enemy.colorId,
+    behavior: enemy.behavior,
+    enemyId: enemy.enemyId
+  });
+}
+
+function startFieldEnemyBattle(fieldEnemy) {
+  const quest = window.GameState.quest;
+  quest.pendingFieldEnemy = fieldEnemy;
+  addQuestLog(`${fieldEnemy.name || "敵"}が接触。自動戦闘を開始。`, "danger");
+  if (typeof window.startBattle === "function" && window.startBattle({ fieldEnemy })) {
+    window.GameState.currentScene = "battle";
+    if (typeof window.runAutoBattle === "function") window.runAutoBattle();
+  }
+}
+
+function updateFieldEnemiesAfterPlayerAction() {
+  const state = window.GameState;
+  const quest = state.quest;
+  if (!quest || state.currentScene === "battle" || !Array.isArray(quest.fieldEnemies)) return;
+  const player = quest.player;
+  for (const enemy of [...quest.fieldEnemies]) {
+    if (!enemy || enemy.isDefeated) continue;
+    const distance = Math.abs(enemy.x - player.x) + Math.abs(enemy.y - player.y);
+    let nextPos = null;
+    if (enemy.behavior === "chase" && distance <= 5) nextPos = nextStepToward(enemy, player);
+    else if (enemy.behavior === "flee" && distance <= 4) nextPos = nextStepAway(enemy, player);
+    else if (enemy.behavior === "wander" && Math.random() < 0.75) nextPos = randomFieldStep(enemy);
+    else if (enemy.behavior === "patrol" && Math.random() < 0.55) nextPos = randomFieldStep(enemy);
+    else if (enemy.behavior === "ambush" && distance <= 2) nextPos = nextStepToward(enemy, player);
+    if (nextPos) moveFieldEnemy(enemy, nextPos);
+    if (enemy.x === player.x && enemy.y === player.y) {
+      startFieldEnemyBattle(enemy);
+      return;
+    }
+  }
+}
+
 window.moveForward = function moveForward() {
   window.ensureQuestFloor();
   if (!window.consumeFuel(1)) return;
@@ -778,6 +995,7 @@ window.moveForward = function moveForward() {
   discoverAround(front.x, front.y);
   addQuestLog(`前進した。現在地 ${front.x}, ${front.y}`);
   processCurrentCell("enter");
+  updateFieldEnemiesAfterPlayerAction();
   window.renderCurrentScene();
 };
 
@@ -787,6 +1005,7 @@ window.turnLeft = function turnLeft() {
   quest.player.direction = QUEST_DIRS[quest.player.direction].left;
   discoverAround(quest.player.x, quest.player.y);
   addQuestLog(`左旋回。方角 ${QUEST_DIRS[quest.player.direction].label}`);
+  updateFieldEnemiesAfterPlayerAction();
   window.renderCurrentScene();
 };
 
@@ -796,6 +1015,7 @@ window.turnRight = function turnRight() {
   quest.player.direction = QUEST_DIRS[quest.player.direction].right;
   discoverAround(quest.player.x, quest.player.y);
   addQuestLog(`右旋回。方角 ${QUEST_DIRS[quest.player.direction].label}`);
+  updateFieldEnemiesAfterPlayerAction();
   window.renderCurrentScene();
 };
 
@@ -803,6 +1023,7 @@ window.inspectCurrentCell = function inspectCurrentCell() {
   window.ensureQuestFloor();
   if (!window.consumeFuel(1)) return;
   processCurrentCell("inspect");
+  updateFieldEnemiesAfterPlayerAction();
   window.renderCurrentScene();
 };
 
@@ -817,11 +1038,16 @@ function processCurrentCell(trigger) {
   if (cell.type === "empty") {
     addQuestLog(trigger === "inspect" ? "周囲を調べた。反応なし。" : "静かな通路だ。");
   } else if (cell.type === "enemy") {
-    addQuestLog("敵と遭遇した。", "danger");
+    const fieldEnemy = getFieldEnemyById(cell.fieldEnemyId) || buildFieldEnemy({ x: quest.player.x, y: quest.player.y }, window.getSelectedPlanet(), quest.floor, "normal");
+    quest.pendingFieldEnemy = fieldEnemy;
+    addQuestLog(`${fieldEnemy?.name || "敵"}と接触。方針「${getCurrentBattleTactic().name || quest.battleTacticId}」で戦闘開始。`, "danger");
     cell.type = "empty";
     cell.consumed = true;
     if (typeof window.startBattle === "function") {
-      if (window.startBattle()) window.GameState.currentScene = "battle";
+      if (window.startBattle({ fieldEnemy })) {
+        window.GameState.currentScene = "battle";
+        if (typeof window.runAutoBattle === "function") window.runAutoBattle();
+      }
     }
   } else if (cell.type === "fuel") {
     const recovered = 30 + Math.floor(Math.random() * 21);
