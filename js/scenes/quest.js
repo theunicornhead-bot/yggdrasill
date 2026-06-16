@@ -807,7 +807,7 @@ function renderQuestMaterialsModal() {
 }
 
 function renderQuestMaterialList() {
-  const entries = Object.entries(allMaterialCounts()).filter(([, count]) => count > 0);
+  const entries = Object.entries(typeof window.exploreMaterialCounts === "function" ? window.exploreMaterialCounts() : window.GameState.runMaterials || {}).filter(([, count]) => count > 0);
   if (!entries.length) return `<div class="muted">所持素材はありません。</div>`;
   return entries.map(([id, count]) => {
     const material = getMaterial(id);
@@ -1049,6 +1049,7 @@ function processCurrentCell(trigger) {
   const quest = window.GameState.quest;
   const cell = quest.map[quest.player.y][quest.player.x];
   discoverCell(quest.player.x, quest.player.y);
+  if (recoverLostMaterialsAtCurrentCell()) return;
   if (cell.consumed && cell.type !== "stairs") {
     addQuestLog("調査済みの区画だ。");
     return;
@@ -1088,6 +1089,30 @@ function processCurrentCell(trigger) {
   }
 }
 
+function recoverLostMaterialsAtCurrentCell() {
+  const state = window.GameState;
+  const quest = state.quest;
+  const death = state.deathLocation;
+  if (!quest || !death || !death.lostItems) return false;
+  const samePlace = death.planetId === (quest.currentPlanetId || quest.planetId)
+    && Number(death.floor || 1) === Number(quest.floor || 1)
+    && Number(death.x) === Number(quest.player.x)
+    && Number(death.y) === Number(quest.player.y);
+  if (!samePlace) return false;
+  let recovered = 0;
+  Object.entries(death.lostItems || {}).forEach(([id, count]) => {
+    const added = typeof window.addExploreMaterial === "function" ? window.addExploreMaterial(id, count) : 0;
+    recovered += Number(added || 0);
+  });
+  if (recovered > 0) {
+    addQuestLog("失われた資材を発見した。", "good");
+    state.deathLocation = null;
+  } else {
+    addQuestLog("失われた資材を発見したが、探索中インベントリが満杯です。", "warn");
+  }
+  return recovered > 0;
+}
+
 function openTreasure() {
   const state = window.GameState;
   if (Math.random() < 0.45) {
@@ -1096,7 +1121,10 @@ function openTreasure() {
     addQuestLog(`宝箱から${money}Gを回収。`, "good");
   } else {
     const material = pickMaterialByTerrain(state.quest.terrain, state.quest.planetId);
-    state.runMaterials[material.id] = (state.runMaterials[material.id] || 0) + 1;
+    if (typeof window.addExploreMaterial === "function" && !window.addExploreMaterial(material.id, 1)) {
+      addQuestLog("探索中インベントリが満杯です。素材を持ち帰れません。", "warn");
+      return;
+    }
     addQuestLog(`宝箱から${material.name}を入手。`, "good");
   }
 }
@@ -1150,7 +1178,10 @@ window.applyTrapEffect = function applyTrapEffect(effect) {
     addQuestLog("電子罠で100Gを失った。", "danger");
   } else if (effect === "material_gain") {
     const material = pickMaterialByTerrain(quest.terrain, quest.planetId);
-    state.runMaterials[material.id] = (state.runMaterials[material.id] || 0) + 1;
+    if (typeof window.addExploreMaterial === "function" && !window.addExploreMaterial(material.id, 1)) {
+      addQuestLog("探索中インベントリが満杯です。素材を持ち帰れません。", "warn");
+      return;
+    }
     addQuestLog(`罠の残骸から${material.name}を回収。`, "good");
   } else if (effect === "enemy_log") {
     addQuestLog("罠が敵性反応を呼び寄せた。周囲の気配が濃くなる。", "danger");
@@ -1209,10 +1240,13 @@ window.restoreAllMachineRuntimeStates = function restoreAllMachineRuntimeStates(
 window.returnBase = function returnBase() {
   const state = window.GameState;
   if (typeof window.syncBattleUnitsToMechs === "function") window.syncBattleUnitsToMechs();
-  Object.entries(state.runMaterials).forEach(([id, count]) => {
-    state.materials[id] = (state.materials[id] || 0) + count;
+  const exploreMaterials = typeof window.exploreMaterialCounts === "function" ? window.exploreMaterialCounts() : state.runMaterials || {};
+  Object.entries(exploreMaterials).forEach(([id, count]) => {
+    if (typeof window.addBaseMaterial === "function") window.addBaseMaterial(id, count);
+    else state.materials[id] = (state.materials[id] || 0) + count;
   });
   state.runMaterials = {};
+  if (state.exploreInventory) state.exploreInventory.materials = {};
   window.restoreAllMachineRuntimeStates();
   if (state.quest) {
     state.quest.floor = 1;
@@ -1235,11 +1269,18 @@ window.forceReturn = function forceReturn(message, loseMaterials) {
   const state = window.GameState;
   if (typeof window.syncBattleUnitsToMechs === "function") window.syncBattleUnitsToMechs();
   if (loseMaterials) {
-    Object.entries(state.runMaterials).forEach(([id, count]) => {
-      const kept = Math.floor(count / 2);
-      if (kept > 0) state.materials[id] = (state.materials[id] || 0) + kept;
-    });
+    const lostItems = { ...(typeof window.exploreMaterialCounts === "function" ? window.exploreMaterialCounts() : state.runMaterials || {}) };
+    if (Object.keys(lostItems).length) {
+      state.deathLocation = {
+        planetId: state.quest?.currentPlanetId || state.quest?.planetId || null,
+        floor: state.quest?.floor || 1,
+        x: state.quest?.player?.x || 0,
+        y: state.quest?.player?.y || 0,
+        lostItems
+      };
+    }
     state.runMaterials = {};
+    if (state.exploreInventory) state.exploreInventory.materials = {};
   }
   window.restoreAllMachineRuntimeStates();
   if (state.quest) {

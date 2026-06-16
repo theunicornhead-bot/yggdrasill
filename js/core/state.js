@@ -1,4 +1,4 @@
-"use strict";
+﻿"use strict";
 
 window.MaterialCatalog = [
   { id: "broken_shell", name: "欠けた甲殻", rank: "E", value: 20, category: "shell", prompts: ["small shell", "rough armor", "damaged plating", "weak organic frame"] },
@@ -7,7 +7,11 @@ window.MaterialCatalog = [
   { id: "brittle_bone", name: "脆い骨片", rank: "E", value: 30, category: "bone", prompts: ["small bone shard", "brittle frame", "pale organic plate"] },
   { id: "aged_scale", name: "劣化した外骨", rank: "C", value: 75, category: "shell", prompts: ["aged exoskeleton", "worn plating", "medium organic armor"] },
   { id: "wilted_bloodfilm", name: "朽ちた血管膜", rank: "D", value: 35, category: "organ", prompts: ["thin red membrane", "withered bio film", "minor vascular mesh"] }
-];
+,
+  { id: "dragon_heart", name: "ドラゴンハート", rank: "UR", rarity: "UR", value: 5000, category: "bossWeaponMaterial", materialRole: "weapon_core", prompts: ["dragon heart", "weapon core"] },
+  { id: "abyss_eye", name: "アビスアイ", rank: "UR", rarity: "UR", value: 5000, category: "bossWeaponMaterial", materialRole: "weapon_core", prompts: ["abyss eye", "weapon core"] },
+  { id: "titan_bone", name: "タイタンボーン", rank: "UR", rarity: "UR", value: 5000, category: "bossWeaponMaterial", materialRole: "weapon_core", prompts: ["titan bone", "weapon core"] },
+  { id: "ancient_core", name: "エンシェントコア", rank: "UR", rarity: "UR", value: 5000, category: "bossWeaponMaterial", materialRole: "weapon_core", prompts: ["ancient core", "weapon core"] }];
 
 window.EnemyCatalog = [
   { name: "小型甲殻獣", level: 6, hp: 980, maxHp: 980, atk: 118, def: 48, type: "甲殻", drops: ["broken_shell", "brittle_bone"] },
@@ -141,6 +145,15 @@ window.GameState = {
   partyMechIds: ["raven", "striker", "valkyrie", "seeker"],
   pendingGeneratedMech: null,
   materials: { broken_shell: 12, thin_membrane: 8, dry_nerve: 6, brittle_bone: 10 },
+  baseInventory: {
+    materials: { broken_shell: 12, thin_membrane: 8, dry_nerve: 6, brittle_bone: 10 },
+    materialLimit: 9999
+  },
+  exploreInventory: {
+    materials: {},
+    slotLimit: 30
+  },
+  deathLocation: null,
   inventory: {
     items: { repair_kit_s: 2, ether_pack_s: 1 },
     options: {},
@@ -191,6 +204,7 @@ window.GameState = {
   distance: 142,
   selectedMechId: "raven",
   nextMechSerial: 1,
+  nextWeaponSerial: 1,
   selectedMaterialId: "broken_shell",
   synthesisSlots: [],
   synthSerial: 1,
@@ -215,3 +229,5 @@ window.RankConfig = {
     { rank: "S", weight: 2 }
   ]
 };
+
+

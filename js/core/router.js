@@ -1,4 +1,4 @@
-"use strict";
+﻿"use strict";
 
 window.App = {
   root: null,
@@ -11,16 +11,63 @@ window.formatNumber = function formatNumber(value) {
 
 window.totalMaterials = function totalMaterials() {
   const state = window.GameState;
-  return Object.values({ ...state.materials, ...state.runMaterials }).reduce((sum, count) => sum + count, 0);
+  if (typeof window.ensureMaterialInventoryState === "function") window.ensureMaterialInventoryState();
+  return Object.values({ ...(state.baseInventory?.materials || {}), ...(state.exploreInventory?.materials || {}) }).reduce((sum, count) => sum + count, 0);
 };
 
 window.allMaterialCounts = function allMaterialCounts() {
   const state = window.GameState;
-  const merged = { ...state.materials };
-  Object.entries(state.runMaterials).forEach(([id, count]) => {
+  if (typeof window.ensureMaterialInventoryState === "function") window.ensureMaterialInventoryState();
+  const merged = { ...(state.baseInventory?.materials || state.materials || {}) };
+  Object.entries(state.exploreInventory?.materials || state.runMaterials || {}).forEach(([id, count]) => {
     merged[id] = (merged[id] || 0) + count;
   });
   return merged;
+};
+
+window.baseMaterialCounts = function baseMaterialCounts() {
+  if (typeof window.ensureMaterialInventoryState === "function") window.ensureMaterialInventoryState();
+  return window.GameState.baseInventory?.materials || window.GameState.materials || {};
+};
+
+window.exploreMaterialCounts = function exploreMaterialCounts() {
+  if (typeof window.ensureMaterialInventoryState === "function") window.ensureMaterialInventoryState();
+  return window.GameState.exploreInventory?.materials || window.GameState.runMaterials || {};
+};
+
+window.addBaseMaterial = function addBaseMaterial(materialId, amount = 1) {
+  if (!materialId) return 0;
+  if (typeof window.ensureMaterialInventoryState === "function") window.ensureMaterialInventoryState();
+  const base = window.GameState.baseInventory;
+  const limit = Math.max(1, Number(base.materialLimit || 9999));
+  const current = Math.max(0, Number(base.materials[materialId] || 0));
+  const next = Math.min(limit, current + Math.max(0, Math.floor(Number(amount || 0))));
+  base.materials[materialId] = next;
+  window.GameState.materials = base.materials;
+  return next - current;
+};
+
+window.addExploreMaterial = function addExploreMaterial(materialId, amount = 1) {
+  if (!materialId) return 0;
+  if (typeof window.ensureMaterialInventoryState === "function") window.ensureMaterialInventoryState();
+  const explore = window.GameState.exploreInventory;
+  const materials = explore.materials || {};
+  const usedSlots = Object.keys(materials).filter((id) => Number(materials[id] || 0) > 0).length;
+  if (!materials[materialId] && usedSlots >= Number(explore.slotLimit || 30)) return 0;
+  materials[materialId] = Math.max(0, Number(materials[materialId] || 0)) + Math.max(0, Math.floor(Number(amount || 0)));
+  explore.materials = materials;
+  window.GameState.runMaterials = materials;
+  return amount;
+};
+
+window.consumeBaseMaterial = function consumeBaseMaterial(materialId, amount = 1) {
+  if (typeof window.ensureMaterialInventoryState === "function") window.ensureMaterialInventoryState();
+  const materials = window.GameState.baseInventory?.materials || {};
+  const need = Math.max(1, Math.floor(Number(amount || 1)));
+  if (Number(materials[materialId] || 0) < need) return false;
+  materials[materialId] = Math.max(0, Number(materials[materialId] || 0) - need);
+  window.GameState.materials = materials;
+  return true;
 };
 
 window.getMaterial = function getMaterial(id) {
@@ -59,13 +106,42 @@ window.renderHeader = function renderHeader(titleJa, titleEn, extra = "") {
       </div>
       <div class="resource-row">
         <div class="resource"><small>所持金</small><strong>${formatNumber(state.money)} G</strong></div>
-        <div class="resource"><small>所持素材</small><strong>${totalMaterials()} / 100</strong></div>
+        <button class="resource quest-material-button" data-action="open-base-inventory" type="button"><small>所持素材</small><strong>${totalMaterials()} / 9999</strong></button>
         ${extra}
       </div>
     </div>
+    ${state.baseInventoryOpen ? renderBaseInventoryModal() : ""}
   `;
 };
 
+function renderBaseInventoryModal() {
+  const entries = Object.entries(window.baseMaterialCounts()).filter(([, count]) => Number(count) > 0);
+  return `
+    <div class="modal-backdrop base-inventory-modal-backdrop">
+      <section class="quest-materials-modal panel panel-pad" role="dialog" aria-modal="true" aria-label="所持素材">
+        <div class="section-head">
+          <h2>所持素材</h2>
+          <button class="button mini-map-close" data-action="close-base-inventory" type="button">閉じる</button>
+        </div>
+        <div class="quest-material-list">${entries.length ? entries.map(([id, count]) => {
+          const material = getMaterial(id);
+          if (!material) return "";
+          return `<div class="material-row"><div class="material-icon"></div><span style="flex:1">${material.name}<br><span class="muted">RANK ${material.rank || material.rarity || "-"} / ${material.category || material.materialRole || "-"}</span></span><strong>x${count}</strong></div>`;
+        }).join("") : `<div class="muted">所持素材はありません。</div>`}</div>
+      </section>
+    </div>
+  `;
+}
+
+window.openBaseInventoryModal = function openBaseInventoryModal() {
+  window.GameState.baseInventoryOpen = true;
+  window.renderCurrentScene();
+};
+
+window.closeBaseInventoryModal = function closeBaseInventoryModal() {
+  window.GameState.baseInventoryOpen = false;
+  window.renderCurrentScene();
+};
 window.renderBottomNav = function renderBottomNav() {
   document.querySelectorAll(".nav-btn").forEach((button) => {
     button.classList.toggle("active", button.dataset.screen === window.GameState.currentScene);
@@ -99,7 +175,7 @@ window.statRows = function statRows(mech) {
 };
 
 window.materialRows = function materialRows() {
-  const entries = Object.entries(allMaterialCounts()).filter(([, count]) => count > 0);
+  const entries = Object.entries(baseMaterialCounts()).filter(([, count]) => count > 0);
   if (!entries.length) return `<div class="muted">素材はありません。</div>`;
   return entries.map(([id, count]) => {
     const material = getMaterial(id);
@@ -146,14 +222,9 @@ window.sellMaterial = function sellMaterial(materialId) {
   const state = window.GameState;
   const material = getMaterial(materialId);
   if (!material) return;
-  if (state.materials[materialId] > 0) {
-    state.materials[materialId] -= 1;
-  } else if (state.runMaterials[materialId] > 0) {
-    state.runMaterials[materialId] -= 1;
-  } else {
-    return;
-  }
+  if (!window.consumeBaseMaterial(materialId, 1)) return;
   state.money += material.value;
   logMessage("bar", `${material.name}を${material.value}Gで売却した。`, "good");
   renderCurrentScene();
 };
+

@@ -932,8 +932,11 @@ function winBattle() {
     : (enemyUnit.drops || []).map((id) => ({ id, chance: 0.72, source: "base" }));
   dropTable.forEach((drop) => {
     if (drop.id && Math.random() < Number(drop.chance || 0)) {
-      state.runMaterials[drop.id] = (state.runMaterials[drop.id] || 0) + 1;
-      obtained.push(drop.id);
+      const added = typeof window.addExploreMaterial === "function" ? window.addExploreMaterial(drop.id, 1) : 1;
+      if (added) {
+        if (typeof window.addExploreMaterial !== "function") state.runMaterials[drop.id] = (state.runMaterials[drop.id] || 0) + 1;
+        obtained.push(drop.id);
+      }
     }
   });
   getBattleUnits().filter((unit) => unit.side === "ally").forEach((unit) => {

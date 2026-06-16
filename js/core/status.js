@@ -280,6 +280,8 @@ window.normalizeWeaponType = function normalizeWeaponType(weaponType) {
 window.normalizeElement = function normalizeElement(element) {
   const normalized = String(element || "none").toLowerCase();
   if (masterById("elementMaster", "elementId", normalized)) return normalized;
+  const aliases = { water: "cooling", wind: "sonic", light: "optical", dark: "erosion" };
+  if (aliases[normalized]) return aliases[normalized];
   return ["none", "fire", "cooling", "thunder", "ice", "acid", "poison", "nerve", "sonic", "gravity", "optical", "erosion"].includes(normalized) ? normalized : "none";
 };
 

@@ -27,6 +27,42 @@ function ensureInventoryState() {
 
 window.ensureInventoryState = ensureInventoryState;
 
+function cloneMaterialCounts(source = {}) {
+  return Object.entries(source || {}).reduce((counts, [id, count]) => {
+    const safeCount = Math.max(0, Math.floor(Number(count || 0)));
+    if (id && safeCount > 0) counts[id] = safeCount;
+    return counts;
+  }, {});
+}
+
+function ensureMaterialInventoryState() {
+  const state = window.GameState;
+  const baseInventory = state.baseInventory && typeof state.baseInventory === "object" ? state.baseInventory : {};
+  const exploreInventory = state.exploreInventory && typeof state.exploreInventory === "object" ? state.exploreInventory : {};
+  const baseMaterials = Object.keys(baseInventory.materials || {}).length
+    ? baseInventory.materials
+    : (state.materials || {});
+  const exploreMaterials = Object.keys(exploreInventory.materials || {}).length
+    ? exploreInventory.materials
+    : (state.runMaterials || state.exploration?.temporaryMaterials || {});
+  state.baseInventory = {
+    ...baseInventory,
+    materials: cloneMaterialCounts(baseMaterials),
+    materialLimit: Math.max(1, Number(baseInventory.materialLimit || 9999))
+  };
+  state.exploreInventory = {
+    ...exploreInventory,
+    materials: cloneMaterialCounts(exploreMaterials),
+    slotLimit: Math.max(1, Number(exploreInventory.slotLimit || 30))
+  };
+  state.materials = state.baseInventory.materials;
+  state.runMaterials = state.exploreInventory.materials;
+  if (!state.deathLocation || typeof state.deathLocation !== "object") state.deathLocation = null;
+  return { baseInventory: state.baseInventory, exploreInventory: state.exploreInventory };
+}
+
+window.ensureMaterialInventoryState = ensureMaterialInventoryState;
+
 function ensureMechRosterState() {
   const state = window.GameState;
   if (!Array.isArray(state.mechs)) state.mechs = [];
@@ -75,6 +111,7 @@ function canUseLocalStorage() {
 window.syncPlayerFromRuntimeState = function syncPlayerFromRuntimeState() {
   const state = window.GameState;
   ensureInventoryState();
+  ensureMaterialInventoryState();
   if (!state.player) return;
   state.player.money = state.money;
   state.player.currentFloor = state.quest?.floor || state.exploration?.currentFloor || state.player.currentFloor || 1;
@@ -86,18 +123,20 @@ window.syncPlayerFromRuntimeState = function syncPlayerFromRuntimeState() {
   state.exploration.currentFloor = state.quest?.floor ?? state.exploration.currentFloor ?? 1;
   state.exploration.planetId = state.quest?.currentPlanetId ?? state.quest?.planetId ?? state.exploration.planetId ?? null;
   state.exploration.selectedPlanetId = state.quest?.selectedPlanetId ?? state.selectedPlanetId ?? state.exploration.selectedPlanetId ?? null;
-  state.exploration.temporaryMaterials = clonePlain(state.runMaterials || {});
+  state.exploration.temporaryMaterials = clonePlain(state.exploreInventory?.materials || state.runMaterials || {});
   state.exploration.isExploring = Boolean(state.quest?.currentPlanetId || state.quest?.planetId) && (state.currentScene === "quest" || state.currentScene === "battle");
 };
 
 window.syncRuntimeStateFromPlayer = function syncRuntimeStateFromPlayer() {
   const state = window.GameState;
+  ensureMaterialInventoryState();
   if (state.player && Number.isFinite(Number(state.player.money))) {
     state.money = Number(state.player.money);
   }
   if (state.exploration) {
     state.fuel = Number(state.exploration.fuel ?? state.fuel ?? 100);
-    state.runMaterials = clonePlain(state.exploration.temporaryMaterials || {});
+    state.runMaterials = clonePlain(state.exploration.temporaryMaterials || state.exploreInventory?.materials || {});
+    if (state.exploreInventory) state.exploreInventory.materials = state.runMaterials;
     if (state.quest) {
       state.quest.floor = Number(state.exploration.currentFloor || state.quest.floor || 1);
       state.quest.fuel = Number(state.exploration.fuel ?? state.quest.fuel ?? 100);
@@ -116,6 +155,7 @@ window.createPlayerSavePayload = function createPlayerSavePayload() {
   if (typeof window.normalizeAllUnitStatuses === "function") window.normalizeAllUnitStatuses();
   syncPlayerFromRuntimeState();
   ensureMechRosterState();
+  ensureMaterialInventoryState();
   state.player.createdAt = state.player.createdAt || nowIsoString();
   state.player.updatedAt = nowIsoString();
 
@@ -129,7 +169,11 @@ window.createPlayerSavePayload = function createPlayerSavePayload() {
     selectedMechId: state.selectedMechId || null,
     selectedPlanetId: state.selectedPlanetId || state.quest?.planetId || null,
     nextMechSerial: state.nextMechSerial || 1,
+    nextWeaponSerial: state.nextWeaponSerial || 1,
     materials: clonePlain(state.materials || {}),
+    baseInventory: clonePlain(state.baseInventory || { materials: {} }),
+    exploreInventory: clonePlain(state.exploreInventory || { materials: {} }),
+    deathLocation: state.deathLocation ? clonePlain(state.deathLocation) : null,
     inventory: clonePlain(ensureInventoryState()),
     market: clonePlain(state.market || { listings: [] }),
     exploration: clonePlain(state.exploration || {}),
@@ -149,9 +193,14 @@ window.applyPlayerSavePayload = function applyPlayerSavePayload(payload) {
   state.selectedMechId = payload.selectedMechId || state.selectedMechId;
   state.selectedPlanetId = payload.selectedPlanetId || state.selectedPlanetId || payload.exploration?.planetId || null;
   state.nextMechSerial = Number(payload.nextMechSerial || state.nextMechSerial || 1);
+  state.nextWeaponSerial = Number(payload.nextWeaponSerial || state.nextWeaponSerial || 1);
   state.materials = payload.materials && typeof payload.materials === "object" ? payload.materials : state.materials;
+  state.baseInventory = payload.baseInventory && typeof payload.baseInventory === "object" ? payload.baseInventory : { ...(state.baseInventory || {}), materials: state.materials };
+  state.exploreInventory = payload.exploreInventory && typeof payload.exploreInventory === "object" ? payload.exploreInventory : { ...(state.exploreInventory || {}), materials: state.runMaterials || payload.exploration?.temporaryMaterials || {} };
+  state.deathLocation = payload.deathLocation && typeof payload.deathLocation === "object" ? payload.deathLocation : null;
   state.inventory = payload.inventory && typeof payload.inventory === "object" ? payload.inventory : state.inventory;
   ensureInventoryState();
+  ensureMaterialInventoryState();
   state.market = payload.market && typeof payload.market === "object" ? payload.market : state.market;
   state.exploration = payload.exploration && typeof payload.exploration === "object" ? { ...state.exploration, ...payload.exploration } : state.exploration;
   state.currentScene = typeof payload.currentScene === "string" ? payload.currentScene : state.currentScene;
@@ -167,6 +216,7 @@ window.loadPlayerData = function loadPlayerData() {
   state.player.createdAt = state.player.createdAt || nowIsoString();
   state.player.updatedAt = state.player.updatedAt || state.player.createdAt;
   ensureInventoryState();
+  ensureMaterialInventoryState();
   ensureMechRosterState();
   if (typeof window.normalizeAllUnitStatuses === "function") window.normalizeAllUnitStatuses();
   syncPlayerFromRuntimeState();

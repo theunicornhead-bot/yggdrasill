@@ -25,6 +25,16 @@ document.addEventListener("click", (event) => {
     window.savePlayerData();
     return;
   }
+  if (event.target.classList?.contains("base-inventory-modal-backdrop")) {
+    window.closeBaseInventoryModal();
+    window.savePlayerData();
+    return;
+  }
+  if (event.target.classList?.contains("equipment-modal-backdrop")) {
+    window.closeEquipmentSelector();
+    window.savePlayerData();
+    return;
+  }
 
   const target = event.target.closest("button, [data-action]");
   if (!target) return;
@@ -47,9 +57,15 @@ document.addEventListener("click", (event) => {
   if (action === "hire") window.hirePilot(target.dataset.pilot);
   if (action === "rank-up-pilot") window.rankUpPilotById(target.dataset.pilot);
   if (action === "sell-material") window.sellMaterial(target.dataset.material);
+  if (action === "open-base-inventory") window.openBaseInventoryModal();
+  if (action === "close-base-inventory") window.closeBaseInventoryModal();
   if (action === "sell-mech") window.sellMech(target.dataset.mech);
   if (action === "delete-mech") window.deleteMech(target.dataset.mech);
   if (action === "rename-mech") window.renameMech(target.dataset.mech);
+  if (action === "open-equip-slot") window.openEquipmentSelector(target.dataset.mech, target.dataset.slotType, target.dataset.slotIndex);
+  if (action === "close-equip-modal") window.closeEquipmentSelector();
+  if (action === "equip-weapon-slot") window.equipWeaponSlot(target.dataset.mech, target.dataset.slotType, target.dataset.equipId);
+  if (action === "equip-option-slot") window.equipOptionSlot(target.dataset.mech, target.dataset.slotIndex, target.dataset.equipId);
   if (action === "add-mech-to-party") window.addMechToParty(target.dataset.mech);
   if (action === "remove-mech-from-party") window.removeMechFromParty(target.dataset.mech);
   if (action === "confirm-pending-mech") window.confirmPendingGeneratedMech();

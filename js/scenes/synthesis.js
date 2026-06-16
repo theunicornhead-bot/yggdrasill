@@ -1,7 +1,7 @@
-"use strict";
+﻿"use strict";
 
 function materialCountsForSynthesis() {
-  const counts = allMaterialCounts();
+  const counts = typeof window.baseMaterialCounts === "function" ? { ...window.baseMaterialCounts() } : { ...(window.GameState.materials || {}) };
   (window.GameState.synthesisSlots || []).filter(Boolean).forEach((id) => {
     counts[id] = Math.max(0, (counts[id] || 0) - 1);
   });
@@ -38,16 +38,10 @@ window.canAddMech = function canAddMech() {
 };
 
 function consumeMaterial(materialId) {
-  const state = window.GameState;
-  if (state.materials[materialId] > 0) {
-    state.materials[materialId] -= 1;
-    return true;
-  }
-  if (state.runMaterials[materialId] > 0) {
-    state.runMaterials[materialId] -= 1;
-    return true;
-  }
-  return false;
+  if (typeof window.consumeBaseMaterial === "function") return window.consumeBaseMaterial(materialId, 1);
+  if (Number(window.GameState.materials?.[materialId] || 0) <= 0) return false;
+  window.GameState.materials[materialId] -= 1;
+  return true;
 }
 
 function synthesisPreview() {
@@ -123,15 +117,14 @@ function renderMachineEnhanceTab() {
 function renderMachineEnhanceRow(machine) {
   if (typeof window.normalizeMachineStatus === "function") window.normalizeMachineStatus(machine);
   const cap = typeof window.getMachineLevelCap === "function" ? window.getMachineLevelCap(machine.rank) : 10;
-  const canEnhance = typeof window.canEnhanceMachine === "function" ? window.canEnhanceMachine(machine, window.GameState.materials) : machine.level < cap;
+  const canEnhance = typeof window.canEnhanceMachine === "function" ? window.canEnhanceMachine(machine, window.baseMaterialCounts?.() || window.GameState.materials) : machine.level < cap;
   return `
     <article class="material-row">
-      <span style="flex:1">${machine.name || "Machine"}<br><span class="muted">RANK ${machine.rank || "-"} / Lv ${machine.level || 1} / ${cap}</span></span>
+      <span style="flex:1">${machine.name || "Machine"}<br><span class="muted">RANK ${machine.rank || "-"} / Lv ${machine.level || 1} / ${cap} / EXP ${formatNumber(machine.exp || 0)}</span></span>
       <button class="button" data-action="enhance-machine" data-mech="${machine.id}" ${canEnhance ? "" : "disabled"} type="button">強化</button>
     </article>
   `;
 }
-
 function renderMachineRankUpTab() {
   return `
     <section class="panel panel-pad">
@@ -142,36 +135,82 @@ function renderMachineRankUpTab() {
 }
 
 function renderMachineRankUpRow(machine) {
-  const requirement = typeof window.getMachineRankUpRequirement === "function" ? window.getMachineRankUpRequirement(machine) : { nextRank: null, coreId: "", message: "必要コア未設定" };
+  const requirement = typeof window.getMachineRankUpRequirement === "function" ? window.getMachineRankUpRequirement(machine) : { nextRank: null, coreId: "", message: "必要素材未設定" };
   const canRankUp = typeof window.canRankUpMachine === "function" && window.canRankUpMachine(machine, window.ensureInventoryState ? window.ensureInventoryState() : {});
+  const material = requirement.materialId ? window.getMaterial(requirement.materialId) : null;
   return `
     <article class="panel panel-pad">
       <div class="section-head"><h3>${machine.name || "Machine"}</h3><span>RANK ${machine.rank || "-"}</span></div>
-      <div class="material-row"><span>次Rank</span><strong>${requirement.nextRank || "なし"}</strong></div>
-      <div class="material-row"><span>必要コア</span><strong>${requirement.coreId || requirement.message || "必要コア未設定"}</strong></div>
-      <div class="material-row"><span>見た目</span><strong>再生成予定</strong></div>
+      <div class="material-row"><span>Next Rank</span><strong>${requirement.nextRank || "なし"}</strong></div>
+      <div class="material-row"><span>必要コア</span><strong>${requirement.coreId || requirement.message || "-"}</strong></div>
+      <div class="material-row"><span>ランク素材</span><strong>${material?.name || requirement.materialId || requirement.message || "-"}</strong></div>
       <button class="button tavern-wide-action" data-action="rank-up-machine" data-mech="${machine.id}" ${canRankUp ? "" : "disabled"} type="button">ランクアップ</button>
     </article>
   `;
 }
-
 function renderWeaponGenerateTab() {
-  const weapons = Array.isArray(window.masterData?.weaponMaster) ? window.masterData.weaponMaster.slice(0, 16) : [];
+  const recipes = getAvailableWeaponRecipes();
   return `
     <section class="panel panel-pad">
-      <div class="section-head"><h2>武器生成</h2><span>${weapons.length ? "候補" : "未実装"}</span></div>
-      <div class="compact-list">${weapons.length ? weapons.map(renderWeaponCandidate).join("") : `<div class="muted">weapon_master.csv が未読込です。武器生成ロジックは後続実装です。</div>`}</div>
+      <div class="section-head"><h2>武器生成</h2><span>${recipes.length ? "RECIPE" : "LOCKED"}</span></div>
+      <div class="compact-list">${recipes.length ? recipes.map(renderWeaponCandidate).join("") : `<div class="muted">武器レシピが未解放です。Pilot Rank C 以上で解放されます。</div>`}</div>
     </section>
   `;
 }
 
-function renderWeaponCandidate(weapon) {
+function renderWeaponCandidate(recipe) {
+  const canGenerate = window.canGenerateWeapon(recipe.id);
   return `
     <div class="material-row">
-      <span style="flex:1">${weapon.name || weapon.weaponId || "Weapon"}<br><span class="muted">${weapon.weaponType || "-"} / ${weapon.element || "none"} / RANK ${weapon.rank || "-"}</span></span>
-      <button class="button" data-action="generate-weapon" data-weapon="${weapon.weaponId}" type="button">未実装</button>
+      <span style="flex:1">${recipe.name || recipe.id || "Weapon"}<br><span class="muted">${recipe.weaponType || "-"} / ${recipe.attribute || "none"} / RANK ${recipe.rarity || "-"}</span><br><span class="muted">${formatRecipeMaterials(recipe)}</span></span>
+      <button class="button" data-action="generate-weapon" data-weapon="${recipe.id}" ${canGenerate ? "" : "disabled"} type="button">生成</button>
     </div>
   `;
+}
+
+function rankScore(rank) {
+  return { N: 0, R: 1, SR: 2, SSR: 3, UR: 4, E: 0, D: 0, C: 1, B: 2, A: 3, S: 4 }[String(rank || "N").toUpperCase()] ?? 0;
+}
+
+function highestPilotRank() {
+  return (window.GameState.pilots || []).reduce((best, pilot) => (rankScore(pilot.rank) > rankScore(best) ? pilot.rank : best), "E");
+}
+
+function maxWeaponRankForPilots() {
+  const pilotRank = String(highestPilotRank() || "E").toUpperCase();
+  if (pilotRank === "S") return "UR";
+  if (pilotRank === "A") return "SSR";
+  if (pilotRank === "B") return "SR";
+  if (pilotRank === "C") return "R";
+  return "N";
+}
+
+function getAvailableWeaponRecipes() {
+  const maxRank = maxWeaponRankForPilots();
+  const rows = Array.isArray(window.masterData?.weaponRecipeMaster) ? window.masterData.weaponRecipeMaster : [];
+  return rows.filter((recipe) => rankScore(recipe.rarity) <= rankScore(maxRank));
+}
+
+function parseRecipeMaterials(recipe) {
+  return String(recipe?.materials || "").split("|").map((pair) => {
+    const [id, rawCount] = pair.split(":");
+    return id ? { id, count: Math.max(1, Number(rawCount || 1)) } : null;
+  }).filter(Boolean);
+}
+
+function formatRecipeMaterials(recipe) {
+  return parseRecipeMaterials(recipe).map((item) => {
+    const material = window.getMaterial(item.id);
+    const owned = Number(window.baseMaterialCounts?.()[item.id] || 0);
+    return `${material?.name || item.id} ${owned}/${item.count}`;
+  }).join(" / ");
+}
+
+function weaponTypeForRecipe(recipe) {
+  const category = String(recipe?.weaponType || "").toLowerCase();
+  if (["rifle", "machinegun", "sniper", "drone", "bit", "cannon", "missile"].includes(category)) return "ranged";
+  if (["repair", "support"].includes(category)) return "magic";
+  return "melee";
 }
 
 function stepLabel(step) {
@@ -550,7 +589,7 @@ window.startSynthesisProcess = async function startSynthesisProcess() {
   }
   const selectedCoreMaterial = typeof window.getMaterial === "function" ? window.getMaterial(state.selectedCoreId) : null;
   const selectedCoreIsMaterial = selectedCoreMaterial && (selectedCoreMaterial.materialRole === "boss_core" || selectedCoreMaterial.materialRole === "core");
-  const materialCounts = typeof allMaterialCounts === "function" ? allMaterialCounts() : {};
+  const materialCounts = typeof window.baseMaterialCounts === "function" ? window.baseMaterialCounts() : (state.materials || {});
   if (selectedCoreIsMaterial && Number(materialCounts[state.selectedCoreId] || 0) <= 0) {
     logMessage("synthesis", "Core material is missing.", "danger");
     window.renderCurrentScene();
@@ -659,54 +698,116 @@ window.getNextMachineRank = function getNextMachineRank(rank) {
 
 window.getMachineRankUpRequirement = function getMachineRankUpRequirement(machine) {
   const nextRank = window.getNextMachineRank(machine?.rank || machine?.rarity);
-  if (!nextRank) return { nextRank: null, coreId: "", message: "最高ランクです。" };
-  return { nextRank, coreId: `core_${nextRank.toLowerCase()}`, message: "" };
+  if (!nextRank) return { nextRank: null, coreId: "", materialId: "", message: "最高ランクです。" };
+  const baseMaterials = window.baseMaterialCounts?.() || window.GameState.materials || {};
+  const materialId = Object.keys(baseMaterials).find((id) => {
+    const material = window.getMaterial(id);
+    const rarity = material?.rarity || material?.rank;
+    const role = material?.materialRole || material?.category;
+    return Number(baseMaterials[id] || 0) > 0 && rarity === nextRank && role !== "weapon_core" && role !== "bossWeaponMaterial";
+  }) || "";
+  return { nextRank, coreId: `core_${nextRank.toLowerCase()}`, materialId, message: materialId ? "" : `${nextRank}素材が必要です。` };
 };
 
 window.canRankUpMachine = function canRankUpMachine(machine, inventory) {
   const requirement = window.getMachineRankUpRequirement(machine);
-  if (!requirement.nextRank || !requirement.coreId) return false;
+  if (!requirement.nextRank || !requirement.coreId || !requirement.materialId) return false;
   const cores = inventory?.cores || {};
-  return (cores[requirement.coreId] || 0) > 0;
+  return Number(cores[requirement.coreId] || 0) > 0 && Number(window.baseMaterialCounts?.()[requirement.materialId] || 0) > 0;
 };
+
+function scaleMachineStatsForRank(machine, nextRank) {
+  const score = Math.max(1, rankScore(nextRank) + 1);
+  const currentScore = Math.max(1, rankScore(machine.rank || machine.rarity) + 1);
+  const ratio = Math.max(1, score / currentScore);
+  const stats = machine.stats || {};
+  Object.keys(stats).forEach((key) => {
+    stats[key] = Math.max(1, Math.round(Number(stats[key] || 0) * ratio));
+  });
+  machine.stats = stats;
+  machine.hp = stats.hp || machine.hp;
+  machine.maxHp = stats.hp || machine.maxHp;
+  machine.atk = Math.max(stats.sAtk || 0, stats.mAtk || 0, stats.lAtk || 0);
+  machine.def = Math.max(stats.sDef || 0, stats.mDef || 0, stats.lDef || 0);
+  machine.mobility = stats.speed || machine.mobility;
+}
 
 window.rankUpMachine = function rankUpMachine(machine) {
   const inventory = window.ensureInventoryState ? window.ensureInventoryState() : window.GameState.inventory;
   if (!window.canRankUpMachine(machine, inventory)) return false;
   const requirement = window.getMachineRankUpRequirement(machine);
-  inventory.cores[requirement.coreId] = Math.max(0, (inventory.cores[requirement.coreId] || 0) - 1);
+  inventory.cores[requirement.coreId] = Math.max(0, Number(inventory.cores[requirement.coreId] || 0) - 1);
+  if (!window.consumeBaseMaterial(requirement.materialId, 1)) return false;
+  scaleMachineStatsForRank(machine, requirement.nextRank);
   machine.rank = requirement.nextRank;
   machine.rarity = requirement.nextRank;
-  machine.optionSlots = typeof window.getOptionSlotCountByRank === "function" ? window.getOptionSlotCountByRank(machine.rank) : machine.optionSlots;
+  machine.optionSlots = typeof window.getOptionSlotCountByRank === "function" ? Math.max(3, window.getOptionSlotCountByRank(machine.rank)) : 3;
   machine.optionalSlots = machine.optionSlots;
   if (typeof window.normalizeMachineStatus === "function") window.normalizeMachineStatus(machine);
   return true;
 };
 
+function materialEnhanceExp(material) {
+  const rarity = material?.rarity || material?.rank || "N";
+  return { N: 10, E: 10, D: 25, C: 50, R: 50, SR: 200, SSR: 1000, UR: 5000 }[String(rarity).toUpperCase()] || 10;
+}
+
+function isEnhanceMaterial(material) {
+  const role = material?.materialRole || material?.category || "";
+  return material && role !== "core" && role !== "boss_core" && role !== "weapon_core" && role !== "bossWeaponMaterial";
+}
+
 window.canEnhanceMachine = function canEnhanceMachine(machine, materials) {
   if (!machine) return false;
   const cap = typeof window.getMachineLevelCap === "function" ? window.getMachineLevelCap(machine.rank) : 10;
-  return (machine.level || 1) < cap && Object.values(materials || {}).some((count) => count > 0);
+  return (machine.level || 1) < cap && Object.entries(materials || {}).some(([id, count]) => Number(count || 0) > 0 && isEnhanceMaterial(window.getMaterial(id)));
 };
+
+function applyMachineLevelGain(machine, levels) {
+  const stats = machine.stats || {};
+  for (let i = 0; i < levels; i += 1) {
+    stats.hp = Math.round(Number(stats.hp || machine.maxHp || machine.hp || 1) * 1.04 + 12);
+    stats.pp = Math.round(Number(stats.pp || 0) * 1.02 + 1);
+    stats.sAtk = Math.round(Number(stats.sAtk || machine.atk || 1) * 1.035 + 3);
+    stats.mAtk = Math.round(Number(stats.mAtk || machine.atk || 1) * 1.035 + 3);
+    stats.lAtk = Math.round(Number(stats.lAtk || machine.atk || 1) * 1.035 + 3);
+    stats.sDef = Math.round(Number(stats.sDef || machine.def || 1) * 1.03 + 2);
+    stats.mDef = Math.round(Number(stats.mDef || machine.def || 1) * 1.03 + 2);
+    stats.lDef = Math.round(Number(stats.lDef || machine.def || 1) * 1.03 + 2);
+    stats.speed = Math.round(Number(stats.speed || machine.mobility || 1) * 1.025 + 2);
+  }
+  machine.stats = stats;
+}
 
 window.enhanceMachine = function enhanceMachine(machine, materials) {
   if (!window.canEnhanceMachine(machine, materials)) return false;
-  const materialId = Object.keys(materials || {}).find((id) => (materials[id] || 0) > 0);
-  if (!materialId) return false;
-  materials[materialId] -= 1;
-  machine.level = Math.min((typeof window.getMachineLevelCap === "function" ? window.getMachineLevelCap(machine.rank) : 10), (machine.level || 1) + 1);
+  const materialId = Object.keys(materials || {}).find((id) => Number(materials[id] || 0) > 0 && isEnhanceMaterial(window.getMaterial(id)));
+  const material = window.getMaterial(materialId);
+  if (!materialId || !window.consumeBaseMaterial(materialId, 1)) return false;
+  const cap = typeof window.getMachineLevelCap === "function" ? window.getMachineLevelCap(machine.rank) : 10;
+  machine.exp = Math.max(0, Number(machine.exp || 0)) + materialEnhanceExp(material);
+  let gained = 0;
+  while ((machine.level || 1) < cap) {
+    const required = Math.max(50, Number(machine.level || 1) * 100);
+    if (machine.exp < required) break;
+    machine.exp -= required;
+    machine.level = Math.min(cap, Number(machine.level || 1) + 1);
+    gained += 1;
+  }
+  if (gained > 0) applyMachineLevelGain(machine, gained);
   if (typeof window.normalizeMachineStatus === "function") window.normalizeMachineStatus(machine);
   return true;
 };
 
 window.enhanceMachineById = function enhanceMachineById(machineId) {
   const machine = getMech(machineId);
-  if (!machine || !window.enhanceMachine(machine, window.GameState.materials)) {
+  if (!machine || !window.enhanceMachine(machine, window.baseMaterialCounts?.() || window.GameState.materials)) {
     logMessage("synthesis", "強化条件を満たしていません。", "danger");
     renderCurrentScene();
     return;
   }
-  logMessage("synthesis", `${machine.name}をLv ${machine.level}に強化しました。`, "good");
+  logMessage("synthesis", `${machine.name}をLv ${machine.level} / EXP ${formatNumber(machine.exp || 0)}に強化しました。`, "good");
+  window.savePlayerData();
   renderCurrentScene();
 };
 
@@ -717,18 +818,49 @@ window.rankUpMachineById = function rankUpMachineById(machineId) {
     renderCurrentScene();
     return;
   }
-  logMessage("synthesis", `${machine.name}がRANK ${machine.rank}になりました。見た目再生成は後続実装です。`, "good");
+  logMessage("synthesis", `${machine.name}がRANK ${machine.rank}になりました。`, "good");
+  window.savePlayerData();
   renderCurrentScene();
 };
 
-window.canGenerateWeapon = function canGenerateWeapon() {
-  return false;
+window.canGenerateWeapon = function canGenerateWeapon(recipeId) {
+  const recipe = getAvailableWeaponRecipes().find((item) => item.id === recipeId);
+  if (!recipe) return false;
+  return parseRecipeMaterials(recipe).every((item) => Number(window.baseMaterialCounts?.()[item.id] || 0) >= item.count);
 };
 
-window.generateWeapon = function generateWeapon() {
-  logMessage("synthesis", "武器生成ロジックは未実装です。", "warn");
+window.generateWeapon = function generateWeapon(recipeId) {
+  const recipe = getAvailableWeaponRecipes().find((item) => item.id === recipeId);
+  if (!recipe || !window.canGenerateWeapon(recipeId)) {
+    logMessage("synthesis", "武器生成条件を満たしていません。", "danger");
+    renderCurrentScene();
+    return false;
+  }
+  for (const item of parseRecipeMaterials(recipe)) {
+    if (!window.consumeBaseMaterial(item.id, item.count)) return false;
+  }
+  const inventory = window.ensureInventoryState ? window.ensureInventoryState() : window.GameState.inventory;
+  const serial = Number(window.GameState.nextWeaponSerial || 1);
+  window.GameState.nextWeaponSerial = serial + 1;
+  const weapon = {
+    id: `weapon_${Date.now()}_${serial}`,
+    baseRecipeId: recipe.id,
+    name: recipe.name,
+    rank: recipe.rarity,
+    rarity: recipe.rarity,
+    weaponCategory: recipe.weaponType,
+    weaponType: weaponTypeForRecipe(recipe),
+    element: recipe.attribute || "none",
+    power: Math.max(1, Number(recipe.power || 20)),
+    ppCost: Math.max(0, Number(recipe.ppCost || 0)),
+    description: recipe.description || ""
+  };
+  inventory.weapons[weapon.id] = weapon;
+  logMessage("synthesis", `${weapon.name}を生成しました。`, "good");
+  window.savePlayerData();
   renderCurrentScene();
-  return false;
+  return true;
 };
-
 window.App.scenes.synthesis = window.renderSynthesis;
+
+

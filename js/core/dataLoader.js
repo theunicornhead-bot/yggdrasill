@@ -110,6 +110,7 @@ const MASTER_CSV_CONFIGS = [
   { masterName: "elementMaster", path: "data/element_master.csv", idKey: "elementId" },
   { masterName: "weaponTypeMaster", path: "data/weapon_type_master.csv", idKey: "weaponType" },
   { masterName: "weaponMaster", path: "data/weapon_master.csv", idKey: "weaponId" },
+  { masterName: "weaponRecipeMaster", path: "data/weapon_recipe_master.csv", idKey: "id" },
   { masterName: "optionMaster", path: "data/option_master.csv", idKey: "optionId" },
   { masterName: "materialMaster", path: "data/material_master.csv", idKey: "materialId" },
   { masterName: "itemMaster", path: "data/item_master.csv", idKey: "itemId" },

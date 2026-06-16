@@ -1,4 +1,4 @@
-"use strict";
+﻿"use strict";
 
 function slotLabel(slot) {
   return { weapon: "武器", armor: "装甲", core: "コア", option: "補助" }[slot] || slot;
@@ -236,6 +236,7 @@ function renderMechDetailV2(mech) {
       <div class="compact-list">${renderUnitStatRows(unitStats)}</div>
       <div class="section-head" style="margin-top:10px"><h3>MAIN WEAPON</h3></div>
       <div class="compact-list">${renderMainWeaponRows(mainWeapon)}</div>
+      ${renderEquipmentSlots(mech)}
       <div class="section-head" style="margin-top:10px"><h3>BATTLE PROGRAM</h3></div>
       <div class="compact-list">${renderBattleProgramPreview(mech, realPilot)}</div>
       <div class="section-head" style="margin-top:10px"><h3>OPTIONS</h3></div>
@@ -246,6 +247,7 @@ function renderMechDetailV2(mech) {
       <button class="button danger" data-action="delete-mech" data-mech="${mech.id}" ${canDeleteMech(mech.id) ? "" : "disabled"} style="width:100%;margin-top:8px">この機体を削除</button>
       <p class="muted">${mech.description || ""}</p>
     </div>
+    ${renderEquipmentModal(mech)}
   `;
 }
 
@@ -532,6 +534,89 @@ function renderMainWeaponRows(weapon) {
   `;
 }
 
+function renderEquipmentSlots(machine) {
+  const mainWeapon = typeof window.getMainWeapon === "function" ? window.getMainWeapon(machine) : machine.mainWeapon;
+  const subWeapon = Array.isArray(machine.subWeapons) ? machine.subWeapons[0] : null;
+  const options = Array.isArray(machine.options) ? machine.options : [];
+  return `
+    <div class="section-head" style="margin-top:10px"><h3>EQUIPMENT</h3></div>
+    <div class="compact-list">
+      ${renderEquipmentSlotButton(machine.id, "mainWeapon", 0, "主武器", mainWeapon?.name || "なし", mainWeapon?.rank || mainWeapon?.rarity || "-")}
+      ${renderEquipmentSlotButton(machine.id, "subWeapon", 0, "副武器", subWeapon?.name || "なし", subWeapon?.rank || subWeapon?.rarity || "-")}
+      ${[0, 1, 2].map((index) => renderEquipmentSlotButton(machine.id, "option", index, `OPTION${index + 1}`, options[index]?.name || "なし", options[index]?.rank || options[index]?.rarity || "-")).join("")}
+    </div>
+  `;
+}
+
+function renderEquipmentSlotButton(mechId, slotType, slotIndex, label, value, rank) {
+  return `
+    <button class="material-row equipment-slot-button" data-action="open-equip-slot" data-mech="${mechId}" data-slot-type="${slotType}" data-slot-index="${slotIndex}" type="button">
+      <span style="flex:1;text-align:left">${label}<br><span class="muted">RANK ${rank}</span></span>
+      <strong>${value}</strong>
+    </button>
+  `;
+}
+
+function weaponCandidateList() {
+  const inventory = typeof window.ensureInventoryState === "function" ? window.ensureInventoryState() : window.GameState.inventory || {};
+  const owned = Object.values(inventory.weapons || {}).filter((weapon) => weapon && typeof weapon === "object");
+  const masters = Array.isArray(window.masterData?.weaponMaster) ? window.masterData.weaponMaster.slice(0, 12).map((weapon) => ({ ...weapon, id: weapon.weaponId })) : [];
+  return [...owned, ...masters].filter((weapon, index, weapons) => weapon?.id && weapons.findIndex((item) => item.id === weapon.id) === index);
+}
+
+function optionFromMaster(row) {
+  if (!row) return null;
+  return {
+    id: row.optionId || row.id,
+    optionId: row.optionId || row.id,
+    name: row.name,
+    type: row.type || "general",
+    rank: row.rank || "N",
+    stats: {
+      hp: Number(row.hp || 0), pp: Number(row.pp || 0), sAtk: Number(row.sAtk || 0), mAtk: Number(row.mAtk || 0), lAtk: Number(row.lAtk || 0),
+      sDef: Number(row.sDef || 0), mDef: Number(row.mDef || 0), lDef: Number(row.lDef || 0), speed: Number(row.speed || 0)
+    },
+    subWeapon: row.subWeaponId && typeof window.getWeaponMaster === "function" ? { ...window.getWeaponMaster(row.subWeaponId), id: row.subWeaponId } : null
+  };
+}
+
+function optionCandidateList() {
+  const inventory = typeof window.ensureInventoryState === "function" ? window.ensureInventoryState() : window.GameState.inventory || {};
+  return Object.entries(inventory.options || {}).filter(([, count]) => Number(count) > 0).map(([id]) => optionFromMaster(window.getMasterById?.("optionMaster", "optionId", id))).filter(Boolean);
+}
+
+function renderEquipmentModal(machine) {
+  const selector = window.GameState.equipmentSelector;
+  if (!selector || selector.mechId !== machine.id) return "";
+  const isOption = selector.slotType === "option";
+  const candidates = isOption ? optionCandidateList() : weaponCandidateList();
+  return `
+    <div class="modal-backdrop equipment-modal-backdrop">
+      <section class="quest-materials-modal panel panel-pad" role="dialog" aria-modal="true" aria-label="装備変更">
+        <div class="section-head">
+          <h2>${isOption ? `OPTION${Number(selector.slotIndex || 0) + 1}` : selector.slotType === "subWeapon" ? "副武器" : "主武器"}</h2>
+          <button class="button mini-map-close" data-action="close-equip-modal" type="button">閉じる</button>
+        </div>
+        <div class="compact-list">${candidates.length ? candidates.map((item) => renderEquipmentCandidate(machine, selector, item)).join("") : `<div class="muted">装備候補がありません。</div>`}</div>
+      </section>
+    </div>
+  `;
+}
+
+function renderEquipmentCandidate(machine, selector, item) {
+  const currentId = selector.slotType === "option" ? machine.options?.[selector.slotIndex]?.id : selector.slotType === "subWeapon" ? machine.subWeapons?.[0]?.id : machine.mainWeapon?.id;
+  const itemId = item.id || item.weaponId || item.optionId;
+  const isActive = currentId === itemId;
+  const stats = item.stats ? Object.entries(item.stats).filter(([, value]) => Number(value)).map(([key, value]) => `${key}+${value}`).join(" ") : `power ${formatNumber(item.power || 0)}`;
+  const action = selector.slotType === "option" ? "equip-option-slot" : "equip-weapon-slot";
+  return `
+    <button class="material-row ${isActive ? "active" : ""}" data-action="${action}" data-mech="${machine.id}" data-slot-type="${selector.slotType}" data-slot-index="${selector.slotIndex || 0}" data-equip-id="${itemId}" type="button">
+      <div class="material-icon"></div>
+      <span style="flex:1;text-align:left">${item.name || itemId}<br><span class="muted">RANK ${item.rank || item.rarity || "-"} / ${item.weaponCategory || item.weaponType || item.type || "-"}</span><br><span class="muted">${stats}</span></span>
+      <strong>${isActive ? "装備中" : "装備"}</strong>
+    </button>
+  `;
+}
 function renderMachineOptions(machine) {
   if (typeof window.normalizeMachineOptions === "function") window.normalizeMachineOptions(machine);
   const options = Array.isArray(machine?.equippedOptions) ? machine.equippedOptions : Array.isArray(machine?.options) ? machine.options : [];
@@ -771,4 +856,71 @@ window.learnPilotSkillById = function learnPilotSkillById(pilotId, skillId) {
   renderCurrentScene();
 };
 
+window.openEquipmentSelector = function openEquipmentSelector(mechId, slotType, slotIndex = 0) {
+  if (!getMech(mechId)) return;
+  window.GameState.equipmentSelector = { mechId, slotType, slotIndex: Number(slotIndex || 0) };
+  renderCurrentScene();
+};
+
+window.closeEquipmentSelector = function closeEquipmentSelector() {
+  window.GameState.equipmentSelector = null;
+  renderCurrentScene();
+};
+
+function findWeaponCandidate(equipId) {
+  return weaponCandidateList().find((weapon) => (weapon.id || weapon.weaponId) === equipId) || null;
+}
+
+function findOptionCandidate(equipId) {
+  return optionCandidateList().find((option) => (option.id || option.optionId) === equipId) || null;
+}
+
+window.equipWeaponSlot = function equipWeaponSlot(mechId, slotType, equipId) {
+  const mech = getMech(mechId);
+  const weapon = findWeaponCandidate(equipId);
+  if (!mech || !weapon) return false;
+  const normalized = {
+    id: weapon.id || weapon.weaponId,
+    weaponId: weapon.weaponId || weapon.id,
+    name: weapon.name,
+    rank: weapon.rank || weapon.rarity || "N",
+    rarity: weapon.rarity || weapon.rank || "N",
+    weaponCategory: weapon.weaponCategory || weapon.weaponType,
+    weaponType: typeof window.normalizeWeaponType === "function" ? window.normalizeWeaponType(weapon.weaponType) : weapon.weaponType,
+    element: typeof window.normalizeElement === "function" ? window.normalizeElement(weapon.element) : weapon.element || "none",
+    power: Number(weapon.power || 0),
+    ppCost: Number(weapon.ppCost || 0),
+    overdrive: weapon.overdrive || weapon.overdriveId || null
+  };
+  if (slotType === "subWeapon") {
+    mech.subWeapons = [normalized];
+    mech.subWeaponId = normalized.id;
+  } else {
+    mech.mainWeapon = normalized;
+    mech.weaponId = normalized.id;
+  }
+  window.GameState.equipmentSelector = null;
+  window.savePlayerData();
+  renderCurrentScene();
+  return true;
+};
+
+window.equipOptionSlot = function equipOptionSlot(mechId, slotIndex, equipId) {
+  const mech = getMech(mechId);
+  const option = findOptionCandidate(equipId);
+  const index = Number(slotIndex || 0);
+  if (!mech || !option || index < 0 || index > 2) return false;
+  mech.optionSlots = Math.max(3, Number(mech.optionSlots || 0));
+  if (typeof window.normalizeMachineOptions === "function") window.normalizeMachineOptions(mech);
+  const options = Array.isArray(mech.options) ? [...mech.options] : [];
+  options[index] = typeof window.normalizeOption === "function" ? window.normalizeOption(option, option.id) : option;
+  mech.options = options.slice(0, 3).filter(Boolean);
+  mech.equippedOptions = mech.options;
+  window.GameState.equipmentSelector = null;
+  window.savePlayerData();
+  renderCurrentScene();
+  return true;
+};
+
 window.App.scenes.hangar = window.renderHangar;
+

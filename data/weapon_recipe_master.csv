@@ -1,0 +1,13 @@
+id,name,rarity,weaponType,attribute,materials,power,ppCost,description
+recipe_sword_r,火走りの剣,R,sword,fire,broken_shell:2|thin_membrane:1,30,2,近接カテゴリの火属性武器
+recipe_axe_r,裂甲斧,R,axe,none,brittle_bone:2|broken_shell:1,34,2,近接カテゴリの無属性武器
+recipe_lance_sr,雷角ランス,SR,lance,thunder,dry_nerve:2|aged_scale:1,48,4,近接カテゴリの雷属性武器
+recipe_rifle_r,風読みライフル,R,rifle,wind,thin_membrane:2|dry_nerve:1,28,2,射撃カテゴリの風属性武器
+recipe_machinegun_sr,流水機銃,SR,machinegun,water,aged_scale:2|thin_membrane:2,44,5,射撃カテゴリの水属性武器
+recipe_sniper_ssr,光学狙撃銃,SSR,sniper,light,aged_scale:4|dry_nerve:3,62,6,射撃カテゴリの光属性武器
+recipe_cannon_sr,重殻カノン,SR,cannon,none,brittle_bone:3|aged_scale:2,54,6,砲撃カテゴリの無属性武器
+recipe_missile_ssr,黒炎ミサイル,SSR,missile,dark,aged_scale:4|wilted_bloodfilm:4,68,7,砲撃カテゴリの闇属性武器
+recipe_repair_r,修復アーム,R,repair,none,thin_membrane:2|wilted_bloodfilm:1,24,3,支援カテゴリの修復武器
+recipe_support_sr,支援ドローン,SR,support,thunder,dry_nerve:3|thin_membrane:2,38,5,支援カテゴリの補助武器
+recipe_drone_ssr,自律ドローン,SSR,drone,wind,aged_scale:3|dry_nerve:4,58,6,特殊カテゴリのドローン武器
+recipe_bit_ur,古代ビット,UR,bit,light,ancient_core:1|aged_scale:8|dry_nerve:8,92,9,UR特殊武器。武器コア素材を要求する
