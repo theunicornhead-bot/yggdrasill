@@ -513,20 +513,23 @@ writeCsv("material_element_master.csv", ["materialBaseId", "weaponType", "elemen
 }));
 
 writeCsv("enemy_material_master.csv", ["enemyId", "materialBaseId", "dropType", "dropRate"], enemyMaterialRows);
-writeCsv("enemy_weakness_master.csv", ["enemyId", "weaponWeakType", "elementWeakType", "weaponWeakRate", "elementWeakRate"], weaknessRows.map((row) => ({
-  enemyId: row.enemyId,
-  weaponWeakType: row.weaponWeakType,
-  elementWeakType: row.elementWeakType,
-  weaponWeakRate: row.weaponWeakRate,
-  elementWeakRate: row.elementWeakRate
-})));
-writeCsv("enemy_resistance_master.csv", ["enemyId", "weaponResistType", "elementResistType", "weaponResistRate", "elementResistRate"], resistanceRows.map((row) => ({
-  enemyId: row.enemyId,
-  weaponResistType: row.weaponResistType,
-  elementResistType: row.elementResistType,
-  weaponResistRate: row.weaponResistRate,
-  elementResistRate: row.elementResistRate
-})));
+const resistanceByEnemyId = new Map(resistanceRows.map((row) => [row.enemyId, row]));
+writeCsv("enemy_affinity_master.csv", [
+  "enemyId", "weaponWeakType", "elementWeakType", "weaponWeakRate", "elementWeakRate", "weaponResistType", "elementResistType", "weaponResistRate", "elementResistRate"
+], weaknessRows.map((row) => {
+  const resistance = resistanceByEnemyId.get(row.enemyId) || {};
+  return {
+    enemyId: row.enemyId,
+    weaponWeakType: row.weaponWeakType,
+    elementWeakType: row.elementWeakType,
+    weaponWeakRate: row.weaponWeakRate,
+    elementWeakRate: row.elementWeakRate,
+    weaponResistType: resistance.weaponResistType || "",
+    elementResistType: resistance.elementResistType || "",
+    weaponResistRate: resistance.weaponResistRate || "",
+    elementResistRate: resistance.elementResistRate || ""
+  };
+}));
 
 writeCsv("status_effect_master.csv", ["statusEffectId", "displayName", "effectKind", "category", "statKey", "multiplier", "flatValue", "duration", "effectValue", "description"], [
   ["poison", "毒", "ailment", "damageOverTime", "", "1.00", "0", 3, "0.05", "毎ターンHP減少"],

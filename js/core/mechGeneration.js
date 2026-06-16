@@ -1,14 +1,14 @@
 "use strict";
 
 window.MechCoreCatalog = [
-  { id: "core_melee_r", name: "Assault Ember Core", rarity: "R", category: "melee", outputLimit: 96, prompts: ["close combat reactor", "forward leaning armor silhouette"] },
-  { id: "core_ranged_r", name: "Shooter Lynx Core", rarity: "R", category: "ranged", outputLimit: 88, prompts: ["precision targeting sensors", "rifle-ready mechanical frame"] },
-  { id: "core_artillery_sr", name: "Artillery Atlas Core", rarity: "SR", category: "artillery", outputLimit: 126, prompts: ["heavy cannon backpack", "stabilizer legs"] },
-  { id: "core_defense_sr", name: "Defender Bastion Core", rarity: "SR", category: "defense", outputLimit: 118, prompts: ["tower shield armor", "reinforced defensive frame"] },
-  { id: "core_healer_r", name: "Medic Halo Core", rarity: "R", category: "healer", outputLimit: 82, prompts: ["repair drones", "white medical support markings"] },
-  { id: "core_support_sr", name: "Support Relay Core", rarity: "SR", category: "support", outputLimit: 104, prompts: ["command antenna array", "support equipment racks"] },
-  { id: "core_debuff_sr", name: "Hunter Venom Core", rarity: "SR", category: "debuff", outputLimit: 100, prompts: ["jamming emitters", "predatory angular head unit"] },
-  { id: "core_scout_r", name: "Scout Wisp Core", rarity: "R", category: "scout", outputLimit: 78, prompts: ["light recon sensors", "slim high mobility frame"] }
+  { id: "core_melee_r", name: "強襲熾核", rarity: "R", category: "melee", outputLimit: 96, prompts: ["close combat reactor", "forward leaning armor silhouette"] },
+  { id: "core_ranged_r", name: "狙撃猟核", rarity: "R", category: "ranged", outputLimit: 88, prompts: ["precision targeting sensors", "rifle-ready mechanical frame"] },
+  { id: "core_artillery_sr", name: "重砲巨核", rarity: "SR", category: "artillery", outputLimit: 126, prompts: ["heavy cannon backpack", "stabilizer legs"] },
+  { id: "core_defense_sr", name: "守護城核", rarity: "SR", category: "defense", outputLimit: 118, prompts: ["tower shield armor", "reinforced defensive frame"] },
+  { id: "core_healer_r", name: "修復環核", rarity: "R", category: "healer", outputLimit: 82, prompts: ["repair drones", "white medical support markings"] },
+  { id: "core_support_sr", name: "指揮継核", rarity: "SR", category: "support", outputLimit: 104, prompts: ["command antenna array", "support equipment racks"] },
+  { id: "core_debuff_sr", name: "蝕毒狩核", rarity: "SR", category: "debuff", outputLimit: 100, prompts: ["jamming emitters", "predatory angular head unit"] },
+  { id: "core_scout_r", name: "偵察幽核", rarity: "R", category: "scout", outputLimit: 78, prompts: ["light recon sensors", "slim high mobility frame"] }
 ];
 
 window.MechMaterialCatalog = [

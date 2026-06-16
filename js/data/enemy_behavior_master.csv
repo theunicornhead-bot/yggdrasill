@@ -1,7 +1,0 @@
-behaviorId,name,moveInterval,detectionRange,priority,description
-wander,徘徊,1,2,1,ランダム移動
-patrol,巡回,1,3,2,一定範囲を巡回
-chase,追跡,1,5,3,プレイヤーへ近づく
-ambush,待ち伏せ,1,2,3,近づくと追跡
-guard,防衛,2,1,4,ボスや重要地点付近に留まる
-flee,逃走,1,4,2,プレイヤーから離れる

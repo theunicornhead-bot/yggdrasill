@@ -236,6 +236,8 @@ function renderMechDetailV2(mech) {
       <div class="compact-list">${renderUnitStatRows(unitStats)}</div>
       <div class="section-head" style="margin-top:10px"><h3>MAIN WEAPON</h3></div>
       <div class="compact-list">${renderMainWeaponRows(mainWeapon)}</div>
+      <div class="section-head" style="margin-top:10px"><h3>BATTLE PROGRAM</h3></div>
+      <div class="compact-list">${renderBattleProgramPreview(mech, realPilot)}</div>
       <div class="section-head" style="margin-top:10px"><h3>OPTIONS</h3></div>
       <div class="compact-list">${renderMachineOptions(mech)}</div>
       <div class="section-head" style="margin-top:10px"><h3>TAGS</h3></div>
@@ -245,6 +247,24 @@ function renderMechDetailV2(mech) {
       <p class="muted">${mech.description || ""}</p>
     </div>
   `;
+}
+
+function renderBattleProgramPreview(mech, pilot) {
+  const classId = window.normalizePilotClassId ? window.normalizePilotClassId(pilot?.classId) : pilot?.classId;
+  const customProgram = Array.isArray(mech?.battleProgram) && mech.battleProgram.length ? mech.battleProgram : null;
+  const rows = customProgram || (Array.isArray(window.masterData?.classBattleProgramMaster)
+    ? window.masterData.classBattleProgramMaster.filter((row) => row.classId === classId || row.classId === pilot?.classId)
+    : []);
+  const sorted = rows
+    .map((row) => ({ ...row, slot: Number(row.slot || 0) }))
+    .sort((a, b) => Number(a.slot || 0) - Number(b.slot || 0))
+    .slice(0, 4);
+  if (!sorted.length) return `<div class="material-row"><span>Default</span><strong>通常攻撃</strong></div>`;
+  return sorted.map((row) => {
+    const condition = window.getMasterById?.("battleConditionMaster", "conditionId", row.conditionId);
+    const action = window.getMasterById?.("battleActionMaster", "actionId", row.actionId);
+    return `<div class="material-row"><span>${row.slot || "-"}: ${condition?.name || row.conditionId}</span><strong>${action?.name || row.actionId}</strong></div>`;
+  }).join("");
 }
 
 function renderMachineCompatibilityRows(pilot, mech) {

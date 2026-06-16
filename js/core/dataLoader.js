@@ -132,8 +132,7 @@ const MASTER_CSV_CONFIGS = [
   { masterName: "materialBaseMaster", path: "data/material_base_master.csv", idKey: "materialBaseId" },
   { masterName: "materialElementMaster", path: "data/material_element_master.csv", idKey: "materialBaseId" },
   { masterName: "enemyMaterialMaster", path: "data/enemy_material_master.csv", idKey: "enemyId" },
-  { masterName: "enemyWeaknessMaster", path: "data/enemy_weakness_master.csv", idKey: "enemyId" },
-  { masterName: "enemyResistanceMaster", path: "data/enemy_resistance_master.csv", idKey: "enemyId" },
+  { masterName: "enemyAffinityMaster", path: "data/enemy_affinity_master.csv", idKey: "enemyId" },
   { masterName: "enemySkillSetMaster", path: "data/enemy_skill_set_master.csv", idKey: "enemyId" },
   { masterName: "pilotRankupRequirementMaster", path: "data/pilot_rankup_requirement_master.csv", idKey: "fromRank" },
   { masterName: "classRankPlanetMaster", path: "data/class_rank_planet_master.csv", idKey: "classId" },
@@ -334,11 +333,11 @@ window.resolveEnemyImagePath = function resolveEnemyImagePath(planetId, enemyId,
 };
 
 window.getEnemyWeakness = function getEnemyWeakness(enemyId) {
-  return window.getMasterById("enemyWeaknessMaster", "enemyId", enemyId) || null;
+  return window.getMasterById("enemyAffinityMaster", "enemyId", enemyId) || null;
 };
 
 window.getEnemyResistance = function getEnemyResistance(enemyId) {
-  return window.getMasterById("enemyResistanceMaster", "enemyId", enemyId) || null;
+  return window.getMasterById("enemyAffinityMaster", "enemyId", enemyId) || null;
 };
 
 window.calculateWeaknessDamageMultiplier = function calculateWeaknessDamageMultiplier(weaponType, elementId, enemyId) {

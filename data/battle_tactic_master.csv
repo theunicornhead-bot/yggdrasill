@@ -1,0 +1,10 @@
+tacticId,name,conditionBias,targetBias,actionBias,riskBias,description
+standard,標準,balanced,priority,balanced,normal,通常の戦闘プログラム順で行動する
+offense,攻撃重視,enemy_weak,enemy_lowest_hp,attack,high,弱点攻撃と追撃を優先する
+defense,防御重視,ally_low_hp,ally_lowest_hp,defense,low,回復・防御・補給を優先する
+weakness,弱点狙い,enemy_weak,enemy_weak,attack,normal,武器・属性弱点に合う敵を優先する
+boss,ボス集中,enemy_boss,enemy_boss,attack,high,ボスまたは危険度の高い敵を優先する
+material,素材優先,enemy_color,enemy_priority,balanced,normal,色付き個体を逃さないように戦う
+rare,レア優先,enemy_rare,enemy_rare,scan,normal,金色・白・黒などのレア個体を優先する
+conserve,温存,self_pp,enemy_lowest_hp,cheap,low,PP消費を抑え通常攻撃中心で戦う
+escape,撤退優先,ally_low_hp,self,escape,avoid,危険時は撤退を最優先する

@@ -256,6 +256,11 @@ function behaviorForFieldEnemy(enemy, colorId, rule) {
   return rule.defaultBehavior || "wander";
 }
 
+function getEnemyBehaviorConfig(behaviorId) {
+  return window.getMasterById?.("enemyBehaviorMaster", "behaviorId", behaviorId)
+    || { behaviorId: behaviorId || "wander", moveType: behaviorId || "wander", detectionRange: "2", moveInterval: "1" };
+}
+
 function buildFieldEnemy(pos, planet, floor, spawnType) {
   const template = selectFieldEnemyTemplate(planet, floor, spawnType);
   if (!template) return null;
@@ -263,6 +268,8 @@ function buildFieldEnemy(pos, planet, floor, spawnType) {
   const rule = getEnemyFieldRule(planet?.id, floor);
   const quest = window.GameState.quest;
   const id = `field_enemy_${quest.nextFieldEnemySerial || 1}`;
+  const behavior = behaviorForFieldEnemy(template, colorId, rule);
+  const behaviorConfig = getEnemyBehaviorConfig(behavior);
   quest.nextFieldEnemySerial = (quest.nextFieldEnemySerial || 1) + 1;
   return {
     id,
@@ -272,7 +279,11 @@ function buildFieldEnemy(pos, planet, floor, spawnType) {
     floor,
     colorId,
     spawnType,
-    behavior: behaviorForFieldEnemy(template, colorId, rule),
+    behavior,
+    moveType: behaviorConfig.moveType || behavior,
+    detectionRange: Number(behaviorConfig.detectionRange || 2),
+    moveInterval: Math.max(1, Number(behaviorConfig.moveInterval || 1)),
+    lastMoveTurn: 0,
     x: pos.x,
     y: pos.y,
     isDefeated: false
@@ -960,17 +971,24 @@ function updateFieldEnemiesAfterPlayerAction() {
   const state = window.GameState;
   const quest = state.quest;
   if (!quest || state.currentScene === "battle" || !Array.isArray(quest.fieldEnemies)) return;
+  quest.enemyMoveTurn = Number(quest.enemyMoveTurn || 0) + 1;
   const player = quest.player;
   for (const enemy of [...quest.fieldEnemies]) {
     if (!enemy || enemy.isDefeated) continue;
+    const behaviorConfig = getEnemyBehaviorConfig(enemy.behavior);
+    const moveType = enemy.moveType || behaviorConfig.moveType || enemy.behavior;
+    const detectionRange = Number(enemy.detectionRange || behaviorConfig.detectionRange || 2);
+    const moveInterval = Math.max(1, Number(enemy.moveInterval || behaviorConfig.moveInterval || 1));
+    if (quest.enemyMoveTurn - Number(enemy.lastMoveTurn || 0) < moveInterval) continue;
     const distance = Math.abs(enemy.x - player.x) + Math.abs(enemy.y - player.y);
     let nextPos = null;
-    if (enemy.behavior === "chase" && distance <= 5) nextPos = nextStepToward(enemy, player);
-    else if (enemy.behavior === "flee" && distance <= 4) nextPos = nextStepAway(enemy, player);
-    else if (enemy.behavior === "wander" && Math.random() < 0.75) nextPos = randomFieldStep(enemy);
-    else if (enemy.behavior === "patrol" && Math.random() < 0.55) nextPos = randomFieldStep(enemy);
-    else if (enemy.behavior === "ambush" && distance <= 2) nextPos = nextStepToward(enemy, player);
+    if (moveType === "chase" && distance <= detectionRange) nextPos = nextStepToward(enemy, player);
+    else if (moveType === "flee" && distance <= detectionRange) nextPos = nextStepAway(enemy, player);
+    else if (moveType === "random" && Math.random() < 0.75) nextPos = randomFieldStep(enemy);
+    else if (moveType === "patrol" && Math.random() < 0.55) nextPos = randomFieldStep(enemy);
+    else if (moveType === "ambush" && distance <= detectionRange) nextPos = nextStepToward(enemy, player);
     if (nextPos) moveFieldEnemy(enemy, nextPos);
+    enemy.lastMoveTurn = quest.enemyMoveTurn;
     if (enemy.x === player.x && enemy.y === player.y) {
       startFieldEnemyBattle(enemy);
       return;

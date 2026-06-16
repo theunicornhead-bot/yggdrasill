@@ -118,6 +118,15 @@ window.materialRows = function materialRows() {
 
 window.switchScene = function switchScene(sceneName) {
   const state = window.GameState;
+  if (state.pendingGeneratedMech && sceneName !== "synthesis") {
+    state.currentScene = "synthesis";
+    state.synthesisTab = "mech-generate";
+    state.synthesisStep = state.generationStatus?.busy ? "materials" : "result";
+    logMessage("synthesis", "生成済み機体を保存または破棄してください。", "warn");
+    savePlayerData();
+    renderCurrentScene();
+    return;
+  }
   if (sceneName === "quest" && state.currentScene !== "quest" && state.currentScene !== "battle") {
     if (typeof window.ensureQuestFloor === "function") window.ensureQuestFloor();
   }

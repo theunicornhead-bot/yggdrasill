@@ -148,13 +148,10 @@ document.addEventListener("click", (event) => {
   if (action === "synthesis-next-step") window.goSynthesisNextStep();
   if (action === "synthesis-prev-step") window.goSynthesisPrevStep();
   if (action === "clear-synth-materials") window.clearSynthMaterials();
-  if (action === "add-synth-material") window.addSynthMaterial(target.dataset.material || window.GameState.selectedMaterialId);
-  if (action === "remove-synth-material") window.removeSynthMaterial();
   if (action === "reset-synthesis") window.resetSynthesis();
   if (action === "start-synthesis") window.startSynthesisProcess();
   if (action === "select-synth-slot") {
-    const materialId = window.GameState.synthesisSlots[Number(target.dataset.slot)];
-    if (materialId) window.selectSynthMaterial(materialId);
+    window.removeSynthMaterialAtSlot(Number(target.dataset.slot));
   }
   if (action === "change-market-tab") window.setMarketTab(target.dataset.tab);
   if (action === "buy-market-item") window.buyMarketItem(target.dataset.item);
