@@ -408,11 +408,17 @@ window.getOwnedCoreIds = function getOwnedCoreIds() {
   const materialCounts = typeof window.allMaterialCounts === "function" ? window.allMaterialCounts() : { ...(state.materials || {}), ...(state.runMaterials || {}) };
   const materialCoreIds = Object.entries(materialCounts)
     .filter(([, count]) => Number(count || 0) > 0)
-    .map(([id]) => (typeof window.getMaterial === "function" ? window.getMaterial(id) : null))
+    .map(([id]) => {
+      if (typeof window.getMaterial === "function") return window.getMaterial(id);
+      if (typeof window.parseGeneratedMaterialId === "function" && typeof window.buildGeneratedMaterial === "function") {
+        const parsed = window.parseGeneratedMaterialId(id);
+        return parsed ? window.buildGeneratedMaterial(parsed.materialBaseId, parsed.colorId, parsed.qualityId) : null;
+      }
+      return null;
+    })
     .filter((material) => material && (material.materialRole === "boss_core" || material.materialRole === "core"))
     .map((material) => material.id);
-  if (materialCoreIds.length) return materialCoreIds;
-  return window.MechCoreCatalog.map((core) => core.id);
+  return materialCoreIds;
 };
 
 window.ensureMechGenerationState = function ensureMechGenerationState() {

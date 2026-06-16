@@ -1,6 +1,7 @@
 "use strict";
 
 window.PLAYER_SAVE_KEY = "yggdrasil_player_save_v1";
+window.PLAYER_SAVE_VERSION = 2;
 window.MAX_OWNED_MECHS = 30;
 window.MAX_PARTY_MECHS = 4;
 
@@ -119,7 +120,7 @@ window.createPlayerSavePayload = function createPlayerSavePayload() {
   state.player.updatedAt = nowIsoString();
 
   return {
-    saveVersion: state.saveVersion || 1,
+    saveVersion: window.PLAYER_SAVE_VERSION,
     player: clonePlain(state.player),
     pilots: clonePlain(state.pilots || []),
     mechs: clonePlain(state.mechs || []),
@@ -137,9 +138,9 @@ window.createPlayerSavePayload = function createPlayerSavePayload() {
 };
 
 window.applyPlayerSavePayload = function applyPlayerSavePayload(payload) {
-  if (!payload || Number(payload.saveVersion) !== 1) return false;
+  if (!payload || Number(payload.saveVersion) !== window.PLAYER_SAVE_VERSION) return false;
   const state = window.GameState;
-  state.saveVersion = 1;
+  state.saveVersion = window.PLAYER_SAVE_VERSION;
   state.player = { ...state.player, ...(payload.player || {}) };
   state.pilots = Array.isArray(payload.pilots) ? payload.pilots : state.pilots;
   state.mechs = Array.isArray(payload.mechs) ? payload.mechs : state.mechs;
@@ -178,6 +179,7 @@ window.loadPlayerData = function loadPlayerData() {
       return false;
     }
     const loaded = applyPlayerSavePayload(JSON.parse(raw));
+    if (!loaded) savePlayerData();
     state.storage.loaded = loaded;
     return loaded;
   } catch (error) {

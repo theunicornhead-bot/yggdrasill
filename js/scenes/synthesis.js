@@ -246,6 +246,7 @@ function renderResultStep() {
         <div class="section-head"><h2>生成完了</h2><span>${pending ? "PENDING" : "HANGER"}</span></div>
         <div class="muted">${pending ? `${pending.name || "Machine"}は保存待ちです。` : "保存待ち機体はありません。"}</div>
         ${full ? `<p class="muted">格納庫が満杯です。保存するには機体を削除してください。</p>` : ""}
+        ${pending ? generatedMechPreviewHtml(pending) : ""}
         <div class="synth-actions" style="margin-top:10px">
           <button class="button" data-action="confirm-pending-mech" ${pending && !full ? "" : "disabled"} type="button">格納庫へ保存</button>
           <button class="button danger" data-action="discard-pending-mech" ${pending ? "" : "disabled"} type="button">破棄</button>
@@ -255,6 +256,24 @@ function renderResultStep() {
       </div>
       ${renderLogPanel()}
     </section>
+  `;
+}
+
+function generatedMechPreviewHtml(mech) {
+  const imageHtml = typeof window.renderMechImage === "function"
+    ? window.renderMechImage(mech, "detail")
+    : `<div class="mech-image mech-image-detail"><img src="${mech.imagePath || "generated/mechs/basemech_000.png"}" alt="${mech.name || "Machine"}"></div>`;
+  const stats = mech.stats || {};
+  return `
+    <div class="generated-mech-preview">
+      ${imageHtml}
+      <div class="compact-list">
+        <div class="material-row"><span>${mech.name || "Machine"}</span><strong>${mech.rank || mech.rarity || "-"}</strong></div>
+        <div class="material-row"><span>SIZE / TYPE</span><strong>${mech.size || "-"} / ${mech.type || "-"}</strong></div>
+        <div class="material-row"><span>HP / PP</span><strong>${formatNumber(stats.hp || mech.hp || 0)} / ${formatNumber(stats.pp || 0)}</strong></div>
+        <div class="material-row"><span>ATK</span><strong>${formatNumber(Math.max(stats.sAtk || 0, stats.mAtk || 0, stats.lAtk || 0))}</strong></div>
+      </div>
+    </div>
   `;
 }
 

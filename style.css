@@ -899,6 +899,19 @@ button {
   margin-bottom: 10px;
 }
 
+.generated-mech-preview {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.generated-mech-preview .mech-image-detail {
+  max-height: 320px;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(250, 204, 21, 0.18), transparent 28%),
+    linear-gradient(135deg, rgba(29, 39, 43, 0.92), rgba(6, 10, 12, 0.96));
+}
+
 .hangar-tabs {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

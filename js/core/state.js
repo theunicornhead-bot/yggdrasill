@@ -16,7 +16,7 @@ window.EnemyCatalog = [
 ];
 
 window.GameState = {
-  saveVersion: 1,
+  saveVersion: 2,
   maxOwnedMechs: 30,
   maxPartyMechs: 4,
   player: {
@@ -140,12 +140,18 @@ window.GameState = {
   ],
   partyMechIds: ["raven", "striker", "valkyrie", "seeker"],
   pendingGeneratedMech: null,
-  materials: { broken_shell: 12, thin_membrane: 8, dry_nerve: 6, brittle_bone: 10 },
+  materials: {
+    gaea_mat_025__gold__best: 1,
+    gaea_mat_001__blue__normal: 4,
+    gaea_mat_003__green__normal: 4,
+    gaea_mat_009__white__good: 3,
+    gaea_mat_012__gold__good: 2
+  },
   inventory: {
     items: { repair_kit_s: 2, ether_pack_s: 1 },
     options: {},
     weapons: {},
-    cores: { core_r: 1, core_sr: 1 }
+    cores: {}
   },
   market: {
     listings: []
@@ -187,7 +193,8 @@ window.GameState = {
   distance: 142,
   selectedMechId: "raven",
   nextMechSerial: 1,
-  selectedMaterialId: "broken_shell",
+  selectedCoreId: "gaea_mat_025__gold__best",
+  selectedMaterialId: "gaea_mat_001__blue__normal",
   synthesisSlots: [],
   synthSerial: 1,
   battle: null,
