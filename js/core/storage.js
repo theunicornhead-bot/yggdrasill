@@ -53,7 +53,7 @@ function ensureMaterialInventoryState() {
   state.exploreInventory = {
     ...exploreInventory,
     materials: cloneMaterialCounts(exploreMaterials),
-    slotLimit: Math.max(1, Number(exploreInventory.slotLimit || 30))
+    slotLimit: Math.max(1, Number(exploreInventory.slotLimit || 100))
   };
   state.materials = state.baseInventory.materials;
   state.runMaterials = state.exploreInventory.materials;

@@ -405,7 +405,7 @@ window.getMechGenerationMaterial = function getMechGenerationMaterial(materialId
 window.getOwnedCoreIds = function getOwnedCoreIds() {
   const state = window.GameState;
   if (Array.isArray(state.ownedCoreIds) && state.ownedCoreIds.length) return state.ownedCoreIds;
-  const materialCounts = typeof window.allMaterialCounts === "function" ? window.allMaterialCounts() : { ...(state.materials || {}), ...(state.runMaterials || {}) };
+  const materialCounts = typeof window.baseMaterialCounts === "function" ? window.baseMaterialCounts() : { ...(state.materials || {}) };
   const materialCoreIds = Object.entries(materialCounts)
     .filter(([, count]) => Number(count || 0) > 0)
     .map(([id]) => {
@@ -722,6 +722,8 @@ window.createGeneratedMechData = function createGeneratedMechData(preview, mater
     rarity: preview.rarity,
     rank: preview.rarity,
     level: 1,
+    exp: 0,
+    nextExp: typeof window.calculateMachineNextExp === "function" ? window.calculateMachineNextExp(1) : 100,
     size: preview.size,
     type: preview.type,
     coreId: preview.core.id,

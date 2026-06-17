@@ -1307,4 +1307,191 @@ window.questAction = function questAction(message, fuelCost) {
   else window.inspectCurrentCell();
 };
 
+function latestQuestLogHtml() {
+  const entry = window.GameState.quest?.log?.[0];
+  if (!entry) return `<div class="log-line"><span class="log-time">--:--</span><span>ログはありません。</span></div>`;
+  return `<div class="log-line ${entry.tone ? `log-${entry.tone}` : ""}"><span class="log-time">${entry.time}</span><span>${entry.message}</span></div>`;
+}
+
+function renderQuestLogModal() {
+  const quest = window.GameState.quest;
+  if (!quest?.logModalOpen) return "";
+  return `
+    <div class="modal-backdrop quest-log-modal-backdrop">
+      <section class="quest-materials-modal panel panel-pad" role="dialog" aria-modal="true" aria-label="探索ログ">
+        <div class="section-head">
+          <h2>探索ログ</h2>
+          <button class="button mini-map-close" data-action="close-quest-log" type="button">閉じる</button>
+        </div>
+        <div class="quest-log-history">${questLogHtml()}</div>
+      </section>
+    </div>
+  `;
+}
+
+window.openQuestLogModal = function openQuestLogModal() {
+  if (!window.GameState.quest) return;
+  window.GameState.quest.logModalOpen = true;
+  window.renderCurrentScene();
+};
+
+window.closeQuestLogModal = function closeQuestLogModal() {
+  if (window.GameState.quest) window.GameState.quest.logModalOpen = false;
+  window.renderCurrentScene();
+};
+
+function renderBattleTacticModal() {
+  const quest = window.GameState.quest;
+  if (!quest?.tacticModalOpen) return "";
+  const tactics = getBattleTactics();
+  return `
+    <div class="modal-backdrop battle-tactic-modal-backdrop">
+      <section class="quest-materials-modal panel panel-pad" role="dialog" aria-modal="true" aria-label="戦闘方針">
+        <div class="section-head">
+          <h2>戦闘方針</h2>
+          <button class="button mini-map-close" data-action="close-battle-tactic-modal" type="button">閉じる</button>
+        </div>
+        <div class="quest-tactic-modal-list">
+          ${tactics.map((tactic) => `<button class="button quest-tactic-button ${quest.battleTacticId === tactic.tacticId ? "active" : ""}" data-action="set-battle-tactic" data-tactic="${tactic.tacticId}" type="button">${tactic.name || tactic.tacticId}</button>`).join("")}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+window.openBattleTacticModal = function openBattleTacticModal() {
+  if (!window.GameState.quest) return;
+  window.GameState.quest.tacticModalOpen = true;
+  window.renderCurrentScene();
+};
+
+window.closeBattleTacticModal = function closeBattleTacticModal() {
+  if (window.GameState.quest) window.GameState.quest.tacticModalOpen = false;
+  window.renderCurrentScene();
+};
+
+window.setBattleTactic = function setBattleTactic(tacticId) {
+  const tactic = getBattleTactics().find((item) => item.tacticId === tacticId) || getBattleTactics()[0];
+  if (!window.GameState.quest) return;
+  window.GameState.quest.battleTacticId = tactic.tacticId;
+  window.GameState.quest.tacticModalOpen = false;
+  addQuestLog(`戦闘方針を「${tactic.name || tactic.tacticId}」に変更。`, "good");
+  window.renderCurrentScene();
+};
+
+function renderQuestHeader(planet, quest) {
+  const exploreTotal = typeof window.totalExploreMaterials === "function" ? window.totalExploreMaterials() : totalMaterials();
+  return `
+    <div class="top-bar quest-top-bar">
+      <div class="title-block">
+        <div class="quest-title-row">
+          <span class="title-ja">${planet.name}</span>
+          <span class="quest-floor-badge"><small>FLOOR</small><strong>${quest.floor}F / ${planet.maxFloor}F</strong></span>
+        </div>
+        <span class="title-en">EXPLORE</span>
+      </div>
+      <div class="resource-row quest-resource-row">
+        <button class="resource quest-material-button" data-action="open-quest-materials" type="button"><small>探索素材</small><strong>${exploreTotal} / 100</strong></button>
+      </div>
+    </div>
+  `;
+}
+
+function renderQuestReadout(terrain) {
+  const front = getFrontCell();
+  return `
+    <section class="quest-readout panel panel-pad">
+      <div class="quest-sensor-line">${describeFrontCell(front)}</div>
+      <button class="quest-log-scroll quest-log-button" data-action="open-quest-log" type="button">${latestQuestLogHtml()}</button>
+    </section>
+  `;
+}
+
+function renderQuestCommands() {
+  const quest = window.GameState.quest;
+  return `
+    <section class="quest-command-panel panel panel-pad">
+      <div class="quest-special-row">
+        <button class="button quest-utility-button" data-action="quest-next-floor" ${quest.foundStairs ? "" : "disabled"}>次の階層へ</button>
+        <button class="button quest-utility-button" data-action="open-explore-items" type="button">アイテム</button>
+        <button class="button quest-utility-button subdued danger" data-action="return-base">帰還</button>
+      </div>
+      <div class="quest-command-layout">
+        ${renderFuelMeter(quest)}
+        <div class="quest-command-main">
+          <button class="button quest-command-button" data-action="quest-left"><span class="cmd-icon">&lt;</span>左旋回</button>
+          <button class="button quest-command-button primary" data-action="quest-forward"><span class="cmd-icon">^</span>前進<br><span class="muted">燃料-1</span></button>
+          <button class="button quest-command-button" data-action="quest-right"><span class="cmd-icon">&gt;</span>右旋回</button>
+          <button class="button quest-command-button quest-search-button" data-action="quest-search"><span class="cmd-icon">*</span><span>調査<br><span class="muted">燃料-1</span></span></button>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+window.renderCockpitView = function renderCockpitView() {
+  const backgroundSrc = getQuestBackgroundImage();
+  const tactic = getCurrentBattleTactic();
+  return `
+    <section class="cockpit-view panel">
+      ${backgroundSrc
+        ? `<img class="cockpit-background-layer" src="${backgroundSrc}" alt="" aria-hidden="true">`
+        : `<div class="cockpit-background-layer"></div>`}
+      <img class="cockpit-frame-layer" src="ui/cockpit_frame.png" alt="" aria-hidden="true">
+      ${renderMiniMapButton()}
+      <button class="battle-tactic-chip panel" data-action="open-battle-tactic-modal" type="button">戦闘方針: ${tactic.name || tactic.tacticId}</button>
+    </section>
+  `;
+};
+
+window.moveForward = function moveForward() {
+  window.ensureQuestFloor();
+  const quest = window.GameState.quest;
+  const front = window.getFrontCell();
+  if (!front || front.type === "wall") {
+    addQuestLog("前方は壁だ。進めない。", "warn");
+    window.renderCurrentScene();
+    return;
+  }
+  quest.player.x = front.x;
+  quest.player.y = front.y;
+  window.GameState.exploredSteps += 1;
+  window.GameState.distance += 12 + Math.floor(Math.random() * 16);
+  discoverAround(front.x, front.y);
+  if (!window.consumeFuel(1)) return;
+  addQuestLog(`前進した。現在地 ${front.x}, ${front.y}`);
+  processCurrentCell("enter");
+  updateFieldEnemiesAfterPlayerAction();
+  window.savePlayerData();
+  window.renderCurrentScene();
+};
+
+window.renderQuest = function renderQuest() {
+  const state = window.GameState;
+  if (!state.quest?.currentPlanetId && !state.quest?.planetId) {
+    renderPlanetSelect();
+    return;
+  }
+  window.ensureQuestFloor();
+  const quest = state.quest;
+  const planet = window.getSelectedPlanet();
+  const terrain = window.getTerrainConfig(quest.terrain);
+  window.App.root.innerHTML = `
+    ${renderQuestHeader(planet, quest)}
+    ${renderCockpitView()}
+    ${renderQuestReadout(terrain)}
+    ${renderQuestCommands()}
+    <section class="explore-lower">
+      <div class="panel panel-pad quest-party-panel">
+        <div class="party-list quest-party-grid">${(typeof window.getSortieUnits === "function" ? window.getSortieUnits() : state.mechs.filter((mech) => getPilot(mech.pilotId)).slice(0, 4)).map(renderPartyUnit).join("")}</div>
+      </div>
+    </section>
+    ${renderMiniMapModal()}
+    ${renderQuestMaterialsModal()}
+    ${renderQuestLogModal()}
+    ${renderBattleTacticModal()}
+    ${renderExploreItemModal()}
+  `;
+};
+
 window.App.scenes.quest = window.renderQuest;

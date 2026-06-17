@@ -12,7 +12,13 @@ window.formatNumber = function formatNumber(value) {
 window.totalMaterials = function totalMaterials() {
   const state = window.GameState;
   if (typeof window.ensureMaterialInventoryState === "function") window.ensureMaterialInventoryState();
-  return Object.values({ ...(state.baseInventory?.materials || {}), ...(state.exploreInventory?.materials || {}) }).reduce((sum, count) => sum + count, 0);
+  return Object.values(state.baseInventory?.materials || state.materials || {}).reduce((sum, count) => sum + Number(count || 0), 0);
+};
+
+window.totalExploreMaterials = function totalExploreMaterials() {
+  const state = window.GameState;
+  if (typeof window.ensureMaterialInventoryState === "function") window.ensureMaterialInventoryState();
+  return Object.values(state.exploreInventory?.materials || state.runMaterials || {}).reduce((sum, count) => sum + Number(count || 0), 0);
 };
 
 window.allMaterialCounts = function allMaterialCounts() {
@@ -52,12 +58,14 @@ window.addExploreMaterial = function addExploreMaterial(materialId, amount = 1) 
   if (typeof window.ensureMaterialInventoryState === "function") window.ensureMaterialInventoryState();
   const explore = window.GameState.exploreInventory;
   const materials = explore.materials || {};
-  const usedSlots = Object.keys(materials).filter((id) => Number(materials[id] || 0) > 0).length;
-  if (!materials[materialId] && usedSlots >= Number(explore.slotLimit || 30)) return 0;
-  materials[materialId] = Math.max(0, Number(materials[materialId] || 0)) + Math.max(0, Math.floor(Number(amount || 0)));
+  const limit = Number(explore.slotLimit || 100);
+  const currentTotal = Object.values(materials).reduce((sum, count) => sum + Number(count || 0), 0);
+  const addable = Math.min(Math.max(0, Math.floor(Number(amount || 0))), Math.max(0, limit - currentTotal));
+  if (addable <= 0) return 0;
+  materials[materialId] = Math.max(0, Number(materials[materialId] || 0)) + addable;
   explore.materials = materials;
   window.GameState.runMaterials = materials;
-  return amount;
+  return addable;
 };
 
 window.consumeBaseMaterial = function consumeBaseMaterial(materialId, amount = 1) {
@@ -206,6 +214,9 @@ window.switchScene = function switchScene(sceneName) {
   if (sceneName === "quest" && state.currentScene !== "quest" && state.currentScene !== "battle") {
     if (typeof window.ensureQuestFloor === "function") window.ensureQuestFloor();
   }
+  if (state.currentScene === "battle" && sceneName !== "battle" && typeof window.stopAutoBattleTimer === "function") {
+    window.stopAutoBattleTimer();
+  }
   state.currentScene = sceneName;
   renderCurrentScene();
 };
@@ -213,6 +224,7 @@ window.switchScene = function switchScene(sceneName) {
 window.renderCurrentScene = function renderCurrentScene() {
   renderBottomNav();
   const state = window.GameState;
+  if (state.currentScene !== "battle" && typeof window.stopAutoBattleTimer === "function") window.stopAutoBattleTimer();
   const renderer = window.App.scenes[state.currentScene];
   if (renderer) renderer();
   if (typeof window.hydrateMechImages === "function") window.hydrateMechImages(window.App.root);

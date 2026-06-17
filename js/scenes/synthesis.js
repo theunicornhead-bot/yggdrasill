@@ -80,6 +80,7 @@ window.renderSynthesis = function renderSynthesis() {
   window.App.root.innerHTML = `
     ${renderHeader("生成", "FORGE")}
     ${renderSynthesisTabs()}
+    ${typeof window.renderDebugMaterialGrant === "function" ? window.renderDebugMaterialGrant() : ""}
     ${state.synthesisTab === "mech-generate" ? `
     <section class="synthesis-vat panel">
       <div class="reticle"></div>
@@ -106,24 +107,93 @@ function renderSynthesisTabs() {
 }
 
 function renderMachineEnhanceTab() {
+  const selected = getSelectedEnhanceMachine();
   return `
     <section class="panel panel-pad">
       <div class="section-head"><h2>機体強化</h2><span>M-Lv</span></div>
       <div class="compact-list">${(window.GameState.mechs || []).map(renderMachineEnhanceRow).join("")}</div>
     </section>
+    ${selected ? renderMachineEnhanceMaterialPanel(selected) : `
+      <section class="panel panel-pad">
+        <div class="muted">強化対象機体を選択してください。</div>
+      </section>
+    `}
   `;
 }
 
 function renderMachineEnhanceRow(machine) {
   if (typeof window.normalizeMachineStatus === "function") window.normalizeMachineStatus(machine);
   const cap = typeof window.getMachineLevelCap === "function" ? window.getMachineLevelCap(machine.rank) : 10;
-  const canEnhance = typeof window.canEnhanceMachine === "function" ? window.canEnhanceMachine(machine, window.baseMaterialCounts?.() || window.GameState.materials) : machine.level < cap;
+  const selected = window.GameState.selectedEnhanceMachineId === machine.id;
   return `
-    <article class="material-row">
-      <span style="flex:1">${machine.name || "Machine"}<br><span class="muted">RANK ${machine.rank || "-"} / Lv ${machine.level || 1} / ${cap} / EXP ${formatNumber(machine.exp || 0)}</span></span>
-      <button class="button" data-action="enhance-machine" data-mech="${machine.id}" ${canEnhance ? "" : "disabled"} type="button">強化</button>
+    <article class="material-row ${selected ? "active" : ""}">
+      <span style="flex:1">${machine.name || "Machine"}<br><span class="muted">RANK ${machine.rank || "-"} / Lv ${machine.level || 1} / ${cap} / EXP ${formatNumber(machine.exp || 0)} / NEXT ${formatNumber(machine.nextExp || 0)}</span></span>
+      <button class="button" data-action="select-enhance-machine" data-mech="${machine.id}" type="button">${selected ? "選択中" : "選択"}</button>
     </article>
   `;
+}
+
+function getSelectedEnhanceMachine() {
+  const state = window.GameState;
+  const mechs = state.mechs || [];
+  if (!state.selectedEnhanceMachineId || !mechs.some((machine) => machine.id === state.selectedEnhanceMachineId)) {
+    state.selectedEnhanceMachineId = mechs[0]?.id || null;
+  }
+  return state.selectedEnhanceMachineId ? getMech(state.selectedEnhanceMachineId) : null;
+}
+
+function selectedEnhanceMaterials() {
+  const state = window.GameState;
+  if (!state.enhanceMaterialSelection || typeof state.enhanceMaterialSelection !== "object") state.enhanceMaterialSelection = {};
+  return state.enhanceMaterialSelection;
+}
+
+function selectedEnhanceExp() {
+  return Object.entries(selectedEnhanceMaterials()).reduce((sum, [id, count]) => {
+    const material = window.getMaterial(id);
+    return sum + materialEnhanceExp(material) * Math.max(0, Math.floor(Number(count || 0)));
+  }, 0);
+}
+
+function renderMachineEnhanceMaterialPanel(machine) {
+  if (typeof window.normalizeMachineStatus === "function") window.normalizeMachineStatus(machine);
+  const cap = typeof window.getMachineLevelCap === "function" ? window.getMachineLevelCap(machine.rank) : 10;
+  const selection = selectedEnhanceMaterials();
+  const exp = selectedEnhanceExp();
+  const canExecute = exp > 0 && (machine.level || 1) < cap && Object.entries(selection).every(([id, count]) => Number(count || 0) <= Number(window.baseMaterialCounts?.()[id] || 0));
+  return `
+    <section class="panel panel-pad">
+      <div class="section-head"><h2>使用素材</h2><span>獲得EXP ${formatNumber(exp)}</span></div>
+      <div class="material-row">
+        <span style="flex:1">${machine.name || "Machine"}<br><span class="muted">Lv ${machine.level || 1} / ${cap} / EXP ${formatNumber(machine.exp || 0)} / NEXT ${formatNumber(machine.nextExp || 0)}</span></span>
+      </div>
+      <div class="compact-list synth-materials">${enhanceMaterialRows()}</div>
+      <div class="synth-actions" style="margin-top:10px">
+        <button class="button danger" data-action="clear-enhance-materials" ${exp > 0 ? "" : "disabled"} type="button">選択解除</button>
+        <button class="button" data-action="execute-enhance-machine" ${canExecute ? "" : "disabled"} type="button">強化実行</button>
+      </div>
+    </section>
+  `;
+}
+
+function enhanceMaterialRows() {
+  const counts = window.baseMaterialCounts?.() || window.GameState.materials || {};
+  const selection = selectedEnhanceMaterials();
+  const entries = Object.entries(counts).filter(([id, count]) => Number(count || 0) > 0 && isEnhanceMaterial(window.getMaterial(id)));
+  if (!entries.length) return `<div class="muted">強化に使える拠点素材はありません。</div>`;
+  return entries.map(([id, owned]) => {
+    const material = window.getMaterial(id);
+    const selected = Math.max(0, Math.floor(Number(selection[id] || 0)));
+    return `
+      <div class="material-row">
+        <div class="material-icon"></div>
+        <span style="flex:1">${material.name}<br><span class="muted">${material.rarity || material.rank || "N"} / EXP ${formatNumber(materialEnhanceExp(material))} / 所持 ${owned}</span></span>
+        <button class="button mini-map-close" data-action="adjust-enhance-material" data-material="${id}" data-delta="-1" ${selected > 0 ? "" : "disabled"} type="button">-</button>
+        <strong>x${selected}</strong>
+        <button class="button mini-map-close" data-action="adjust-enhance-material" data-material="${id}" data-delta="1" ${selected < Number(owned || 0) ? "" : "disabled"} type="button">+</button>
+      </div>
+    `;
+  }).join("");
 }
 function renderMachineRankUpTab() {
   return `
@@ -749,12 +819,12 @@ window.rankUpMachine = function rankUpMachine(machine) {
 
 function materialEnhanceExp(material) {
   const rarity = material?.rarity || material?.rank || "N";
-  return { N: 10, E: 10, D: 25, C: 50, R: 50, SR: 200, SSR: 1000, UR: 5000 }[String(rarity).toUpperCase()] || 10;
+  return (window.MACHINE_ENHANCE_EXP_BY_RARITY || { N: 10, R: 50, SR: 200, SSR: 1000, UR: 5000 })[String(rarity).toUpperCase()] || 10;
 }
 
 function isEnhanceMaterial(material) {
   const role = material?.materialRole || material?.category || "";
-  return material && role !== "core" && role !== "boss_core" && role !== "weapon_core" && role !== "bossWeaponMaterial";
+  return material && role !== "core" && role !== "boss_core" && role !== "weapon_core" && role !== "bossWeaponMaterial" && material.category !== "bossWeaponMaterial";
 }
 
 window.canEnhanceMachine = function canEnhanceMachine(machine, materials) {
@@ -780,20 +850,25 @@ function applyMachineLevelGain(machine, levels) {
 }
 
 window.enhanceMachine = function enhanceMachine(machine, materials) {
-  if (!window.canEnhanceMachine(machine, materials)) return false;
-  const materialId = Object.keys(materials || {}).find((id) => Number(materials[id] || 0) > 0 && isEnhanceMaterial(window.getMaterial(id)));
-  const material = window.getMaterial(materialId);
-  if (!materialId || !window.consumeBaseMaterial(materialId, 1)) return false;
+  if (!machine) return false;
+  const selected = Object.entries(materials || {}).filter(([id, count]) => Number(count || 0) > 0 && isEnhanceMaterial(window.getMaterial(id)));
+  if (!selected.length || !window.canEnhanceMachine(machine, window.baseMaterialCounts?.() || window.GameState.materials)) return false;
+  const baseCounts = window.baseMaterialCounts?.() || window.GameState.materials || {};
+  if (!selected.every(([id, count]) => Number(baseCounts[id] || 0) >= Number(count || 0))) return false;
   const cap = typeof window.getMachineLevelCap === "function" ? window.getMachineLevelCap(machine.rank) : 10;
-  machine.exp = Math.max(0, Number(machine.exp || 0)) + materialEnhanceExp(material);
+  selected.forEach(([id, count]) => {
+    window.consumeBaseMaterial(id, Number(count || 0));
+    machine.exp = Math.max(0, Number(machine.exp || 0)) + materialEnhanceExp(window.getMaterial(id)) * Number(count || 0);
+  });
   let gained = 0;
   while ((machine.level || 1) < cap) {
-    const required = Math.max(50, Number(machine.level || 1) * 100);
+    const required = typeof window.calculateMachineNextExp === "function" ? window.calculateMachineNextExp(machine.level || 1) : Math.max(50, Number(machine.level || 1) * 100);
     if (machine.exp < required) break;
     machine.exp -= required;
     machine.level = Math.min(cap, Number(machine.level || 1) + 1);
     gained += 1;
   }
+  if ((machine.level || 1) >= cap) machine.exp = 0;
   if (gained > 0) applyMachineLevelGain(machine, gained);
   if (typeof window.normalizeMachineStatus === "function") window.normalizeMachineStatus(machine);
   return true;
@@ -801,14 +876,39 @@ window.enhanceMachine = function enhanceMachine(machine, materials) {
 
 window.enhanceMachineById = function enhanceMachineById(machineId) {
   const machine = getMech(machineId);
-  if (!machine || !window.enhanceMachine(machine, window.baseMaterialCounts?.() || window.GameState.materials)) {
+  const selection = selectedEnhanceMaterials();
+  if (!machine || !window.enhanceMachine(machine, selection)) {
     logMessage("synthesis", "強化条件を満たしていません。", "danger");
     renderCurrentScene();
     return;
   }
+  window.GameState.enhanceMaterialSelection = {};
   logMessage("synthesis", `${machine.name}をLv ${machine.level} / EXP ${formatNumber(machine.exp || 0)}に強化しました。`, "good");
   window.savePlayerData();
   renderCurrentScene();
+};
+
+window.selectEnhanceMachine = function selectEnhanceMachine(machineId) {
+  if (!getMech(machineId)) return;
+  window.GameState.selectedEnhanceMachineId = machineId;
+  window.GameState.enhanceMaterialSelection = {};
+  window.renderCurrentScene();
+};
+
+window.adjustEnhanceMaterial = function adjustEnhanceMaterial(materialId, delta) {
+  const material = window.getMaterial(materialId);
+  if (!isEnhanceMaterial(material)) return;
+  const selection = selectedEnhanceMaterials();
+  const owned = Number(window.baseMaterialCounts?.()[materialId] || 0);
+  const next = Math.max(0, Math.min(owned, Number(selection[materialId] || 0) + Number(delta || 0)));
+  if (next > 0) selection[materialId] = next;
+  else delete selection[materialId];
+  window.renderCurrentScene();
+};
+
+window.clearEnhanceMaterials = function clearEnhanceMaterials() {
+  window.GameState.enhanceMaterialSelection = {};
+  window.renderCurrentScene();
 };
 
 window.rankUpMachineById = function rankUpMachineById(machineId) {

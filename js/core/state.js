@@ -46,6 +46,8 @@ window.GameState = {
       name: "レイヴン",
       rank: "SSR",
       level: 1,
+      exp: 0,
+      nextExp: 100,
       size: "中型",
       tags: ["general", "melee"],
       stats: { hp: 1280, pp: 40, sAtk: 412, mAtk: 300, lAtk: 330, sDef: 286, mDef: 246, lDef: 266, speed: 364 },
@@ -71,6 +73,8 @@ window.GameState = {
       name: "ストライカー",
       rank: "SR",
       level: 1,
+      exp: 0,
+      nextExp: 100,
       size: "大型",
       tags: ["general", "ranged", "defense"],
       stats: { hp: 1680, pp: 34, sAtk: 410, mAtk: 340, lAtk: 498, sDef: 352, mDef: 310, lDef: 352, speed: 228 },
@@ -96,6 +100,8 @@ window.GameState = {
       name: "ヴァルキリー",
       rank: "SR",
       level: 1,
+      exp: 0,
+      nextExp: 100,
       size: "中型",
       tags: ["general", "ranged", "command"],
       stats: { hp: 1240, pp: 46, sAtk: 360, mAtk: 360, lAtk: 435, sDef: 270, mDef: 260, lDef: 290, speed: 392 },
@@ -121,6 +127,8 @@ window.GameState = {
       name: "シーカー",
       rank: "R",
       level: 1,
+      exp: 0,
+      nextExp: 100,
       size: "小型",
       tags: ["general", "scout", "ranged"],
       stats: { hp: 980, pp: 52, sAtk: 270, mAtk: 290, lAtk: 302, sDef: 190, mDef: 210, lDef: 210, speed: 512 },
@@ -151,7 +159,7 @@ window.GameState = {
   },
   exploreInventory: {
     materials: {},
-    slotLimit: 30
+    slotLimit: 100
   },
   deathLocation: null,
   inventory: {

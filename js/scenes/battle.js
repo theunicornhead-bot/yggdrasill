@@ -179,6 +179,7 @@ function createEnemyBattleUnit(template, floor, variant = ENEMY_VARIANTS[0], pla
     baseName: template.name || "Enemy",
     level: Math.max(1, Math.floor(battleNumber(template.level, floor))),
     type: template.type || "enemy",
+    size: template.size || template.sizeClass || template.scale || "単体",
     variant: { ...variant },
     variantId: variant?.variantId || "normal",
     variantName: variant?.variantName || "通常個体",
@@ -813,6 +814,190 @@ function renderAllyCard(unit) {
   `;
 }
 
+function latestBattleLogEntry() {
+  const entry = (window.GameState.logs?.battle || [])[0];
+  if (!entry) return { message: "戦闘開始", tone: "" };
+  return typeof entry === "string" ? { message: entry, tone: "" } : entry;
+}
+
+function battleMaterialName(id) {
+  const material = getMaterial(id) || window.getMechGenerationMaterial?.(id);
+  return material?.name || id || "-";
+}
+
+function battleDropRows(enemyUnit) {
+  const drops = Array.isArray(enemyUnit?.dropTable) && enemyUnit.dropTable.length
+    ? enemyUnit.dropTable.map((drop) => drop.id)
+    : (enemyUnit?.drops || []);
+  return uniqueBattleList(drops).map((id) => `<div class="material-row"><span>${battleMaterialName(id)}</span><strong>${id}</strong></div>`).join("")
+    || `<div class="material-row"><span>なし</span><strong>-</strong></div>`;
+}
+
+function battleUnitMech(unit) {
+  return unit?.machineId ? getMech(unit.machineId) : null;
+}
+
+function renderBattlePilotFace(unit) {
+  const pilot = getPilot(unit?.pilotId);
+  if (pilot && typeof window.renderPilotPortraitImage === "function") {
+    const portrait = window.renderPilotPortraitImage(pilot, "pilot-portrait--face");
+    if (portrait) return `<div class="battle-pilot-face">${portrait}</div>`;
+  }
+  return `<div class="battle-pilot-name">${unit?.pilotName || "未搭乗"}</div>`;
+}
+
+function renderBattleAllyCard(unit) {
+  const mech = battleUnitMech(unit);
+  const hpPercentValue = Math.max(0, (battleNumber(unit?.currentHp, 0) / Math.max(1, battleNumber(unit?.maxHp, 1))) * 100);
+  const ppPercentValue = Math.max(0, (battleNumber(unit?.currentPp, 0) / Math.max(1, battleNumber(unit?.maxPp, 1))) * 100);
+  const odValue = clampBattleValue(Math.floor(battleNumber(unit?.overdrive, 0)), 0, 100);
+  const mechImage = typeof window.renderMechImage === "function"
+    ? window.renderMechImage(mech || { id: unit?.machineId, name: unit?.name }, "icon")
+    : `<div class="mech-image mech-image-icon"></div>`;
+  return `
+    <button class="battle-ally-unit panel" data-action="open-battle-ally-detail" data-unit="${unit.id}" type="button">
+      <div class="battle-ally-visual">
+        ${mechImage}
+        ${renderBattlePilotFace(unit)}
+      </div>
+      <strong>${unit.name || "Machine"}</strong>
+      <div class="battle-mini-meter"><span>HP</span><div class="bar" style="--value:${hpPercentValue}%"><span></span></div></div>
+      <div class="battle-mini-meter"><span>PP</span><div class="bar" style="--value:${ppPercentValue}%"><span></span></div></div>
+      <div class="battle-mini-meter"><span>OD</span><div class="bar od-bar" style="--value:${odValue}%"><span></span></div></div>
+    </button>
+  `;
+}
+
+function renderBattleLogModal() {
+  return `
+    <div class="modal-backdrop battle-modal-backdrop">
+      <section class="battle-detail-modal panel panel-pad" role="dialog" aria-modal="true" aria-label="戦況ログ">
+        <div class="section-head"><h2>戦況ログ</h2><button class="button mini-map-close" data-action="close-battle-detail" type="button">閉じる</button></div>
+        <div class="log-panel battle-log-history">${logHtml("battle")}</div>
+      </section>
+    </div>
+  `;
+}
+
+function renderEnemyDetailModal(enemyUnit) {
+  const tags = uniqueBattleList([enemyUnit?.variantName, enemyUnit?.type, ...(enemyUnit?.dropBias || [])]);
+  return `
+    <div class="modal-backdrop battle-modal-backdrop">
+      <section class="battle-detail-modal panel panel-pad" role="dialog" aria-modal="true" aria-label="敵詳細">
+        <div class="section-head"><h2>${enemyUnit?.name || "Enemy"}</h2><button class="button mini-map-close" data-action="close-battle-detail" type="button">閉じる</button></div>
+        <div class="material-row"><span>サイズ</span><strong>${enemyUnit?.size || enemyUnit?.type || "単体"}</strong></div>
+        <div class="material-row"><span>タグ</span><strong>${tags.join(" / ") || "-"}</strong></div>
+        <div class="material-row"><span>HP</span><strong>${formatNumber(enemyUnit?.currentHp || 0)} / ${formatNumber(enemyUnit?.maxHp || 0)}</strong></div>
+        <div class="material-row"><span>攻撃力</span><strong>${formatNumber(Math.max(enemyUnit?.stats?.sAtk || 0, enemyUnit?.stats?.mAtk || 0, enemyUnit?.stats?.lAtk || 0))}</strong></div>
+        <div class="material-row"><span>防御力</span><strong>${formatNumber(Math.max(enemyUnit?.stats?.sDef || 0, enemyUnit?.stats?.mDef || 0, enemyUnit?.stats?.lDef || 0))}</strong></div>
+        <div class="section-head battle-detail-subhead"><h3>ドロップ候補</h3></div>
+        ${battleDropRows(enemyUnit)}
+      </section>
+    </div>
+  `;
+}
+
+function renderAllyDetailModal(unit) {
+  const weapon = unit?.weapon || {};
+  const statuses = [...(unit?.statusAilments || []), ...(unit?.buffs || [])].map((status) => status.name || status.id || status.statusEffectId).filter(Boolean);
+  return `
+    <div class="modal-backdrop battle-modal-backdrop">
+      <section class="battle-detail-modal panel panel-pad" role="dialog" aria-modal="true" aria-label="味方詳細">
+        <div class="section-head"><h2>${unit?.name || "Machine"}</h2><button class="button mini-map-close" data-action="close-battle-detail" type="button">閉じる</button></div>
+        <div class="material-row"><span>パイロット</span><strong>${unit?.pilotName || "未搭乗"}</strong></div>
+        <div class="material-row"><span>機体名</span><strong>${unit?.name || "-"}</strong></div>
+        <div class="material-row"><span>HP</span><strong>${formatNumber(unit?.currentHp || 0)} / ${formatNumber(unit?.maxHp || 0)}</strong></div>
+        <div class="material-row"><span>PP</span><strong>${formatNumber(unit?.currentPp || 0)} / ${formatNumber(unit?.maxPp || 0)}</strong></div>
+        <div class="material-row"><span>OD</span><strong>${formatNumber(unit?.overdrive || 0)}%</strong></div>
+        <div class="material-row"><span>SPEED</span><strong>${formatNumber(unit?.stats?.speed || 0)}</strong></div>
+        <div class="material-row"><span>状態異常</span><strong>${statuses.join(" / ") || "なし"}</strong></div>
+        <div class="material-row"><span>武器</span><strong>${weapon.name || "未設定"} / ${weapon.weaponType || "-"} / power ${formatNumber(weapon.power || 0)}</strong></div>
+      </section>
+    </div>
+  `;
+}
+
+function renderBattleDetailOverlay() {
+  const modal = window.GameState.battleDetailModal;
+  if (!modal) return "";
+  if (modal.type === "log") return renderBattleLogModal();
+  if (modal.type === "enemy") return renderEnemyDetailModal(getPrimaryEnemyUnit());
+  if (modal.type === "ally") {
+    const unit = getBattleUnits().find((item) => item.id === modal.unitId);
+    return unit ? renderAllyDetailModal(unit) : "";
+  }
+  return "";
+}
+
+function hasReadyOverdriveUnit() {
+  return getAliveBattleUnits("ally").some((unit) => battleNumber(unit?.overdrive, 0) >= 100);
+}
+
+window.renderBattle = function renderBattle() {
+  const state = window.GameState;
+  if (!state.battle && !startBattle()) return;
+  const battle = state.battle;
+  const enemyUnit = getPrimaryEnemyUnit();
+  if (!enemyUnit) {
+    winBattle();
+    return;
+  }
+  const allyUnits = getBattleUnits().filter((unit) => unit.side === "ally").slice(0, 4);
+  const enemyHpPercent = Math.max(0, (battleNumber(enemyUnit.currentHp, 0) / Math.max(1, battleNumber(enemyUnit.maxHp, 1))) * 100);
+  const latestLog = latestBattleLogEntry();
+  const odReady = hasReadyOverdriveUnit();
+  window.App.root.innerHTML = `
+    <section class="battle-view panel battle-view-full">
+      <div class="cockpit-background-layer"></div>
+      <button class="battle-enemy-target" data-action="open-battle-enemy-detail" type="button" aria-label="${enemyUnit.name || "Enemy"} 詳細">
+        <div class="enemy-shape"></div>
+        ${enemyUnit.imagePath ? `<img class="enemy-image" src="${enemyUnit.imagePath}" alt="${enemyUnit.name || "Enemy"}" onerror="this.style.display='none'">` : ""}
+        <div class="enemy-card panel panel-pad">
+          <div class="section-head"><h2>${enemyUnit.name || "Enemy"}</h2><span>Lv. ${enemyUnit.level || 1}</span></div>
+          <div>HP ${formatNumber(enemyUnit.currentHp || 0)} / ${formatNumber(enemyUnit.maxHp || 0)}</div>
+          <div class="bar" style="--value:${enemyHpPercent}%"><span></span></div>
+        </div>
+      </button>
+      <img class="cockpit-frame-layer" src="ui/cockpit_frame.png" alt="" aria-hidden="true">
+    </section>
+    <section class="battle-latest-log panel panel-pad">
+      <div class="section-head"><h2>TURN ${String(battle.turn || 1).padStart(2, "0")}</h2><button class="button mini-map-close" data-action="open-battle-log" type="button">ログ</button></div>
+      <div class="latest-log-line ${latestLog.tone ? `log-${latestLog.tone}` : ""}">${latestLog.message || ""}</div>
+    </section>
+    <section class="battle-party-strip" aria-label="味方パーティ">
+      ${allyUnits.map(renderBattleAllyCard).join("")}
+    </section>
+    <div class="command-grid battle-command-grid">
+      <button class="button" data-action="battle-defend" type="button"><span class="cmd-icon">□</span>防御</button>
+      <button class="button" data-action="battle-skill" type="button"><span class="cmd-icon">✶</span>スキル<br><span class="muted">PP消費</span></button>
+      <button class="button" data-action="battle-attack" type="button"><span class="cmd-icon">◎</span>攻撃</button>
+      <button class="button battle-command-wide" data-action="battle-overdrive" type="button" ${odReady ? "" : "disabled"}><span class="cmd-icon">◇</span>オーバードライブ<br><span class="muted">100%</span></button>
+      <button class="button danger battle-command-wide" data-action="battle-run" type="button"><span class="cmd-icon">↪</span>逃げる<br><span class="muted">🔥-10</span></button>
+    </div>
+    ${renderBattleDetailOverlay()}
+  `;
+};
+
+window.openBattleEnemyDetail = function openBattleEnemyDetail() {
+  window.GameState.battleDetailModal = { type: "enemy" };
+  window.renderCurrentScene();
+};
+
+window.openBattleAllyDetail = function openBattleAllyDetail(unitId) {
+  window.GameState.battleDetailModal = { type: "ally", unitId };
+  window.renderCurrentScene();
+};
+
+window.openBattleLogModal = function openBattleLogModal() {
+  window.GameState.battleDetailModal = { type: "log" };
+  window.renderCurrentScene();
+};
+
+window.closeBattleDetail = function closeBattleDetail() {
+  window.GameState.battleDetailModal = null;
+  window.renderCurrentScene();
+};
+
 window.battleCommand = function battleCommand(type) {
   const state = window.GameState;
   if (!state.battle) return;
@@ -922,7 +1107,200 @@ function enemyTurn() {
   if (!getAliveBattleUnits("ally").length) forceReturn("味方が全滅した。", true);
 }
 
+function stopAutoBattleTimer() {
+  const battle = window.GameState?.battle;
+  if (battle?.autoTimerId) {
+    clearInterval(battle.autoTimerId);
+    battle.autoTimerId = null;
+  }
+}
+
+window.stopAutoBattleTimer = stopAutoBattleTimer;
+
+function finishBattleAction() {
+  window.syncBattleUnitsToMechs();
+  if (typeof window.savePlayerData === "function") window.savePlayerData();
+  if (typeof window.renderCurrentScene === "function") window.renderCurrentScene();
+}
+
+function checkBattleEnd() {
+  if (!getAliveBattleUnits("enemy").length) {
+    stopAutoBattleTimer();
+    winBattle();
+    return true;
+  }
+  if (!getAliveBattleUnits("ally").length) {
+    stopAutoBattleTimer();
+    window.syncBattleUnitsToMechs();
+    forceReturn("味方が全滅した。", true);
+    return true;
+  }
+  return false;
+}
+
+function runAutoBattleTick() {
+  const state = window.GameState;
+  const battle = state.battle;
+  if (!battle || battle.autoBusy) return false;
+  const enemyUnit = getPrimaryEnemyUnit();
+  if (!enemyUnit) {
+    stopAutoBattleTimer();
+    winBattle();
+    return true;
+  }
+  battle.autoBusy = true;
+  try {
+    const tacticId = battle.tacticId || state.quest?.battleTacticId || "standard";
+    const maxRounds = enemyUnit.type === "boss" ? 12 : 8;
+    battle.turn = Math.max(1, battleNumber(battle.turn, 1));
+    refreshTurnQueue();
+
+    if (battle.turn > maxRounds) {
+      const damage = Math.max(1, Math.floor(enemyUnit.maxHp * 0.08));
+      applyBattleDamage(enemyUnit, damage);
+      logMessage("battle", `長期戦判定 -> ${enemyUnit.name} ${damage}ダメージ`, "warn");
+      battle.message = "自動戦闘継続中";
+      battle.turn += 1;
+      return checkBattleEnd();
+    }
+
+    const units = battle.turnQueue.map((unitId) => getBattleUnits().find((unit) => unit.id === unitId)).filter(Boolean);
+    for (const unit of units) {
+      if (unit.isDefeated || unit.currentHp <= 0) continue;
+      if (unit.side === "ally") {
+        const line = chooseProgramLine(unit, tacticId);
+        executeBattleProgramAction(unit, line, tacticId);
+      } else {
+        autoEnemyAct(unit);
+      }
+      if (checkBattleEnd()) return true;
+    }
+    clearDefending("ally");
+    battle.guarded = false;
+    battle.turn += 1;
+    battle.message = "自動戦闘継続中";
+    battle.enemy = mirrorEnemyForLegacyUi(getPrimaryEnemyUnit());
+    refreshTurnQueue();
+    return true;
+  } finally {
+    if (state.battle) state.battle.autoBusy = false;
+  }
+}
+
+window.runAutoBattle = function runAutoBattle() {
+  const battle = window.GameState?.battle;
+  if (!battle) return false;
+  if (battle.autoTimerId) return true;
+  battle.autoTimerId = setInterval(() => {
+    if (!window.GameState?.battle || window.GameState.currentScene !== "battle") {
+      stopAutoBattleTimer();
+      return;
+    }
+    runAutoBattleTick();
+    if (window.GameState?.battle) finishBattleAction();
+  }, 1300);
+  return true;
+};
+
+function spendBattleRunFuel(cost = 10) {
+  const state = window.GameState;
+  const quest = state.quest || {};
+  const currentFuel = battleNumber(quest.fuel ?? state.fuel, 0);
+  if (currentFuel < cost) return false;
+  const nextFuel = Math.max(0, +(currentFuel - cost).toFixed(1));
+  if (state.quest) state.quest.fuel = nextFuel;
+  state.fuel = nextFuel;
+  if (state.exploration) state.exploration.fuel = nextFuel;
+  logMessage("battle", `🔥-${cost}`, "warn");
+  return true;
+}
+
+window.battleCommand = function battleCommand(type) {
+  const state = window.GameState;
+  if (!state.battle || state.battle.autoBusy) return;
+  const enemyUnit = getPrimaryEnemyUnit();
+  if (!enemyUnit) {
+    winBattle();
+    return;
+  }
+
+  if (type === "run") {
+    if (!spendBattleRunFuel(10)) {
+      logMessage("battle", "逃走に必要な燃料が足りない。", "danger");
+      finishBattleAction();
+      return;
+    }
+    window.syncBattleUnitsToMechs();
+    if (Math.random() < 0.7) {
+      stopAutoBattleTimer();
+      logMessage("quest", "戦闘から離脱した。", "warn");
+      state.battle = null;
+      state.currentScene = "quest";
+      finishBattleAction();
+      return;
+    }
+    logMessage("battle", "逃走に失敗した。", "danger");
+    enemyTurn();
+    finishBattleAction();
+    return;
+  }
+
+  if (type === "defend") {
+    getAliveBattleUnits("ally").forEach((unit) => {
+      unit.isDefending = true;
+      gainUnitOverdrive(unit, 5);
+      syncBattleUnitToMech(unit);
+    });
+    state.battle.guarded = true;
+    logMessage("battle", "全機、防御態勢を取った。", "good");
+    enemyTurn();
+    finishBattleAction();
+    return;
+  }
+
+  if (type === "overdrive" && !hasReadyOverdriveUnit()) {
+    logMessage("battle", "ODゲージが足りない。", "warn");
+    finishBattleAction();
+    return;
+  }
+
+  const multiplier = type === "overdrive" ? 1.9 : type === "skill" ? 1.35 : 1;
+  const label = type === "overdrive" ? "オーバードライブ" : type === "skill" ? "スキル" : "攻撃";
+  const queue = refreshTurnQueue();
+  queue
+    .map((unitId) => getBattleUnits().find((unit) => unit.id === unitId))
+    .filter((unit) => unit?.side === "ally" && !unit.isDefeated && unit.currentHp > 0)
+    .forEach((unit) => {
+      const currentEnemy = getPrimaryEnemyUnit();
+      if (!currentEnemy || currentEnemy.isDefeated) return;
+      const weapon = unit.weapon || { weaponType: "melee", power: 0, ppCost: 0 };
+      const ppCost = type === "skill" ? Math.max(4, battleNumber(weapon.ppCost, 0) + 4) : type === "attack" ? battleNumber(weapon.ppCost, 0) : 0;
+      if (type === "overdrive") {
+        const canUse = typeof window.canUseOverdrive === "function" ? window.canUseOverdrive(unit) : battleNumber(unit.overdrive, 0) >= 100;
+        if (!canUse) return;
+        unit.overdrive = 0;
+      }
+      if (!spendUnitPp(unit, ppCost)) {
+        logMessage("battle", `${unit.name}はPPが足りない。`, "warn");
+        return;
+      }
+      const damage = typeof window.calculateDamage === "function"
+        ? window.calculateDamage(unit.stats, currentEnemy.stats, weapon, { multiplier, critical: Math.random() < 0.05, defenderElement: currentEnemy.stats?.element, defenderEnemyId: currentEnemy.enemyId })
+        : Math.max(1, Math.floor(Math.max(unit.stats.sAtk, unit.stats.mAtk, unit.stats.lAtk) * multiplier));
+      applyBattleDamage(currentEnemy, damage);
+      gainUnitOverdrive(unit, type === "skill" ? 18 : type === "attack" ? 12 : 8);
+      syncBattleUnitToMech(unit);
+      state.battle.enemy = mirrorEnemyForLegacyUi(currentEnemy);
+      logMessage("battle", `${unit.name}の${label}。${currentEnemy.name}に${damage}ダメージ。`, damage > 520 ? "warn" : "");
+    });
+
+  if (checkBattleEnd()) return;
+  enemyTurn();
+  finishBattleAction();
+};
+
 function winBattle() {
+  stopAutoBattleTimer();
   const state = window.GameState;
   const enemyUnit = getPrimaryEnemyUnit() || getBattleUnits().find((unit) => unit.side === "enemy");
   if (!enemyUnit) return;

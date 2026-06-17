@@ -5,6 +5,8 @@ const PILOT_RANKS = ["D", "C", "B", "A", "S"];
 const MACHINE_RANKS = ["N", "R", "SR", "SSR", "UR"];
 const PILOT_LEVEL_CAPS = { D: 10, C: 20, B: 30, A: 40, S: 50 };
 const MACHINE_LEVEL_CAPS = { N: 10, R: 20, SR: 30, SSR: 40, UR: 50 };
+window.MACHINE_ENHANCE_EXP_BY_RARITY = { N: 10, R: 50, SR: 200, SSR: 1000, UR: 5000 };
+window.MACHINE_LEVEL_EXP_TABLE = { 1: 100, 2: 150, 3: 220, 4: 320, 5: 460 };
 const LEGACY_PILOT_RANK_ALIASES = { E: "D", D: "D", C: "C", B: "B", A: "A", S: "S", SS: "S", SSS: "S" };
 const LEGACY_MACHINE_RANK_ALIASES = { E: "N", D: "N", C: "R", B: "SR", A: "SSR", S: "UR", N: "N", R: "R", SR: "SR", SSR: "SSR", UR: "UR" };
 const TAG_LABELS = {
@@ -193,6 +195,11 @@ window.getClassStatusProfile = function getClassStatusProfile(classId) {
 window.calculateNextExp = function calculateNextExp(level) {
   const safeLevel = Math.max(1, statusNumber(level, 1));
   return Math.floor(80 + safeLevel * safeLevel * 22 + safeLevel * 18);
+};
+
+window.calculateMachineNextExp = function calculateMachineNextExp(level) {
+  const safeLevel = Math.max(1, statusNumber(level, 1));
+  return Math.max(1, Math.floor(window.MACHINE_LEVEL_EXP_TABLE[safeLevel] || Math.round(100 * Math.pow(1.45, safeLevel - 1))));
 };
 
 window.getGrowthTypeLabel = function getGrowthTypeLabel(growthType) {
@@ -399,6 +406,8 @@ window.normalizeMachineStatus = function normalizeMachineStatus(machine) {
   machine.rank = window.normalizeMachineRank(machine.rank || machine.rarity);
   machine.rarity = machine.rank;
   machine.level = Math.min(window.getMachineLevelCap(machine.rank), Math.max(1, Math.floor(statusNumber(machine.level, 1))));
+  machine.exp = Math.max(0, Math.floor(statusNumber(machine.exp, 0)));
+  machine.nextExp = window.calculateMachineNextExp(machine.level);
   machine.tags = window.normalizeMachineTags(machine.tags);
   const sourceStats = machine.stats && typeof machine.stats === "object" ? machine.stats : {};
   const fallback = {

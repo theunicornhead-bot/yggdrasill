@@ -20,6 +20,16 @@ document.addEventListener("click", (event) => {
     window.savePlayerData();
     return;
   }
+  if (event.target.classList?.contains("quest-log-modal-backdrop")) {
+    window.closeQuestLogModal();
+    window.savePlayerData();
+    return;
+  }
+  if (event.target.classList?.contains("battle-tactic-modal-backdrop")) {
+    window.closeBattleTacticModal();
+    window.savePlayerData();
+    return;
+  }
   if (event.target.classList?.contains("explore-items-modal-backdrop")) {
     window.closeExploreItemMenu();
     window.savePlayerData();
@@ -32,6 +42,11 @@ document.addEventListener("click", (event) => {
   }
   if (event.target.classList?.contains("equipment-modal-backdrop")) {
     window.closeEquipmentSelector();
+    window.savePlayerData();
+    return;
+  }
+  if (event.target.classList?.contains("battle-modal-backdrop")) {
+    window.closeBattleDetail();
     window.savePlayerData();
     return;
   }
@@ -139,6 +154,10 @@ document.addEventListener("click", (event) => {
   if (action === "quest-right") window.questAction("右へ旋回した。", 0.5);
   if (action === "quest-search") window.questAction("周囲を調べた。", 1);
   if (action === "set-battle-tactic") window.setBattleTactic(target.dataset.tactic);
+  if (action === "open-battle-tactic-modal") window.openBattleTacticModal();
+  if (action === "close-battle-tactic-modal") window.closeBattleTacticModal();
+  if (action === "open-quest-log") window.openQuestLogModal();
+  if (action === "close-quest-log") window.closeQuestLogModal();
   if (action === "quest-next-floor") window.goToNextFloor();
   if (action === "open-mini-map") window.openMiniMapModal();
   if (action === "close-mini-map") window.closeMiniMapModal();
@@ -155,10 +174,18 @@ document.addEventListener("click", (event) => {
   if (action === "battle-defend") window.battleCommand("defend");
   if (action === "battle-overdrive") window.battleCommand("overdrive");
   if (action === "battle-run") window.battleCommand("run");
+  if (action === "open-battle-enemy-detail") window.openBattleEnemyDetail();
+  if (action === "open-battle-ally-detail") window.openBattleAllyDetail(target.dataset.unit);
+  if (action === "open-battle-log") window.openBattleLogModal();
+  if (action === "close-battle-detail") window.closeBattleDetail();
   if (action === "select-synth-material") window.selectSynthMaterial(target.dataset.material);
   if (action === "select-mech-core") window.selectMechCore(target.dataset.core);
   if (action === "change-synthesis-tab") window.setSynthesisTab(target.dataset.tab);
-  if (action === "enhance-machine") window.enhanceMachineById(target.dataset.mech);
+  if (action === "select-enhance-machine") window.selectEnhanceMachine(target.dataset.mech);
+  if (action === "adjust-enhance-material") window.adjustEnhanceMaterial(target.dataset.material, target.dataset.delta);
+  if (action === "clear-enhance-materials") window.clearEnhanceMaterials();
+  if (action === "execute-enhance-machine") window.enhanceMachineById(window.GameState.selectedEnhanceMachineId);
+  if (action === "grant-debug-materials") window.grantDebugMaterials();
   if (action === "rank-up-machine") window.rankUpMachineById(target.dataset.mech);
   if (action === "generate-weapon") window.generateWeapon(target.dataset.weapon);
   if (action === "synthesis-next-step") window.goSynthesisNextStep();
