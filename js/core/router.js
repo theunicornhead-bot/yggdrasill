@@ -88,6 +88,19 @@ window.getMaterial = function getMaterial(id) {
       : null);
 };
 
+function displayMaterial(id) {
+  return getMaterial(id) || {
+    id,
+    name: `Unknown Material (${id})`,
+    rank: "-",
+    rarity: "-",
+    category: "unresolved",
+    materialRole: "unresolved",
+    prompts: [],
+    value: 0
+  };
+}
+
 window.getPilot = function getPilot(id) {
   return window.GameState.pilots.find((pilot) => pilot.id === id);
 };
@@ -124,6 +137,8 @@ window.renderHeader = function renderHeader(titleJa, titleEn, extra = "") {
 
 function renderBaseInventoryModal() {
   const entries = Object.entries(window.baseMaterialCounts()).filter(([, count]) => Number(count) > 0);
+  const total = entries.reduce((sum, [, count]) => sum + Number(count || 0), 0);
+  const unresolvedCount = entries.reduce((sum, [id, count]) => sum + (getMaterial(id) ? 0 : Number(count || 0)), 0);
   return `
     <div class="modal-backdrop base-inventory-modal-backdrop">
       <section class="quest-materials-modal panel panel-pad" role="dialog" aria-modal="true" aria-label="所持素材">
@@ -131,9 +146,9 @@ function renderBaseInventoryModal() {
           <h2>所持素材</h2>
           <button class="button mini-map-close" data-action="close-base-inventory" type="button">閉じる</button>
         </div>
+        <div class="muted" style="margin-bottom:8px">合計 ${formatNumber(total)} / 種類 ${entries.length}${unresolvedCount ? ` / 未解決 ${formatNumber(unresolvedCount)}` : ""}</div>
         <div class="quest-material-list">${entries.length ? entries.map(([id, count]) => {
-          const material = getMaterial(id);
-          if (!material) return "";
+          const material = displayMaterial(id);
           return `<div class="material-row"><div class="material-icon"></div><span style="flex:1">${material.name}<br><span class="muted">RANK ${material.rank || material.rarity || "-"} / ${material.category || material.materialRole || "-"}</span></span><strong>x${count}</strong></div>`;
         }).join("") : `<div class="muted">所持素材はありません。</div>`}</div>
       </section>
@@ -186,8 +201,7 @@ window.materialRows = function materialRows() {
   const entries = Object.entries(baseMaterialCounts()).filter(([, count]) => count > 0);
   if (!entries.length) return `<div class="muted">素材はありません。</div>`;
   return entries.map(([id, count]) => {
-    const material = getMaterial(id);
-    if (!material) return "";
+    const material = displayMaterial(id);
     return `
       <div class="material-row">
         <div class="material-icon"></div>
