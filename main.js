@@ -1,5 +1,34 @@
 "use strict";
 
+const isEditableTouchTarget = (target) => {
+  return Boolean(target?.closest?.("input, textarea, select, [contenteditable='true']"));
+};
+
+let lastTouchEndAt = 0;
+
+document.addEventListener(
+  "touchend",
+  (event) => {
+    if (isEditableTouchTarget(event.target)) return;
+
+    const now = Date.now();
+    if (now - lastTouchEndAt <= 300) {
+      event.preventDefault();
+    }
+    lastTouchEndAt = now;
+  },
+  { passive: false }
+);
+
+document.addEventListener(
+  "gesturestart",
+  (event) => {
+    if (isEditableTouchTarget(event.target)) return;
+    event.preventDefault();
+  },
+  { passive: false }
+);
+
 document.addEventListener("DOMContentLoaded", async () => {
   window.App.root = document.getElementById("app");
   window.loadPlayerData();

@@ -26,6 +26,9 @@ html {
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
+  touch-action: manipulation;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -38,12 +41,23 @@ body {
   background:
     radial-gradient(circle at 50% 0%, rgba(19, 92, 100, 0.28), transparent 42%),
     linear-gradient(135deg, #010404, #071014 46%, #010404);
+  touch-action: manipulation;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
 }
 
 button {
   font: inherit;
   min-width: 0;
   max-width: 100%;
+}
+
+button,
+a,
+[role="button"],
+.game-button,
+.menu-button {
+  touch-action: manipulation;
 }
 
 .phone-shell {

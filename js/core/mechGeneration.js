@@ -20,7 +20,7 @@ window.MechMaterialCatalog = [
     stats: { hp: 80, armor: 12, attack: 0, accuracy: 0, evasion: -2, speed: -1, fuelCost: 1, cargo: 3, scan: 0 },
     outputCost: 10,
     tags: ["organic", "rough"],
-    prompts: ["cracked shell armor", "rough organic plating"]
+    prompts: ["cracked metal shell armor", "rough secondary bio-composite panels"]
   },
   {
     id: "thin_membrane",
@@ -40,7 +40,7 @@ window.MechMaterialCatalog = [
     stats: { hp: 0, armor: 0, attack: 8, accuracy: 5, evasion: 4, speed: 6, fuelCost: 0, cargo: 0, scan: 3 },
     outputCost: 9,
     tags: ["bio", "cable"],
-    prompts: ["exposed bio cables", "nerve-like control fibers"]
+    prompts: ["armored bio-cables under plating", "neural control fibers integrated into mechanical frame"]
   },
   {
     id: "brittle_bone",
@@ -50,7 +50,7 @@ window.MechMaterialCatalog = [
     stats: { hp: 40, armor: 8, attack: 6, accuracy: 0, evasion: -1, speed: 0, fuelCost: 0, cargo: 2, scan: 0 },
     outputCost: 7,
     tags: ["bone", "pale"],
-    prompts: ["pale bone frame", "ribbed skeletal armor"]
+    prompts: ["pale ceramic mechanical frame", "ribbed metal inner armor"]
   },
   {
     id: "aged_scale",
@@ -167,89 +167,108 @@ const ACCENT_COLOR_PROMPTS = {
   gold: ["gold glowing accents", "gold energy veins"],
   silver: ["silver metallic accents", "silver bio-metal veins"],
   white: ["white glowing accents", "white energy veins"],
-  black: ["black secondary plating", "dark organic accents"],
+  black: ["black secondary plating", "dark mechanical accents"],
   orange: ["orange glowing accents", "orange energy veins"],
   cyan: ["cyan glowing accents", "cyan energy veins"]
 };
 const VISUAL_TAG_PROMPTS = {
-  greatsword: ["massive organic greatsword", "living bone blade", "two-handed weapon"],
-  sword: ["organic sword", "blade held in hand", "sharp living blade"],
-  lance: ["organic lance", "long piercing weapon", "weapon held in hand"],
-  hammer: ["massive organic hammer", "heavy striking weapon", "bone hammer head"],
-  claw: ["oversized organic claws", "clawed combat arms", "predatory talons"],
-  whip: ["living tendril whip", "flexible organic weapon", "whip held in hand"],
-  rifle: ["organic rifle", "living ranged weapon", "rifle held in hand"],
-  cannon: ["living cannon", "large cannon silhouette", "organic artillery weapon"],
-  railgun: ["organic railgun", "living cannon", "large ranged weapon"],
-  bone: ["exposed bone structure", "skeletal armor"],
-  shell: ["thick shell armor", "chitin plating"],
-  scale: ["overlapping scale armor", "scaled exterior"],
-  muscle: ["visible muscle fibers", "organic tendon bundles"],
-  armor: ["reinforced armor plates", "heavy organic plating"],
-  wing: ["large organic wings", "expanded wing silhouette"],
-  halo: ["organic halo structure", "floating halo ring"],
-  horn: ["large horns", "horned head silhouette"],
-  tail: ["long organic tail", "tail stabilizer"],
-  tentacle: ["writhing organic tentacles", "tentacle appendages"],
-  multiple_arms: ["multiple organic arms", "extra combat limbs"],
-  fire: ["flame organ glow", "burning reactor veins"],
-  ice: ["cold crystal growths", "icy translucent plating"],
+  greatsword: ["massive mechanical greatsword with bio-reactor edge", "metal two-handed blade", "reinforced weapon mount"],
+  sword: ["metal combat sword with energy conduit", "blade held in mechanical hand", "hard surface melee weapon"],
+  lance: ["mechanical lance with bio-energy injector", "long armored piercing weapon", "weapon held in mechanical hand"],
+  hammer: ["massive industrial hammer", "heavy mechanical striking weapon", "reinforced metal hammer head"],
+  claw: ["oversized mechanical claw manipulators", "armored combat claws", "hydraulic claw actuators"],
+  whip: ["segmented metal cable whip", "flexible mechanical weapon with bio-energy conduit", "whip held in mechanical hand"],
+  rifle: ["metal rifle with organic energy conduit", "mechanical ranged weapon", "rifle held in mechanical hand"],
+  cannon: ["large mechanical cannon with bio-reactor feed", "armored artillery weapon", "heavy cannon silhouette"],
+  railgun: ["industrial railgun with glowing energy rails", "metal long range weapon", "large ranged weapon"],
+  bone: ["pale ceramic armor ribs", "bone-like secondary armor panels"],
+  shell: ["thick metal shell armor", "subtle chitin texture only on secondary panels"],
+  scale: ["overlapping metal scale armor", "layered mechanical exterior panels"],
+  muscle: ["covered artificial muscle actuators", "synthetic fiber bundles under armor panels"],
+  armor: ["reinforced metal armor plates", "heavy armored mechanical plating"],
+  wing: ["armored mechanical wings with subtle membrane panels", "back-mounted wing binders", "expanded mechanical silhouette"],
+  halo: ["floating mechanical sensor ring", "circular antenna frame"],
+  horn: ["horn-like sensor antenna", "large armored head sensors"],
+  tail: ["mechanical tail stabilizer", "rear balance boom"],
+  tentacle: ["segmented mechanical cable arms", "maintenance manipulator appendages"],
+  multiple_arms: ["multiple mechanical arms", "extra armored manipulator limbs"],
+  fire: ["orange reactor glow", "heat-resistant armor vents"],
+  ice: ["cold blue coolant lines", "frosted metal armor panels"],
   lightning: ["electric arcs", "lightning conduits"],
-  holy: ["holy white glow", "sacred bio-mechanical silhouette"],
-  dark: ["dark aura", "shadowy organic plating"],
-  nature: ["plant-like organic growth", "living bark armor"],
-  poison: ["poison sac details", "toxic purple veins"],
-  aquatic: ["aquatic organic shell", "deep sea biological details"],
-  angel: ["angelic wing silhouette", "white sacred armor"],
-  demon: ["demonic horned silhouette", "dark warped armor"],
-  dragon: ["draconic armor silhouette", "dragon bone structures"],
-  insect: ["insectoid chitin structure", "compound sensor eyes"],
-  plant: ["plant bio-organic details", "root-like cables"],
-  beast: ["beast-like predatory posture", "animalistic armor form"],
-  king: ["regal crown-like horns", "royal armor silhouette"]
+  holy: ["white luminous reactor glow", "clean ceremonial armor silhouette"],
+  dark: ["matte black armor", "dark metal plating"],
+  nature: ["green bio-reactor lines under armor", "organic veins contained inside mechanical frame"],
+  poison: ["sealed toxic energy canisters", "purple reactor conduits"],
+  aquatic: ["deep sea pressure armor", "blue coolant conduits"],
+  angel: ["white armored wing binders", "high mobility mechanical silhouette"],
+  demon: ["aggressive horn-like sensor antenna", "dark angular armor"],
+  dragon: ["draconic mechanical armor silhouette", "metal dragon-like shoulder armor"],
+  insect: ["compound optical sensors", "segmented metal armor"],
+  plant: ["root-like bio-cables integrated into mechanical frame", "green reactor conduits"],
+  beast: ["forward leaning armored combat posture", "mechanical predator-like silhouette"],
+  king: ["regal crown-like sensor array", "royal armor silhouette"]
 };
 
 const RARITY_SCORE = { N: 1, R: 2, SR: 3, SSR: 4, UR: 5 };
 const SCORE_RARITY = { 1: "N", 2: "R", 3: "SR", 4: "SSR", 5: "UR" };
 const MACHINE_COMMON_PROMPT = [
-  "full body humanoid bio-organic mecha",
-  "living machine",
-  "grown from monster materials",
-  "bone frame",
-  "chitin armor",
-  "muscle fiber structures",
-  "nerve bundle cables",
-  "bio-reactor core",
-  "organic mechanical design",
-  "dark fantasy sci-fi",
-  "plain industrial hangar",
-  "plain dark hangar background",
-  "dim industrial hangar",
-  "simple maintenance bay",
-  "dark sci-fi garage",
-  "subtle floor lights",
+  "full body giant humanoid mecha",
+  "armored mechanical robot",
+  "hard surface mechanical design",
+  "industrial military mecha",
+  "real robot design",
+  "metal armor plating",
+  "visible mechanical joints",
+  "hydraulic cylinders",
+  "piston actuators",
+  "mechanical inner frame",
+  "armored shoulders",
+  "mechanical legs",
+  "cockpit block",
+  "weapon hardpoints",
+  "maintenance markings",
+  "subtle biomechanical reactor details",
+  "controlled organic veins inside mechanical armor",
+  "bio-reactor core embedded in metal chassis",
+  "bio-cables integrated into mechanical frame",
+  "organic veins under armor panels",
+  "large illuminated mecha hangar",
+  "maintenance bay with gantry cranes",
+  "mechanical docking platform",
+  "overhead industrial lights",
+  "repair arms and scaffold frames",
+  "hangar floor markings",
+  "weapon racks in background",
+  "bright enough to see the machine silhouette",
   "full body",
   "center composition",
   "front angle",
   "high detail",
   "1024x1024 game asset",
+  "70 percent giant robot and 30 percent restrained biomechanical detail",
+  "not plain black background",
+  "no plain black background",
+  "no empty dark room",
+  "no creature body",
+  "no monster anatomy",
+  "no exposed flesh",
+  "no gore",
   "no pilot",
   "no human",
   "no text",
   "no logo",
   "no UI",
-  "no cockpit",
   "no green screen",
   "no chroma key background",
   "no city background",
   "no battlefield background"
 ];
 const RARITY_PROMPTS = {
-  N: ["low rank machine", "crude organic frame", "thin armor", "unfinished bio-mechanical structure", "dim bio-reactor", "fragile silhouette", "patched shell", "weak appearance"],
-  R: ["stable organic frame", "reinforced armor", "improved reactor", "visible biological adaptation", "balanced combat silhouette"],
-  SR: ["advanced bio-mechanical frame", "specialized combat design", "large organic structures", "enhanced reactor output", "strong biological integration"],
-  SSR: ["elite living machine", "massive organic adaptation", "multiple biological organs", "high-output reactor", "organic and machine perfectly fused"],
-  UR: ["mythic living machine", "overgrown organic evolution", "multiple reactor organs", "massive biological structures", "machine and organism indistinguishable", "apex bio-mechanical weapon"]
+  N: ["low rank machine", "crude mechanical frame", "thin metal armor", "unfinished industrial structure", "dim bio-reactor core", "fragile robot silhouette", "patched armor plates", "weak appearance"],
+  R: ["stable mechanical frame", "reinforced metal armor", "improved reactor", "subtle biological conduits", "balanced combat robot silhouette"],
+  SR: ["advanced mechanical frame", "specialized combat design", "larger weapon hardpoints", "enhanced reactor output", "controlled biological integration"],
+  SSR: ["elite armored mecha", "massive mechanical upgrade", "layered metal armor systems", "high-output bio-reactor", "organic detail contained inside machine chassis"],
+  UR: ["mythic giant robot", "apex industrial mecha design", "multiple reactor cores sealed in metal chassis", "massive mechanical silhouette", "machine identity clearly dominant", "apex bio-reactor powered weapon"]
 };
 const SIZE_TABLE = [
   { size: "XS", minCost: 0, outputMultiplier: 0.65, stats: { hp: 380, armor: 38, attack: 58, accuracy: 74, evasion: 86, speed: 88, fuelCost: 58, cargo: 22, scan: 70 } },
@@ -667,13 +686,13 @@ function roleBasedMaterialPromptParts(materials) {
     return groups;
   }, {});
   if ((grouped.weapon || []).length) {
-    parts.push("clearly visible weapon", "weapon held in hand", "large weapon silhouette");
+    parts.push("clearly visible mechanical weapon", "weapon held in mechanical hand", "large armored weapon silhouette");
   }
   if ((grouped.wing || []).length) {
-    parts.push("large organic wings", "expanded exterior silhouette", "visible back-mounted organic structures");
+    parts.push("armored mechanical wings", "expanded mechanical exterior silhouette", "visible back-mounted mechanical structures");
   }
   if ((grouped.reactor || []).length) {
-    parts.push("glowing reactor organs", "colored energy veins", "visible bio-reactor core");
+    parts.push("glowing bio-reactor core embedded in metal chassis", "colored energy conduits under armor panels", "visible armored reactor housing");
   }
   normalizedMaterials.forEach((material) => {
     parts.push(...(ACCENT_COLOR_PROMPTS[material.accentColor] || []));
@@ -704,8 +723,8 @@ window.buildMechVisualPrompt = function buildMechVisualPrompt(core, materials, s
     ...roleBasedMaterialPromptParts(normalizedMaterials),
     ...normalizedMaterials.flatMap((material) => material.prompts)
   ];
-  if (stateName === "overloaded") promptParts.push("strong biological invasion", "strained power conduits");
-  if (stateName === "stable") promptParts.push("balanced reactor glow", "well integrated armor");
+  if (stateName === "overloaded") promptParts.push("overloaded bio-reactor glow", "strained mechanical power conduits");
+  if (stateName === "stable") promptParts.push("balanced reactor glow", "well integrated metal armor");
   return [...new Set(promptParts)].join(", ");
 };
 
