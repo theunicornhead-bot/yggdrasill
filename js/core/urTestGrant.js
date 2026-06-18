@@ -50,4 +50,13 @@ window.renderDebugMaterialGrant = function renderDebugMaterialGrant() {
   `;
 };
 
+const baseLoadMastersForDebugMaterials = window.loadMasters;
+if (typeof baseLoadMastersForDebugMaterials === "function") {
+  window.loadMasters = async function loadMastersWithDebugMaterials(...args) {
+    const result = await baseLoadMastersForDebugMaterials.apply(this, args);
+    ensureDebugMaterialCatalog();
+    return result;
+  };
+}
+
 ensureDebugMaterialCatalog();
