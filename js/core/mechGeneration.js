@@ -424,7 +424,6 @@ window.getMechGenerationMaterial = function getMechGenerationMaterial(materialId
 
 window.getOwnedCoreIds = function getOwnedCoreIds() {
   const state = window.GameState;
-  if (Array.isArray(state.ownedCoreIds) && state.ownedCoreIds.length) return state.ownedCoreIds;
   const materialCounts = typeof window.baseMaterialCounts === "function" ? window.baseMaterialCounts() : { ...(state.materials || {}) };
   const materialCoreIds = Object.entries(materialCounts)
     .filter(([, count]) => Number(count || 0) > 0)
@@ -438,7 +437,7 @@ window.getOwnedCoreIds = function getOwnedCoreIds() {
     })
     .filter((material) => material && (material.materialRole === "boss_core" || material.materialRole === "core"))
     .map((material) => material.id);
-  return materialCoreIds;
+  return uniqueList([...(Array.isArray(state.ownedCoreIds) ? state.ownedCoreIds : []), ...materialCoreIds]);
 };
 
 window.ensureMechGenerationState = function ensureMechGenerationState() {
