@@ -125,6 +125,13 @@ const CORE_WEAPON_TYPE_MAP = {
   jammer: "magic",
   scout: "ranged"
 };
+const INVENTORY_CORE_DEFS = {
+  core_n: { id: "core_n", name: "N Mech Core", rarity: "N", category: "general", outputLimit: 72, prompts: ["basic bio-reactor core", "low output machine core"] },
+  core_r: { id: "core_r", name: "R Mech Core", rarity: "R", category: "general", outputLimit: 96, prompts: ["stable bio-reactor core", "standard machine core"] },
+  core_sr: { id: "core_sr", name: "SR Mech Core", rarity: "SR", category: "general", outputLimit: 126, prompts: ["reinforced bio-reactor core", "high output machine core"] },
+  core_ssr: { id: "core_ssr", name: "SSR Mech Core", rarity: "SSR", category: "general", outputLimit: 160, prompts: ["elite bio-reactor core", "advanced machine core"] },
+  core_ur: { id: "core_ur", name: "UR Mech Core", rarity: "UR", category: "general", outputLimit: 208, prompts: ["mythic bio-reactor core", "apex machine core"] }
+};
 
 const SYNTHESIS_SLOT_DEFS = [
   { key: "weapon", label: "武器", accepts: ["weapon"] },
@@ -362,6 +369,9 @@ window.getMechCore = function getMechCore(coreId) {
   const catalogCore = window.MechCoreCatalog.find((core) => core.id === coreId);
   if (catalogCore) return window.normalizeMechCore(catalogCore);
 
+  const inventoryCore = INVENTORY_CORE_DEFS[coreId];
+  if (inventoryCore) return window.normalizeMechCore({ ...inventoryCore });
+
   const material = typeof window.getMaterial === "function" ? window.getMaterial(coreId) : null;
   const materialCore = material && (material.materialRole === "boss_core" || material.materialRole === "core")
     ? buildCoreFromMaterial(material)
@@ -437,7 +447,10 @@ window.getOwnedCoreIds = function getOwnedCoreIds() {
     })
     .filter((material) => material && (material.materialRole === "boss_core" || material.materialRole === "core"))
     .map((material) => material.id);
-  return uniqueList([...(Array.isArray(state.ownedCoreIds) ? state.ownedCoreIds : []), ...materialCoreIds]);
+  const inventoryCoreIds = Object.entries(state.inventory?.cores || {})
+    .filter(([id, count]) => INVENTORY_CORE_DEFS[id] && Number(count || 0) > 0)
+    .map(([id]) => id);
+  return uniqueList([...(Array.isArray(state.ownedCoreIds) ? state.ownedCoreIds : []), ...materialCoreIds, ...inventoryCoreIds]);
 };
 
 window.ensureMechGenerationState = function ensureMechGenerationState() {
