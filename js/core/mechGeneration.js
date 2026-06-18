@@ -357,7 +357,16 @@ window.getMechCore = function getMechCore(coreId) {
       return material && (material.materialRole === "boss_core" || material.materialRole === "core") ? buildCoreFromMaterial(material) : null;
     })()
     : null;
-  return window.normalizeMechCore(generatedCore || window.MechCoreCatalog.find((core) => core.id === coreId) || null);
+  if (generatedCore) return window.normalizeMechCore(generatedCore);
+
+  const catalogCore = window.MechCoreCatalog.find((core) => core.id === coreId);
+  if (catalogCore) return window.normalizeMechCore(catalogCore);
+
+  const material = typeof window.getMaterial === "function" ? window.getMaterial(coreId) : null;
+  const materialCore = material && (material.materialRole === "boss_core" || material.materialRole === "core")
+    ? buildCoreFromMaterial(material)
+    : null;
+  return window.normalizeMechCore(materialCore);
 };
 
 function buildCoreFromMaterial(material) {
@@ -393,13 +402,24 @@ function buildCoreFromMaterial(material) {
 }
 
 window.getMechGenerationMaterial = function getMechGenerationMaterial(materialId) {
+  const excludedRoles = ["core", "boss_core", "weapon_core", "bossWeaponMaterial"];
+  const asGenerationMaterial = (material) => {
+    if (!material || excludedRoles.includes(material.materialRole)) return null;
+    return window.normalizeMechMaterial(material);
+  };
+  const catalogMaterial = window.MechMaterialCatalog.find((material) => material.id === materialId);
+  if (catalogMaterial) return asGenerationMaterial(catalogMaterial);
+
   const generated = typeof window.parseGeneratedMaterialId === "function" && typeof window.buildGeneratedMaterial === "function"
     ? (() => {
       const parsed = window.parseGeneratedMaterialId(materialId);
       return parsed ? window.buildGeneratedMaterial(parsed.materialBaseId, parsed.colorId, parsed.qualityId) : null;
     })()
     : null;
-  return window.normalizeMechMaterial(window.MechMaterialCatalog.find((material) => material.id === materialId) || generated || null);
+  if (generated) return asGenerationMaterial(generated);
+
+  const material = typeof window.getMaterial === "function" ? window.getMaterial(materialId) : null;
+  return asGenerationMaterial(material);
 };
 
 window.getOwnedCoreIds = function getOwnedCoreIds() {

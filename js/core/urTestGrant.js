@@ -28,7 +28,7 @@ function ensureDebugMaterialCatalog() {
 
 window.grantDebugMaterials = function grantDebugMaterials() {
   ensureDebugMaterialCatalog();
-  const amount = 99;
+  const amount = 999;
   ["debug_mat_n", "debug_mat_r", "debug_mat_sr", "debug_mat_ssr", "debug_mat_ur"].forEach((id) => window.addBaseMaterial?.(id, amount));
   ["debug_mech_core_n", "debug_mech_core_r", "debug_mech_core_sr", "debug_mech_core_ssr", "debug_mech_core_ur"].forEach((id) => window.addBaseMaterial?.(id, amount));
   ["debug_weapon_core_n", "debug_weapon_core_r", "debug_weapon_core_sr", "debug_weapon_core_ssr", "debug_weapon_core_ur", "debug_boss_weapon_core_mat"].forEach((id) => window.addBaseMaterial?.(id, amount));
@@ -36,15 +36,18 @@ window.grantDebugMaterials = function grantDebugMaterials() {
   ["n", "r", "sr", "ssr", "ur"].forEach((rank) => {
     inventory.cores[`core_${rank}`] = Math.max(Number(inventory.cores[`core_${rank}`] || 0), amount);
   });
-  window.logMessage?.("synthesis", "デバッグ素材を拠点所持素材へ99個ずつ振り込みました。", "good");
+  window.logMessage?.("synthesis", "デバッグ素材を拠点所持素材へ999個ずつ振り込みました。", "good");
   window.savePlayerData?.();
   window.renderCurrentScene?.();
 };
 
 window.renderDebugMaterialGrant = function renderDebugMaterialGrant() {
+  ensureDebugMaterialCatalog();
   return `
     <section class="debug-grant-panel">
-      <button class="button debug-grant-button" data-action="grant-debug-materials" type="button">DEBUG 素材99振込</button>
+      <button class="button debug-grant-button" data-action="grant-debug-materials" type="button">DEBUG 素材999振込</button>
     </section>
   `;
 };
+
+ensureDebugMaterialCatalog();
