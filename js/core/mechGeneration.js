@@ -14,7 +14,7 @@ window.MechCoreCatalog = [
 window.MechMaterialCatalog = [
   {
     id: "broken_shell",
-    name: "Cracked Shell Plate",
+    name: "ひび割れた甲殻板",
     rarity: "N",
     category: "armor",
     stats: { hp: 80, armor: 12, attack: 0, accuracy: 0, evasion: -2, speed: -1, fuelCost: 1, cargo: 3, scan: 0 },
@@ -24,7 +24,7 @@ window.MechMaterialCatalog = [
   },
   {
     id: "thin_membrane",
-    name: "Thin Wing Membrane",
+    name: "薄い翼膜",
     rarity: "R",
     category: "mobility",
     stats: { hp: 0, armor: 0, attack: 0, accuracy: 2, evasion: 10, speed: 8, fuelCost: -2, cargo: 0, scan: 4 },
@@ -34,7 +34,7 @@ window.MechMaterialCatalog = [
   },
   {
     id: "dry_nerve",
-    name: "Dry Nerve Fiber",
+    name: "乾いた神経繊維",
     rarity: "R",
     category: "control",
     stats: { hp: 0, armor: 0, attack: 8, accuracy: 5, evasion: 4, speed: 6, fuelCost: 0, cargo: 0, scan: 3 },
@@ -44,7 +44,7 @@ window.MechMaterialCatalog = [
   },
   {
     id: "brittle_bone",
-    name: "Brittle Bone Frame",
+    name: "脆い骨格材",
     rarity: "N",
     category: "frame",
     stats: { hp: 40, armor: 8, attack: 6, accuracy: 0, evasion: -1, speed: 0, fuelCost: 0, cargo: 2, scan: 0 },
@@ -54,7 +54,7 @@ window.MechMaterialCatalog = [
   },
   {
     id: "aged_scale",
-    name: "Aged Scale Armor",
+    name: "古びた鱗装甲",
     rarity: "R",
     category: "armor",
     stats: { hp: 110, armor: 20, attack: 0, accuracy: 0, evasion: -3, speed: -2, fuelCost: 2, cargo: 5, scan: 0 },
@@ -64,7 +64,7 @@ window.MechMaterialCatalog = [
   },
   {
     id: "wilted_bloodfilm",
-    name: "Wilted Bloodfilm",
+    name: "萎れた血膜",
     rarity: "R",
     category: "reactor",
     stats: { hp: 20, armor: 0, attack: 12, accuracy: 3, evasion: 0, speed: 1, fuelCost: 4, cargo: 0, scan: 2 },
@@ -74,7 +74,7 @@ window.MechMaterialCatalog = [
   },
   {
     id: "volcano_steel",
-    name: "Volcano Steel",
+    name: "火山鋼",
     rarity: "SR",
     category: "armor",
     stats: { hp: 130, armor: 30, attack: 10, accuracy: 0, evasion: -5, speed: -4, fuelCost: 5, cargo: 8, scan: 0 },
@@ -85,15 +85,15 @@ window.MechMaterialCatalog = [
 ];
 
 const CORE_TYPE_MAP = {
-  general: "General",
-  melee: "Melee",
-  ranged: "Ranged",
-  magic: "Magic",
-  supply: "Supply",
-  defense: "Defense",
-  command: "Command",
-  jammer: "Jammer",
-  scout: "Scout"
+  general: "汎用",
+  melee: "近接",
+  ranged: "遠距離",
+  magic: "魔法",
+  supply: "補給",
+  defense: "防衛",
+  command: "指揮官",
+  jammer: "電子戦",
+  scout: "偵察"
 };
 const CORE_TAG_MAP = {
   general: "general",
@@ -126,18 +126,18 @@ const CORE_WEAPON_TYPE_MAP = {
   scout: "ranged"
 };
 const INVENTORY_CORE_DEFS = {
-  core_n: { id: "core_n", name: "N Mech Core", rarity: "N", category: "general", outputLimit: 72, prompts: ["basic bio-reactor core", "low output machine core"] },
-  core_r: { id: "core_r", name: "R Mech Core", rarity: "R", category: "general", outputLimit: 96, prompts: ["stable bio-reactor core", "standard machine core"] },
-  core_sr: { id: "core_sr", name: "SR Mech Core", rarity: "SR", category: "general", outputLimit: 126, prompts: ["reinforced bio-reactor core", "high output machine core"] },
-  core_ssr: { id: "core_ssr", name: "SSR Mech Core", rarity: "SSR", category: "general", outputLimit: 160, prompts: ["elite bio-reactor core", "advanced machine core"] },
-  core_ur: { id: "core_ur", name: "UR Mech Core", rarity: "UR", category: "general", outputLimit: 208, prompts: ["mythic bio-reactor core", "apex machine core"] }
+  core_n: { id: "core_n", name: "N機体コア", rarity: "N", category: "general", outputLimit: 72, prompts: ["basic bio-reactor core", "low output machine core"] },
+  core_r: { id: "core_r", name: "R機体コア", rarity: "R", category: "general", outputLimit: 96, prompts: ["stable bio-reactor core", "standard machine core"] },
+  core_sr: { id: "core_sr", name: "SR機体コア", rarity: "SR", category: "general", outputLimit: 126, prompts: ["reinforced bio-reactor core", "high output machine core"] },
+  core_ssr: { id: "core_ssr", name: "SSR機体コア", rarity: "SSR", category: "general", outputLimit: 160, prompts: ["elite bio-reactor core", "advanced machine core"] },
+  core_ur: { id: "core_ur", name: "UR機体コア", rarity: "UR", category: "general", outputLimit: 208, prompts: ["mythic bio-reactor core", "apex machine core"] }
 };
 const DEBUG_MATERIAL_CORE_DEFS = {
-  debug_mech_core_n: { id: "debug_mech_core_n", name: "Debug N Mech Core", rarity: "N", rank: "N", value: 120, category: "core", materialRole: "core", prompts: [] },
-  debug_mech_core_r: { id: "debug_mech_core_r", name: "Debug R Mech Core", rarity: "R", rank: "R", value: 180, category: "core", materialRole: "core", prompts: [] },
-  debug_mech_core_sr: { id: "debug_mech_core_sr", name: "Debug SR Mech Core", rarity: "SR", rank: "SR", value: 260, category: "core", materialRole: "core", prompts: [] },
-  debug_mech_core_ssr: { id: "debug_mech_core_ssr", name: "Debug SSR Mech Core", rarity: "SSR", rank: "SSR", value: 360, category: "core", materialRole: "core", prompts: [] },
-  debug_mech_core_ur: { id: "debug_mech_core_ur", name: "Debug UR Mech Core", rarity: "UR", rank: "UR", value: 520, category: "core", materialRole: "core", prompts: [] }
+  debug_mech_core_n: { id: "debug_mech_core_n", name: "デバッグN機体コア", rarity: "N", rank: "N", value: 120, category: "core", materialRole: "core", prompts: [] },
+  debug_mech_core_r: { id: "debug_mech_core_r", name: "デバッグR機体コア", rarity: "R", rank: "R", value: 180, category: "core", materialRole: "core", prompts: [] },
+  debug_mech_core_sr: { id: "debug_mech_core_sr", name: "デバッグSR機体コア", rarity: "SR", rank: "SR", value: 260, category: "core", materialRole: "core", prompts: [] },
+  debug_mech_core_ssr: { id: "debug_mech_core_ssr", name: "デバッグSSR機体コア", rarity: "SSR", rank: "SSR", value: 360, category: "core", materialRole: "core", prompts: [] },
+  debug_mech_core_ur: { id: "debug_mech_core_ur", name: "デバッグUR機体コア", rarity: "UR", rank: "UR", value: 520, category: "core", materialRole: "core", prompts: [] }
 };
 
 const SYNTHESIS_SLOT_DEFS = [

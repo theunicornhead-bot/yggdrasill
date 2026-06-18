@@ -184,6 +184,8 @@ document.addEventListener("click", (event) => {
   if (action === "select-enhance-machine") window.selectEnhanceMachine(target.dataset.mech);
   if (action === "adjust-enhance-material") window.adjustEnhanceMaterial(target.dataset.material, target.dataset.delta);
   if (action === "clear-enhance-materials") window.clearEnhanceMaterials();
+  if (action === "back-enhance-machines") window.backEnhanceMachines();
+  if (action === "recommend-enhance-materials") window.recommendEnhanceMaterials();
   if (action === "execute-enhance-machine") window.enhanceMachineById(window.GameState.selectedEnhanceMachineId);
   if (action === "grant-debug-materials") window.grantDebugMaterials();
   if (action === "rank-up-machine") window.rankUpMachineById(target.dataset.mech);

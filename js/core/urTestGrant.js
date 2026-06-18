@@ -4,22 +4,22 @@ function ensureDebugMaterialCatalog() {
   if (!Array.isArray(window.MaterialCatalog)) window.MaterialCatalog = [];
   const existingIds = new Set(window.MaterialCatalog.map((material) => material.id));
   const debugMaterials = [
-    { id: "debug_mat_n", name: "Debug N Material", rarity: "N", rank: "N", value: 10, category: "debug", materialRole: "part" },
-    { id: "debug_mat_r", name: "Debug R Material", rarity: "R", rank: "R", value: 50, category: "debug", materialRole: "part" },
-    { id: "debug_mat_sr", name: "Debug SR Material", rarity: "SR", rank: "SR", value: 200, category: "debug", materialRole: "part" },
-    { id: "debug_mat_ssr", name: "Debug SSR Material", rarity: "SSR", rank: "SSR", value: 1000, category: "debug", materialRole: "part" },
-    { id: "debug_mat_ur", name: "Debug UR Material", rarity: "UR", rank: "UR", value: 5000, category: "debug", materialRole: "part" },
-    { id: "debug_mech_core_n", name: "Debug N Mech Core", rarity: "N", rank: "N", value: 120, category: "core", materialRole: "core" },
-    { id: "debug_mech_core_r", name: "Debug R Mech Core", rarity: "R", rank: "R", value: 180, category: "core", materialRole: "core" },
-    { id: "debug_mech_core_sr", name: "Debug SR Mech Core", rarity: "SR", rank: "SR", value: 260, category: "core", materialRole: "core" },
-    { id: "debug_mech_core_ssr", name: "Debug SSR Mech Core", rarity: "SSR", rank: "SSR", value: 360, category: "core", materialRole: "core" },
-    { id: "debug_mech_core_ur", name: "Debug UR Mech Core", rarity: "UR", rank: "UR", value: 520, category: "core", materialRole: "core" },
-    { id: "debug_weapon_core_n", name: "Debug N Weapon Core", rarity: "N", rank: "N", value: 100, category: "weapon_core", materialRole: "weapon_core" },
-    { id: "debug_weapon_core_r", name: "Debug R Weapon Core", rarity: "R", rank: "R", value: 200, category: "weapon_core", materialRole: "weapon_core" },
-    { id: "debug_weapon_core_sr", name: "Debug SR Weapon Core", rarity: "SR", rank: "SR", value: 400, category: "weapon_core", materialRole: "weapon_core" },
-    { id: "debug_weapon_core_ssr", name: "Debug SSR Weapon Core", rarity: "SSR", rank: "SSR", value: 800, category: "weapon_core", materialRole: "weapon_core" },
-    { id: "debug_weapon_core_ur", name: "Debug UR Weapon Core", rarity: "UR", rank: "UR", value: 1600, category: "weapon_core", materialRole: "weapon_core" },
-    { id: "debug_boss_weapon_core_mat", name: "Debug Boss Weapon Core Material", rarity: "UR", rank: "UR", value: 5000, category: "bossWeaponMaterial", materialRole: "bossWeaponMaterial", sourceType: "boss" }
+    { id: "debug_mat_n", name: "デバッグN素材", rarity: "N", rank: "N", value: 10, category: "debug", materialRole: "part" },
+    { id: "debug_mat_r", name: "デバッグR素材", rarity: "R", rank: "R", value: 50, category: "debug", materialRole: "part" },
+    { id: "debug_mat_sr", name: "デバッグSR素材", rarity: "SR", rank: "SR", value: 200, category: "debug", materialRole: "part" },
+    { id: "debug_mat_ssr", name: "デバッグSSR素材", rarity: "SSR", rank: "SSR", value: 1000, category: "debug", materialRole: "part" },
+    { id: "debug_mat_ur", name: "デバッグUR素材", rarity: "UR", rank: "UR", value: 5000, category: "debug", materialRole: "part" },
+    { id: "debug_mech_core_n", name: "デバッグN機体コア", rarity: "N", rank: "N", value: 120, category: "core", materialRole: "core" },
+    { id: "debug_mech_core_r", name: "デバッグR機体コア", rarity: "R", rank: "R", value: 180, category: "core", materialRole: "core" },
+    { id: "debug_mech_core_sr", name: "デバッグSR機体コア", rarity: "SR", rank: "SR", value: 260, category: "core", materialRole: "core" },
+    { id: "debug_mech_core_ssr", name: "デバッグSSR機体コア", rarity: "SSR", rank: "SSR", value: 360, category: "core", materialRole: "core" },
+    { id: "debug_mech_core_ur", name: "デバッグUR機体コア", rarity: "UR", rank: "UR", value: 520, category: "core", materialRole: "core" },
+    { id: "debug_weapon_core_n", name: "デバッグN武器コア", rarity: "N", rank: "N", value: 100, category: "weapon_core", materialRole: "weapon_core" },
+    { id: "debug_weapon_core_r", name: "デバッグR武器コア", rarity: "R", rank: "R", value: 200, category: "weapon_core", materialRole: "weapon_core" },
+    { id: "debug_weapon_core_sr", name: "デバッグSR武器コア", rarity: "SR", rank: "SR", value: 400, category: "weapon_core", materialRole: "weapon_core" },
+    { id: "debug_weapon_core_ssr", name: "デバッグSSR武器コア", rarity: "SSR", rank: "SSR", value: 800, category: "weapon_core", materialRole: "weapon_core" },
+    { id: "debug_weapon_core_ur", name: "デバッグUR武器コア", rarity: "UR", rank: "UR", value: 1600, category: "weapon_core", materialRole: "weapon_core" },
+    { id: "debug_boss_weapon_core_mat", name: "デバッグボス武器コア素材", rarity: "UR", rank: "UR", value: 5000, category: "bossWeaponMaterial", materialRole: "bossWeaponMaterial", sourceType: "boss" }
   ];
   debugMaterials.forEach((material) => {
     if (!existingIds.has(material.id)) window.MaterialCatalog.push({ prompts: [], ...material });
