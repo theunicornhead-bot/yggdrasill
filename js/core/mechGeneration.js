@@ -132,6 +132,13 @@ const INVENTORY_CORE_DEFS = {
   core_ssr: { id: "core_ssr", name: "SSR Mech Core", rarity: "SSR", category: "general", outputLimit: 160, prompts: ["elite bio-reactor core", "advanced machine core"] },
   core_ur: { id: "core_ur", name: "UR Mech Core", rarity: "UR", category: "general", outputLimit: 208, prompts: ["mythic bio-reactor core", "apex machine core"] }
 };
+const DEBUG_MATERIAL_CORE_DEFS = {
+  debug_mech_core_n: { id: "debug_mech_core_n", name: "Debug N Mech Core", rarity: "N", rank: "N", value: 120, category: "core", materialRole: "core", prompts: [] },
+  debug_mech_core_r: { id: "debug_mech_core_r", name: "Debug R Mech Core", rarity: "R", rank: "R", value: 180, category: "core", materialRole: "core", prompts: [] },
+  debug_mech_core_sr: { id: "debug_mech_core_sr", name: "Debug SR Mech Core", rarity: "SR", rank: "SR", value: 260, category: "core", materialRole: "core", prompts: [] },
+  debug_mech_core_ssr: { id: "debug_mech_core_ssr", name: "Debug SSR Mech Core", rarity: "SSR", rank: "SSR", value: 360, category: "core", materialRole: "core", prompts: [] },
+  debug_mech_core_ur: { id: "debug_mech_core_ur", name: "Debug UR Mech Core", rarity: "UR", rank: "UR", value: 520, category: "core", materialRole: "core", prompts: [] }
+};
 
 const SYNTHESIS_SLOT_DEFS = [
   { key: "weapon", label: "武器", accepts: ["weapon"] },
@@ -373,8 +380,11 @@ window.getMechCore = function getMechCore(coreId) {
   if (inventoryCore) return window.normalizeMechCore({ ...inventoryCore });
 
   const material = typeof window.getMaterial === "function" ? window.getMaterial(coreId) : null;
+  const fallbackMaterialCore = DEBUG_MATERIAL_CORE_DEFS[coreId] || null;
   const materialCore = material && (material.materialRole === "boss_core" || material.materialRole === "core")
     ? buildCoreFromMaterial(material)
+    : fallbackMaterialCore
+      ? buildCoreFromMaterial(fallbackMaterialCore)
     : null;
   return window.normalizeMechCore(materialCore);
 };
@@ -438,6 +448,8 @@ window.getOwnedCoreIds = function getOwnedCoreIds() {
   const materialCoreIds = Object.entries(materialCounts)
     .filter(([, count]) => Number(count || 0) > 0)
     .map(([id]) => {
+      if (INVENTORY_CORE_DEFS[id]) return INVENTORY_CORE_DEFS[id];
+      if (DEBUG_MATERIAL_CORE_DEFS[id]) return DEBUG_MATERIAL_CORE_DEFS[id];
       if (typeof window.getMaterial === "function") return window.getMaterial(id);
       if (typeof window.parseGeneratedMaterialId === "function" && typeof window.buildGeneratedMaterial === "function") {
         const parsed = window.parseGeneratedMaterialId(id);

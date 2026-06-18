@@ -662,12 +662,13 @@ window.startSynthesisProcess = async function startSynthesisProcess() {
   const inventory = typeof window.ensureInventoryState === "function" ? window.ensureInventoryState() : state.inventory;
   const selectedCoreIsInventory = !selectedCoreIsMaterial && Number(inventory?.cores?.[state.selectedCoreId] || 0) > 0;
   const materialCounts = typeof window.baseMaterialCounts === "function" ? window.baseMaterialCounts() : (state.materials || {});
+  const selectedCoreIsBaseMaterial = !selectedCoreIsMaterial && !selectedCoreIsInventory && Number(materialCounts[state.selectedCoreId] || 0) > 0 && Boolean(window.getMechCore(state.selectedCoreId));
   if (selectedCoreIsMaterial && Number(materialCounts[state.selectedCoreId] || 0) <= 0) {
     logMessage("synthesis", "Core material is missing.", "danger");
     window.renderCurrentScene();
     return;
   }
-  if (!selectedCoreIsMaterial && !selectedCoreIsInventory) {
+  if (!selectedCoreIsMaterial && !selectedCoreIsInventory && !selectedCoreIsBaseMaterial) {
     logMessage("synthesis", "Core is missing.", "danger");
     window.renderCurrentScene();
     return;
@@ -678,6 +679,11 @@ window.startSynthesisProcess = async function startSynthesisProcess() {
     return;
   }
   if (selectedCoreIsMaterial && !consumeMaterial(state.selectedCoreId)) {
+    logMessage("synthesis", "コア素材の消費に失敗しました。", "danger");
+    window.renderCurrentScene();
+    return;
+  }
+  if (selectedCoreIsBaseMaterial && !consumeMaterial(state.selectedCoreId)) {
     logMessage("synthesis", "コア素材の消費に失敗しました。", "danger");
     window.renderCurrentScene();
     return;

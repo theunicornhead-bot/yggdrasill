@@ -793,6 +793,9 @@ function renderMiniMapModal() {
 function renderQuestMaterialsModal() {
   const quest = window.GameState.quest;
   if (!quest?.materialsOpen) return "";
+  const entries = questMaterialEntries();
+  const total = entries.reduce((sum, [, count]) => sum + Number(count || 0), 0);
+  const unresolvedCount = entries.reduce((sum, [id, count]) => sum + (getMaterial(id) ? 0 : Number(count || 0)), 0);
   return `
     <div class="modal-backdrop quest-materials-modal-backdrop">
       <section class="quest-materials-modal panel panel-pad" role="dialog" aria-modal="true" aria-label="所持素材">
@@ -800,18 +803,22 @@ function renderQuestMaterialsModal() {
           <h2>所持素材</h2>
           <button class="button mini-map-close" data-action="close-quest-materials" type="button">閉じる</button>
         </div>
-        <div class="quest-material-list">${renderQuestMaterialList()}</div>
+        <div class="muted" style="margin-bottom:8px">合計 ${formatNumber(total)} / 種類 ${entries.length}${unresolvedCount ? ` / 未解決 ${formatNumber(unresolvedCount)}` : ""}</div>
+        <div class="quest-material-list">${renderQuestMaterialList(entries)}</div>
       </section>
     </div>
   `;
 }
 
-function renderQuestMaterialList() {
-  const entries = Object.entries(typeof window.exploreMaterialCounts === "function" ? window.exploreMaterialCounts() : window.GameState.runMaterials || {}).filter(([, count]) => count > 0);
+function questMaterialEntries() {
+  return Object.entries(typeof window.exploreMaterialCounts === "function" ? window.exploreMaterialCounts() : window.GameState.runMaterials || {}).filter(([, count]) => count > 0);
+}
+
+function renderQuestMaterialList(entries = questMaterialEntries()) {
   if (!entries.length) return `<div class="muted">所持素材はありません。</div>`;
   return entries.map(([id, count]) => {
-    const material = getMaterial(id);
-    if (!material) return "";
+    const material = typeof window.displayMaterial === "function" ? window.displayMaterial(id) : getMaterial(id);
+    if (!material) return `<div class="material-row"><div class="material-icon"></div><span style="flex:1">Unknown Material (${id})<br><span class="muted">RANK - / unresolved</span></span><strong>x${count}</strong></div>`;
     return `
       <div class="material-row">
         <div class="material-icon"></div>

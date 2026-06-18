@@ -35,16 +35,22 @@ function cloneMaterialCounts(source = {}) {
   }, {});
 }
 
+function mergeMaterialCounts(...sources) {
+  return sources.reduce((merged, source) => {
+    Object.entries(source || {}).forEach(([id, count]) => {
+      const safeCount = Math.max(0, Math.floor(Number(count || 0)));
+      if (id && safeCount > 0) merged[id] = Math.max(Number(merged[id] || 0), safeCount);
+    });
+    return merged;
+  }, {});
+}
+
 function ensureMaterialInventoryState() {
   const state = window.GameState;
   const baseInventory = state.baseInventory && typeof state.baseInventory === "object" ? state.baseInventory : {};
   const exploreInventory = state.exploreInventory && typeof state.exploreInventory === "object" ? state.exploreInventory : {};
-  const baseMaterials = Object.keys(baseInventory.materials || {}).length
-    ? baseInventory.materials
-    : (state.materials || {});
-  const exploreMaterials = Object.keys(exploreInventory.materials || {}).length
-    ? exploreInventory.materials
-    : (state.runMaterials || state.exploration?.temporaryMaterials || {});
+  const baseMaterials = mergeMaterialCounts(state.materials || {}, baseInventory.materials || {});
+  const exploreMaterials = mergeMaterialCounts(state.runMaterials || {}, state.exploration?.temporaryMaterials || {}, exploreInventory.materials || {});
   state.baseInventory = {
     ...baseInventory,
     materials: cloneMaterialCounts(baseMaterials),

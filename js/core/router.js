@@ -101,6 +101,8 @@ function displayMaterial(id) {
   };
 }
 
+window.displayMaterial = displayMaterial;
+
 window.getPilot = function getPilot(id) {
   return window.GameState.pilots.find((pilot) => pilot.id === id);
 };
