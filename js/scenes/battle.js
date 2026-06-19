@@ -611,6 +611,7 @@ window.startBattle = function startBattle(options = {}) {
     enemy: mirrorEnemyForLegacyUi(enemyUnit)
   };
   state.logs.battle = [];
+  window.AudioManager?.playSe(enemyUnit.type === "boss" ? "boss_detected" : "battle_start");
   logMessage("battle", `${enemyUnit.name}と遭遇した。`, "danger");
   return true;
 };
@@ -855,7 +856,7 @@ function renderBattleAllyCard(unit) {
     ? window.renderMechImage(mech || { id: unit?.machineId, name: unit?.name }, "icon")
     : `<div class="mech-image mech-image-icon"></div>`;
   return `
-    <button class="battle-ally-unit panel" data-action="open-battle-ally-detail" data-unit="${unit.id}" type="button">
+    <button class="battle-ally-unit panel" type="button">
       <div class="battle-ally-visual">
         ${mechImage}
         ${renderBattlePilotFace(unit)}
@@ -919,14 +920,49 @@ function renderAllyDetailModal(unit) {
 
 function renderBattleDetailOverlay() {
   const modal = window.GameState.battleDetailModal;
-  if (!modal) return "";
-  if (modal.type === "log") return renderBattleLogModal();
-  if (modal.type === "enemy") return renderEnemyDetailModal(getPrimaryEnemyUnit());
-  if (modal.type === "ally") {
-    const unit = getBattleUnits().find((item) => item.id === modal.unitId);
-    return unit ? renderAllyDetailModal(unit) : "";
-  }
-  return "";
+  const cutin = renderSkillCutin();
+  if (!modal) return cutin;
+  if (modal.type === "log") return `${cutin}${renderBattleLogModal()}`;
+  return cutin;
+}
+
+function getBattleMechImage(unit, variant = "skill_cutin") {
+  const mech = battleUnitMech(unit);
+  if (!mech) return "";
+  if (mech.images && typeof mech.images === "object" && mech.images[variant]) return mech.images[variant];
+  if (variant === "skill_cutin" && mech.skillCutinImagePath) return mech.skillCutinImagePath;
+  if (variant === "battle_pose" && mech.battlePoseImagePath) return mech.battlePoseImagePath;
+  return typeof window.getMechImagePath === "function" ? window.getMechImagePath(mech) : "";
+}
+
+window.showSkillCutin = function showSkillCutin(unit, skillName = "Skill") {
+  const battle = window.GameState.battle;
+  if (!battle || !unit) return;
+  battle.skillCutin = {
+    skillName,
+    machineId: unit.machineId || "",
+    unitName: unit.name || "Machine",
+    imagePath: getBattleMechImage(unit, "skill_cutin"),
+    startedAt: Date.now()
+  };
+  window.AudioManager?.playSe("skill");
+  setTimeout(() => {
+    if (window.GameState.battle?.skillCutin?.startedAt === battle.skillCutin.startedAt) {
+      window.GameState.battle.skillCutin = null;
+      if (window.GameState.currentScene === "battle") window.renderCurrentScene();
+    }
+  }, 850);
+};
+
+function renderSkillCutin() {
+  const cutin = window.GameState.battle?.skillCutin;
+  if (!cutin) return "";
+  return `
+    <div class="skill-cutin" aria-live="polite">
+      <div class="skill-cutin-image">${cutin.imagePath ? `<img src="${cutin.imagePath}" alt="${cutin.unitName}" onerror="this.style.display='none'">` : ""}</div>
+      <div class="skill-cutin-title">${cutin.skillName || "Skill"}</div>
+    </div>
+  `;
 }
 
 function hasReadyOverdriveUnit() {
@@ -979,13 +1015,11 @@ window.renderBattle = function renderBattle() {
 };
 
 window.openBattleEnemyDetail = function openBattleEnemyDetail() {
-  window.GameState.battleDetailModal = { type: "enemy" };
-  window.renderCurrentScene();
+  window.GameState.battleDetailModal = null;
 };
 
 window.openBattleAllyDetail = function openBattleAllyDetail(unitId) {
-  window.GameState.battleDetailModal = { type: "ally", unitId };
-  window.renderCurrentScene();
+  window.GameState.battleDetailModal = null;
 };
 
 window.openBattleLogModal = function openBattleLogModal() {
@@ -1061,6 +1095,8 @@ window.battleCommand = function battleCommand(type) {
       const damage = typeof window.calculateDamage === "function"
         ? window.calculateDamage(unit.stats, currentEnemy.stats, weapon, { multiplier, critical: Math.random() < 0.05, defenderElement: currentEnemy.stats?.element, defenderEnemyId: currentEnemy.enemyId })
         : Math.max(1, Math.floor(Math.max(unit.stats.sAtk, unit.stats.mAtk, unit.stats.lAtk) * multiplier));
+      if (type === "skill") window.showSkillCutin?.(unit, label);
+      else window.AudioManager?.playSe(type === "overdrive" ? "overdrive_ready" : "attack");
       applyBattleDamage(currentEnemy, damage);
       gainUnitOverdrive(unit, type === "skill" ? 18 : type === "attack" ? 12 : 8);
       syncBattleUnitToMech(unit);
@@ -1284,6 +1320,8 @@ window.battleCommand = function battleCommand(type) {
         logMessage("battle", `${unit.name}はPPが足りない。`, "warn");
         return;
       }
+      if (type === "skill") window.showSkillCutin?.(unit, label);
+      else window.AudioManager?.playSe(type === "overdrive" ? "overdrive_ready" : "attack");
       const damage = typeof window.calculateDamage === "function"
         ? window.calculateDamage(unit.stats, currentEnemy.stats, weapon, { multiplier, critical: Math.random() < 0.05, defenderElement: currentEnemy.stats?.element, defenderEnemyId: currentEnemy.enemyId })
         : Math.max(1, Math.floor(Math.max(unit.stats.sAtk, unit.stats.mAtk, unit.stats.lAtk) * multiplier));

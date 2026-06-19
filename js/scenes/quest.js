@@ -154,9 +154,33 @@ window.generateDungeonFloor = function generateDungeonFloor(floor, planetId = nu
     battleTacticId: state.quest?.battleTacticId || "standard",
     pendingFieldEnemy: null,
     fieldEnemies: [],
-    nextFieldEnemySerial: 1
+    nextFieldEnemySerial: 1,
+    bossAlive: floor % 10 === 0,
+    bossDefeated: false,
+    stairsLocked: floor % 10 === 0,
+    stairBossEnemy: null
   };
+  if (state.quest.stairsLocked) {
+    const stairBossEnemy = buildFieldEnemy(stairsPosition, planet, floor, "boss");
+    if (stairBossEnemy) {
+      state.quest.stairBossEnemy = stairBossEnemy;
+      state.quest.fieldEnemies.push(stairBossEnemy);
+      map[stairsPosition.y][stairsPosition.x] = createCell("stairs", {
+        fieldEnemyId: stairBossEnemy.id,
+        enemyId: stairBossEnemy.enemyId,
+        colorId: stairBossEnemy.colorId,
+        behavior: "guard"
+      });
+    } else {
+      state.quest.bossAlive = false;
+      state.quest.bossDefeated = true;
+      state.quest.stairsLocked = false;
+    }
+  }
   seedFieldEnemies(map, planet, floor, startPosition);
+  if (state.quest.stairBossEnemy && !(state.quest.fieldEnemies || []).some((enemy) => enemy.id === state.quest.stairBossEnemy.id)) {
+    state.quest.fieldEnemies.push(state.quest.stairBossEnemy);
+  }
   discoverAround(startPosition.x, startPosition.y);
   addQuestLog(`${planet.name} ${floor}Fに到達した。${size}級 / ${window.getTerrainConfig(terrain).label}区画を生成。`);
   state.floor = floor;
@@ -206,7 +230,7 @@ function placeEvents(map, reachable, start, floor, terrain, planet) {
     else if (roll < enemyRate + terrainConfig.fuelSpotRate + treasureRate) map[pos.y][pos.x] = createCell("treasure");
     else if (roll < enemyRate + terrainConfig.fuelSpotRate + treasureRate + trapRate) map[pos.y][pos.x] = createCell("trap");
   });
-  if (floor % 10 === 0) {
+  if (false && floor % 10 === 0) {
     const bossCandidates = reachable.filter((pos) => Math.abs(pos.x - start.x) + Math.abs(pos.y - start.y) >= Math.max(2, Math.floor(map.length / 2)));
     const pos = bossCandidates[Math.floor(Math.random() * bossCandidates.length)] || reachable.find((cellPos) => Math.abs(cellPos.x - start.x) + Math.abs(cellPos.y - start.y) > 1);
     if (pos) map[pos.y][pos.x] = createCell("enemy");
@@ -911,6 +935,18 @@ window.markFieldEnemyDefeated = function markFieldEnemyDefeated(fieldEnemyId) {
   const fieldEnemy = getFieldEnemyById(fieldEnemyId);
   if (!quest || !fieldEnemy) return;
   fieldEnemy.isDefeated = true;
+  if (quest.stairBossEnemy?.id === fieldEnemyId) {
+    quest.bossAlive = false;
+    quest.stairsLocked = false;
+    quest.bossDefeated = true;
+    quest.pendingFieldEnemy = null;
+    if (quest.map?.[fieldEnemy.y]?.[fieldEnemy.x]) {
+      quest.map[fieldEnemy.y][fieldEnemy.x] = createCell("stairs", { consumed: false });
+    }
+    quest.fieldEnemies = (quest.fieldEnemies || []).filter((enemy) => enemy.id !== fieldEnemyId);
+    addQuestLog("ボスを撃破。階段が解放された。", "good");
+    return;
+  }
   if (quest.map?.[fieldEnemy.y]?.[fieldEnemy.x]?.fieldEnemyId === fieldEnemyId) {
     quest.map[fieldEnemy.y][fieldEnemy.x] = createCell("empty", { consumed: true });
   }
@@ -1091,6 +1127,19 @@ function processCurrentCell(trigger) {
     cell.type = "empty";
     cell.consumed = true;
   } else if (cell.type === "stairs") {
+    if (quest.stairsLocked && quest.bossAlive && !quest.bossDefeated) {
+      const fieldEnemy = getFieldEnemyById(cell.fieldEnemyId) || quest.stairBossEnemy;
+      if (fieldEnemy) {
+        quest.pendingFieldEnemy = fieldEnemy;
+        addQuestLog(`${fieldEnemy.name || "ボス"}が階段を塞いでいる。`, "danger");
+        window.AudioManager?.playSe("boss_detected");
+        if (typeof window.startBattle === "function" && window.startBattle({ fieldEnemy })) {
+          window.GameState.currentScene = "battle";
+          if (typeof window.runAutoBattle === "function") window.runAutoBattle();
+        }
+        return;
+      }
+    }
     if (!quest.foundStairs) addQuestLog("次階層への入口を発見した。", "good");
     quest.foundStairs = true;
   }

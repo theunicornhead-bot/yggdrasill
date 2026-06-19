@@ -33,6 +33,7 @@ window.allMaterialCounts = function allMaterialCounts() {
 
 window.baseMaterialCounts = function baseMaterialCounts() {
   if (typeof window.ensureMaterialInventoryState === "function") window.ensureMaterialInventoryState();
+  if (typeof window.enforceBaseMaterialLimit === "function") window.enforceBaseMaterialLimit();
   return window.GameState.baseInventory?.materials || window.GameState.materials || {};
 };
 
@@ -45,12 +46,49 @@ window.addBaseMaterial = function addBaseMaterial(materialId, amount = 1) {
   if (!materialId) return 0;
   if (typeof window.ensureMaterialInventoryState === "function") window.ensureMaterialInventoryState();
   const base = window.GameState.baseInventory;
-  const limit = Math.max(1, Number(base.materialLimit || 9999));
   const current = Math.max(0, Number(base.materials[materialId] || 0));
-  const next = Math.min(limit, current + Math.max(0, Math.floor(Number(amount || 0))));
+  const next = current + Math.max(0, Math.floor(Number(amount || 0)));
   base.materials[materialId] = next;
   window.GameState.materials = base.materials;
-  return next - current;
+  if (typeof window.enforceBaseMaterialLimit === "function") window.enforceBaseMaterialLimit();
+  return Math.max(0, Number(base.materials[materialId] || 0) - current);
+};
+
+window.enforceBaseMaterialLimit = function enforceBaseMaterialLimit() {
+  const state = window.GameState;
+  const base = state.baseInventory;
+  if (!base || !base.materials) return 0;
+  const limit = Math.max(1, Number(base.materialLimit || 9999));
+  const total = Object.values(base.materials).reduce((sum, count) => sum + Math.max(0, Number(count || 0)), 0);
+  let excess = Math.max(0, total - limit);
+  if (excess <= 0) return 0;
+
+  const rarityOrder = { N: 0, R: 1, SR: 2, SSR: 3, UR: 4 };
+  const entries = Object.entries(base.materials)
+    .filter(([, count]) => Number(count || 0) > 0)
+    .map(([id, count]) => {
+      const material = typeof window.displayMaterial === "function" ? window.displayMaterial(id) : null;
+      const rarity = String(material?.rarity || material?.rank || "N").toUpperCase();
+      return { id, count: Number(count || 0), material, rarity, score: rarityOrder[rarity] ?? 0 };
+    })
+    .sort((a, b) => a.score - b.score || String(a.material?.name || a.id).localeCompare(String(b.material?.name || b.id), "ja"));
+
+  let discarded = 0;
+  entries.forEach((entry) => {
+    if (excess <= 0) return;
+    const remove = Math.min(entry.count, excess);
+    if (remove <= 0) return;
+    base.materials[entry.id] = Math.max(0, Number(base.materials[entry.id] || 0) - remove);
+    if (base.materials[entry.id] <= 0) delete base.materials[entry.id];
+    excess -= remove;
+    discarded += remove;
+    const name = entry.material?.name || entry.id;
+    if (typeof window.logMessage === "function") {
+      window.logMessage("bar", `所持上限超過: ${name} ×${remove} を自動破棄`, "warn");
+    }
+  });
+  state.materials = base.materials;
+  return discarded;
 };
 
 window.addExploreMaterial = function addExploreMaterial(materialId, amount = 1) {

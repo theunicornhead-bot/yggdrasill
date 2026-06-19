@@ -842,6 +842,21 @@ function scaleMachineStatsForRank(machine, nextRank) {
   machine.mobility = stats.speed || machine.mobility;
 }
 
+function markMachineImageRegenerationPending(machine, nextRank) {
+  if (!machine) return;
+  const version = Number(machine.imageVersion || 1) + 1;
+  const previousPrompt = machine.visualPrompt || machine.prompt || machine.description || `${machine.name || "Machine"} mecha`;
+  const rankParts = typeof getRankPromptParts === "function" ? getRankPromptParts(nextRank) : [nextRank];
+  machine.imageVersion = version;
+  machine.imageId = `${machine.id}_rank_${String(nextRank || "rank").toLowerCase()}_${version}`;
+  machine.imagePath = null;
+  machine.needsImageRegeneration = true;
+  machine.imageRegenerationReason = "rank_up";
+  machine.visualPrompt = [...new Set([previousPrompt, ...rankParts, `rank ${nextRank} evolved appearance`, "upgraded armor silhouette", "stronger visual identity"])].join(", ");
+  machine.prompt = machine.visualPrompt;
+  machine.description = machine.description || machine.visualPrompt;
+}
+
 window.rankUpMachine = function rankUpMachine(machine) {
   const inventory = window.ensureInventoryState ? window.ensureInventoryState() : window.GameState.inventory;
   if (!window.canRankUpMachine(machine, inventory)) return false;
@@ -851,6 +866,7 @@ window.rankUpMachine = function rankUpMachine(machine) {
   scaleMachineStatsForRank(machine, requirement.nextRank);
   machine.rank = requirement.nextRank;
   machine.rarity = requirement.nextRank;
+  markMachineImageRegenerationPending(machine, requirement.nextRank);
   machine.optionSlots = typeof window.getOptionSlotCountByRank === "function" ? Math.max(3, window.getOptionSlotCountByRank(machine.rank)) : 3;
   machine.optionalSlots = machine.optionSlots;
   if (typeof window.normalizeMachineStatus === "function") window.normalizeMachineStatus(machine);
@@ -994,6 +1010,8 @@ window.rankUpMachineById = function rankUpMachineById(machineId) {
     return;
   }
   logMessage("synthesis", `${machine.name}がRANK ${machine.rank}になりました。`, "good");
+  logMessage("synthesis", `${machine.name}の外観を再生成待ちにしました。`, "warn");
+  window.AudioManager?.playSe("rank_up");
   window.savePlayerData();
   renderCurrentScene();
 };
@@ -1032,6 +1050,7 @@ window.generateWeapon = function generateWeapon(recipeId) {
   };
   inventory.weapons[weapon.id] = weapon;
   logMessage("synthesis", `${weapon.name}を生成しました。`, "good");
+  window.AudioManager?.playSe("mech_generate");
   window.savePlayerData();
   renderCurrentScene();
   return true;

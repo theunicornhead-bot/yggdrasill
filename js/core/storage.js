@@ -64,6 +64,7 @@ function ensureMaterialInventoryState() {
   state.materials = state.baseInventory.materials;
   state.runMaterials = state.exploreInventory.materials;
   if (!state.deathLocation || typeof state.deathLocation !== "object") state.deathLocation = null;
+  if (typeof window.enforceBaseMaterialLimit === "function") window.enforceBaseMaterialLimit();
   return { baseInventory: state.baseInventory, exploreInventory: state.exploreInventory };
 }
 

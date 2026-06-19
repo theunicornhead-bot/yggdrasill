@@ -39,6 +39,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 document.addEventListener("click", (event) => {
+  window.AudioManager?.unlock();
   if (event.target.classList?.contains("mini-map-modal-backdrop")) {
     window.closeMiniMapModal();
     window.savePlayerData();
@@ -85,6 +86,7 @@ document.addEventListener("click", (event) => {
 
   const scene = target.dataset.screen;
   const action = target.dataset.action;
+  if (action) window.AudioManager?.playSe("button");
 
   if (scene) {
     window.switchScene(scene);
@@ -217,6 +219,7 @@ document.addEventListener("click", (event) => {
   if (action === "recommend-enhance-materials") window.recommendEnhanceMaterials();
   if (action === "execute-enhance-machine") window.enhanceMachineById(window.GameState.selectedEnhanceMachineId);
   if (action === "grant-debug-materials") window.grantDebugMaterials();
+  if (action === "reset-debug-inventory") window.resetDebugInventory();
   if (action === "rank-up-machine") window.rankUpMachineById(target.dataset.mech);
   if (action === "generate-weapon") window.generateWeapon(target.dataset.weapon);
   if (action === "synthesis-next-step") window.goSynthesisNextStep();
