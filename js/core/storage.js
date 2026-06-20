@@ -70,6 +70,33 @@ function ensureMaterialInventoryState() {
 
 window.ensureMaterialInventoryState = ensureMaterialInventoryState;
 
+function ensureShipState() {
+  const state = window.GameState;
+  const ship = state.ship && typeof state.ship === "object" ? state.ship : {};
+  const facilities = ship.facilities && typeof ship.facilities === "object" ? ship.facilities : {};
+  state.ship = {
+    driftDay: Math.max(1, Math.floor(Number(ship.driftDay || 1))),
+    food: Math.max(0, Math.floor(Number(ship.food ?? 100))),
+    energy: Math.max(0, Math.floor(Number(ship.energy ?? 100))),
+    foodProduction: Math.max(0, Number(ship.foodProduction || 0)),
+    energyProduction: Math.max(0, Number(ship.energyProduction || 0)),
+    foodCostReduction: Math.max(0, Number(ship.foodCostReduction || 0)),
+    energyCostReduction: Math.max(0, Number(ship.energyCostReduction || 0)),
+    facilities: {
+      foodStorage: Math.max(0, Math.floor(Number(facilities.foodStorage || 0))),
+      engine: Math.max(0, Math.floor(Number(facilities.engine || 0))),
+      lifeSupport: Math.max(0, Math.floor(Number(facilities.lifeSupport || 0))),
+      tacticalSupport: Math.max(0, Math.floor(Number(facilities.tacticalSupport || 0))),
+      mechDevelopment: Math.max(0, Math.floor(Number(facilities.mechDevelopment || 0)))
+    },
+    einTrace: Math.max(0, Math.min(100, Number(ship.einTrace || 0))),
+    specialists: Array.isArray(ship.specialists) ? ship.specialists : []
+  };
+  return state.ship;
+}
+
+window.ensureShipState = ensureShipState;
+
 function ensureMechRosterState() {
   const state = window.GameState;
   if (!Array.isArray(state.mechs)) state.mechs = [];
@@ -119,6 +146,7 @@ window.syncPlayerFromRuntimeState = function syncPlayerFromRuntimeState() {
   const state = window.GameState;
   ensureInventoryState();
   ensureMaterialInventoryState();
+  ensureShipState();
   if (!state.player) return;
   state.player.money = state.money;
   state.player.currentFloor = state.quest?.floor || state.exploration?.currentFloor || state.player.currentFloor || 1;
@@ -137,6 +165,7 @@ window.syncPlayerFromRuntimeState = function syncPlayerFromRuntimeState() {
 window.syncRuntimeStateFromPlayer = function syncRuntimeStateFromPlayer() {
   const state = window.GameState;
   ensureMaterialInventoryState();
+  ensureShipState();
   if (state.player && Number.isFinite(Number(state.player.money))) {
     state.money = Number(state.player.money);
   }
@@ -163,6 +192,7 @@ window.createPlayerSavePayload = function createPlayerSavePayload() {
   syncPlayerFromRuntimeState();
   ensureMechRosterState();
   ensureMaterialInventoryState();
+  ensureShipState();
   state.player.createdAt = state.player.createdAt || nowIsoString();
   state.player.updatedAt = nowIsoString();
 
@@ -181,6 +211,7 @@ window.createPlayerSavePayload = function createPlayerSavePayload() {
     baseInventory: clonePlain(state.baseInventory || { materials: {} }),
     exploreInventory: clonePlain(state.exploreInventory || { materials: {} }),
     deathLocation: state.deathLocation ? clonePlain(state.deathLocation) : null,
+    ship: clonePlain(state.ship || {}),
     inventory: clonePlain(ensureInventoryState()),
     market: clonePlain(state.market || { listings: [] }),
     exploration: clonePlain(state.exploration || {}),
@@ -205,9 +236,11 @@ window.applyPlayerSavePayload = function applyPlayerSavePayload(payload) {
   state.baseInventory = payload.baseInventory && typeof payload.baseInventory === "object" ? payload.baseInventory : { ...(state.baseInventory || {}), materials: state.materials };
   state.exploreInventory = payload.exploreInventory && typeof payload.exploreInventory === "object" ? payload.exploreInventory : { ...(state.exploreInventory || {}), materials: state.runMaterials || payload.exploration?.temporaryMaterials || {} };
   state.deathLocation = payload.deathLocation && typeof payload.deathLocation === "object" ? payload.deathLocation : null;
+  state.ship = payload.ship && typeof payload.ship === "object" ? { ...(state.ship || {}), ...payload.ship } : state.ship;
   state.inventory = payload.inventory && typeof payload.inventory === "object" ? payload.inventory : state.inventory;
   ensureInventoryState();
   ensureMaterialInventoryState();
+  ensureShipState();
   state.market = payload.market && typeof payload.market === "object" ? payload.market : state.market;
   state.exploration = payload.exploration && typeof payload.exploration === "object" ? { ...state.exploration, ...payload.exploration } : state.exploration;
   state.currentScene = typeof payload.currentScene === "string" ? payload.currentScene : state.currentScene;
@@ -224,6 +257,7 @@ window.loadPlayerData = function loadPlayerData() {
   state.player.updatedAt = state.player.updatedAt || state.player.createdAt;
   ensureInventoryState();
   ensureMaterialInventoryState();
+  ensureShipState();
   ensureMechRosterState();
   if (typeof window.normalizeAllUnitStatuses === "function") window.normalizeAllUnitStatuses();
   syncPlayerFromRuntimeState();

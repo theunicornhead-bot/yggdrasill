@@ -1361,8 +1361,12 @@ function winBattle() {
     unit.isDefending = false;
     syncBattleUnitToMech(unit);
   });
+  const food = calculateEnemyFoodReward(enemyUnit);
+  const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship;
+  if (ship) ship.food = Math.max(0, Number(ship.food || 0) + food);
   const obtainedNames = uniqueBattleList(obtained).map((id) => (getMaterial(id) || window.getMechGenerationMaterial?.(id) || { name: id }).name).join(" / ");
   logMessage("battle", obtainedNames ? `入手素材: ${obtainedNames}` : "入手素材なし", obtainedNames ? "good" : "warn");
+  logMessage("battle", `食料 +${food}`, "good");
   logMessage("quest", `${enemyUnit.name}を撃破。素材を回収した。`, "good");
   if (enemyUnit.fieldEnemyId && typeof window.markFieldEnemyDefeated === "function") {
     window.markFieldEnemyDefeated(enemyUnit.fieldEnemyId);
@@ -1371,6 +1375,16 @@ function winBattle() {
   state.battle = null;
   state.currentScene = "quest";
   renderCurrentScene();
+}
+
+function calculateEnemyFoodReward(enemyUnit) {
+  const rankBonus = { N: 0, R: 1, SR: 2, SSR: 4, UR: 6, E: 0, D: 0, C: 1, B: 2, A: 4, S: 6 }[enemyUnit?.rank || enemyUnit?.rarity] || 0;
+  const size = String(enemyUnit?.size || "M").toUpperCase();
+  const sizeBonus = { XS: 0, S: 0, M: 2, L: 5, XL: 8 }[size] || 0;
+  const isBoss = enemyUnit?.spawnType === "boss" || enemyUnit?.enemyTier === "boss" || enemyUnit?.role === "boss";
+  if (isBoss) return Math.min(30, 10 + Math.floor(Math.random() * 21) + rankBonus + Math.floor(sizeBonus / 2));
+  if (size === "M" || size === "L" || size === "XL") return Math.min(12, 3 + Math.floor(Math.random() * 6) + rankBonus + Math.floor(sizeBonus / 3));
+  return Math.min(6, 1 + Math.floor(Math.random() * 3) + rankBonus);
 }
 
 window.App.scenes.battle = window.renderBattle;

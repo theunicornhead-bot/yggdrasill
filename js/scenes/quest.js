@@ -1172,16 +1172,17 @@ function recoverLostMaterialsAtCurrentCell() {
 function openTreasure() {
   const state = window.GameState;
   if (Math.random() < 0.45) {
-    const money = 80 + Math.floor(Math.random() * 161);
-    state.money += money;
-    addQuestLog(`宝箱から${money}Gを回収。`, "good");
+    const energy = 5 + Math.floor(Math.random() * 11);
+    const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship;
+    if (ship) ship.energy = Math.max(0, Number(ship.energy || 0) + energy);
+    addQuestLog(`補助バッテリーを発見。エネルギー +${energy}。`, "good");
   } else {
     const material = pickMaterialByTerrain(state.quest.terrain, state.quest.planetId);
     if (typeof window.addExploreMaterial === "function" && !window.addExploreMaterial(material.id, 1)) {
-      addQuestLog("探索中インベントリが満杯です。素材を持ち帰れません。", "warn");
+      addQuestLog("探索中インベントリが満杯です。施設資材を持ち帰れません。", "warn");
       return;
     }
-    addQuestLog(`宝箱から${material.name}を入手。`, "good");
+    addQuestLog(`保全コンテナから${material.name}を回収。`, "good");
   }
 }
 
@@ -1233,12 +1234,19 @@ window.applyTrapEffect = function applyTrapEffect(effect) {
     state.money = Math.max(0, state.money - 100);
     addQuestLog("電子罠で100Gを失った。", "danger");
   } else if (effect === "material_gain") {
-    const material = pickMaterialByTerrain(quest.terrain, quest.planetId);
-    if (typeof window.addExploreMaterial === "function" && !window.addExploreMaterial(material.id, 1)) {
-      addQuestLog("探索中インベントリが満杯です。素材を持ち帰れません。", "warn");
-      return;
+    if (Math.random() < 0.5) {
+      const energy = 3 + Math.floor(Math.random() * 8);
+      const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship;
+      if (ship) ship.energy = Math.max(0, Number(ship.energy || 0) + energy);
+      addQuestLog(`罠の残留電力を回収。エネルギー +${energy}。`, "good");
+    } else {
+      const material = pickMaterialByTerrain(quest.terrain, quest.planetId);
+      if (typeof window.addExploreMaterial === "function" && !window.addExploreMaterial(material.id, 1)) {
+        addQuestLog("探索中インベントリが満杯です。施設資材を持ち帰れません。", "warn");
+        return;
+      }
+      addQuestLog(`罠の残骸から${material.name}を回収。`, "good");
     }
-    addQuestLog(`罠の残骸から${material.name}を回収。`, "good");
   } else if (effect === "enemy_log") {
     addQuestLog("罠が敵性反応を呼び寄せた。周囲の気配が濃くなる。", "danger");
   }
@@ -1293,6 +1301,27 @@ window.restoreAllMachineRuntimeStates = function restoreAllMachineRuntimeStates(
   (window.GameState.mechs || []).forEach(window.restoreMachineRuntimeState);
 };
 
+function calculateDailyShipCosts(state) {
+  const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship;
+  const pilotCount = (state.pilots || []).length;
+  const mechCount = (state.mechs || []).length;
+  const foodCost = Math.max(0, Math.ceil(pilotCount * (1 - Number(ship?.foodCostReduction || 0))));
+  const energyCost = Math.max(0, Math.ceil(mechCount * (1 - Number(ship?.energyCostReduction || 0))));
+  return { ship, pilotCount, mechCount, foodCost, energyCost };
+}
+
+window.advanceShipDriftDay = function advanceShipDriftDay() {
+  const state = window.GameState;
+  const { ship, foodCost, energyCost } = calculateDailyShipCosts(state);
+  if (!ship) return null;
+  ship.driftDay = Math.max(1, Math.floor(Number(ship.driftDay || 1))) + 1;
+  ship.food = Math.max(0, Math.floor(Number(ship.food || 0) - foodCost + Number(ship.foodProduction || 0)));
+  ship.energy = Math.max(0, Math.floor(Number(ship.energy || 0) - energyCost + Number(ship.energyProduction || 0)));
+  const message = `漂流${ship.driftDay}日目。生命維持コスト: 食料-${foodCost} / エネルギー-${energyCost}`;
+  logMessage("bar", message, "warn");
+  return { foodCost, energyCost, message };
+};
+
 window.returnBase = function returnBase() {
   const state = window.GameState;
   if (typeof window.syncBattleUnitsToMechs === "function") window.syncBattleUnitsToMechs();
@@ -1316,6 +1345,7 @@ window.returnBase = function returnBase() {
   }
   state.fuel = 100;
   state.battle = null;
+  if (typeof window.advanceShipDriftDay === "function") window.advanceShipDriftDay();
   state.currentScene = "quest";
   logMessage("bar", "探索から帰還し、素材を格納した。", "good");
   window.renderCurrentScene();
@@ -1351,6 +1381,7 @@ window.forceReturn = function forceReturn(message, loseMaterials) {
   }
   state.fuel = 100;
   state.battle = null;
+  if (typeof window.advanceShipDriftDay === "function") window.advanceShipDriftDay();
   state.currentScene = "quest";
   logMessage("bar", `${message}${loseMaterials ? " 入手素材の一部を失った。" : ""}`, "danger");
   window.renderCurrentScene();

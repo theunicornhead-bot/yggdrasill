@@ -178,6 +178,24 @@ window.GameState = {
     temporaryMaterials: {},
     isExploring: false
   },
+  ship: {
+    driftDay: 1,
+    food: 100,
+    energy: 100,
+    foodProduction: 0,
+    energyProduction: 0,
+    foodCostReduction: 0,
+    energyCostReduction: 0,
+    facilities: {
+      foodStorage: 0,
+      engine: 0,
+      lifeSupport: 0,
+      tacticalSupport: 0,
+      mechDevelopment: 0
+    },
+    einTrace: 0,
+    specialists: []
+  },
   runMaterials: {},
   currentScene: "bar",
   tavernCandidates: [],
@@ -218,7 +236,7 @@ window.GameState = {
   synthSerial: 1,
   battle: null,
   logs: {
-    bar: ["バーテンダー: 優秀なパイロットを揃えると探索が有利になるよ。"],
+    bar: ["艦長: ブリッジへようこそ。ユグドラシルは現在、漂流状態です。"],
     quest: ["3Fに到達した……"],
     battle: [],
     synthesis: ["培養炉を起動。素材スロットは最大5枠。"]

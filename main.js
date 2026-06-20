@@ -102,6 +102,7 @@ document.addEventListener("click", (event) => {
   if (action === "accept-tavern-quest") window.acceptTavernQuest(target.dataset.planet);
   if (action === "hire") window.hirePilot(target.dataset.pilot);
   if (action === "rank-up-pilot") window.rankUpPilotById(target.dataset.pilot);
+  if (action === "repair-ship-facility") window.repairShipFacility(target.dataset.facility);
   if (action === "sell-material") window.sellMaterial(target.dataset.material);
   if (action === "open-base-inventory") window.openBaseInventoryModal();
   if (action === "close-base-inventory") window.closeBaseInventoryModal();

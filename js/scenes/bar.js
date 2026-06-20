@@ -9,9 +9,15 @@ const TAVERN_GROWTH_WEIGHTS = [
 ];
 const TAVERN_QUEST_TEMPLATES = [
   { type: "hunt", title: "エネミー討伐", description: "指定惑星で敵性反応を排除する。", reward: { money: 900, core: 1, rare: "低確率" } },
-  { type: "delivery", title: "素材納品", description: "探索で指定素材を回収し、酒場へ納品する。", reward: { money: 650, core: 0, rare: "中確率" } },
+  { type: "delivery", title: "素材回収", description: "探索で指定資材を回収し、ブリッジへ報告する。", reward: { money: 650, core: 0, rare: "中確率" } },
   { type: "survey", title: "領域調査", description: "未踏階層の地形と資源反応を調査する。", reward: { money: 780, core: 1, rare: "低確率" } }
 ];
+const BRIDGE_FACILITY_CONFIG = {
+  foodStorage: { name: "食糧庫拡張", description: "食料上限・備蓄安定化。生命維持の食料効率を改善する。", cost: 300, effects: { foodCostReduction: 0.05 } },
+  engine: { name: "エンジン拡張", description: "推進系と配電効率を改善する。", cost: 300, effects: { energyCostReduction: 0.05 } },
+  lifeSupport: { name: "生命維持区画", description: "水耕槽と培養食料ラインを復旧する。", cost: 450, effects: { foodProduction: 1 } },
+  tacticalSupport: { name: "発電区画", description: "補助発電とブリッジ系統を復旧する。", cost: 450, effects: { energyProduction: 1 } }
+};
 
 function pickRandom(items) {
   return items[Math.floor(Math.random() * items.length)];
@@ -79,7 +85,7 @@ window.generateTavernCandidates = function generateTavernCandidates() {
 
 window.setBarView = function setBarView(view) {
   const state = window.GameState;
-  state.barView = ["home", "hire", "rank-up", "quests", "candidate-detail"].includes(view) ? view : "home";
+  state.barView = ["home", "hire", "rank-up", "quests", "lifeline", "ein-trace", "candidate-detail"].includes(view) ? view : "home";
   if (state.barView !== "candidate-detail") state.selectedTavernCandidateId = null;
   window.renderCurrentScene();
 };
@@ -95,23 +101,28 @@ window.hirePilot = function hirePilot(candidateId) {
   const candidate = state.tavernCandidates.find((pilot) => pilot.id === candidateId);
   if (!candidate) return;
   if (state.pilots.length >= 4) {
-    logMessage("bar", "パイロットは4人以上雇えない。", "danger");
+    logMessage("bar", "起床パイロットは4人までに制限されています。", "danger");
     renderCurrentScene();
     return;
   }
-  if (state.money < candidate.hireCost) {
-    logMessage("bar", "所持金が足りない。", "danger");
-    renderCurrentScene();
-    return;
+  const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship;
+  if (ship && Number(ship.food || 0) >= Number(candidate.hireCost || 0)) {
+    ship.food = Math.max(0, Number(ship.food || 0) - Number(candidate.hireCost || 0));
+  } else {
+    if (state.money < candidate.hireCost) {
+      logMessage("bar", "解除に必要な食料または資金が足りません。", "danger");
+      renderCurrentScene();
+      return;
+    }
+    state.money -= candidate.hireCost;
   }
-  state.money -= candidate.hireCost;
   const hiredPilot = { ...candidate, id: `pilot_${String(state.pilots.length + 1).padStart(3, "0")}`, hired: true };
   if (typeof window.normalizePilotStatus === "function") window.normalizePilotStatus(hiredPilot);
   state.pilots.push(hiredPilot);
   state.tavernCandidates = state.tavernCandidates.filter((pilot) => pilot.id !== candidateId);
   state.barView = "hire";
   state.selectedTavernCandidateId = null;
-  logMessage("bar", `${candidate.name}を雇用した。`, "good");
+  logMessage("bar", `${candidate.name}のコールドスリープを解除した。`, "good");
   renderCurrentScene();
 };
 
@@ -135,28 +146,51 @@ window.renderBar = function renderBar() {
     hire: renderHireView,
     "rank-up": renderPilotRankUpView,
     quests: renderTavernQuests,
+    lifeline: renderLifelineView,
+    "ein-trace": renderEinTraceView,
     "candidate-detail": renderCandidateDetail
   }[state.barView]();
   window.App.root.innerHTML = `
-    ${renderHeader("酒場", "TAVERN")}
+    ${renderHeader("ブリッジ", "BRIDGE")}
     ${viewHtml}
   `;
 };
 
 function renderBarHome() {
   return `
+    ${renderBridgeShipStatus()}
     <section class="tavern-master panel">
-      <img class="tavern-master-image" src="bar/master_00.png" alt="酒場のマスター">
-      <div class="speech tavern-speech">いらっしゃい。今日は何をする？</div>
+      <img class="tavern-master-image" src="bar/master_00.png" alt="艦長">
+      <div class="speech tavern-speech">ブリッジへようこそ。現在、ユグドラシルは漂流状態です。誰を起こすか、どの区画を復旧するか。判断をお願いします。</div>
     </section>
     <section class="tavern-menu">
-      <button class="button tavern-menu-button" data-action="bar-view" data-view="hire" type="button">キャラクター雇用</button>
-      <button class="button tavern-menu-button" data-action="bar-view" data-view="rank-up" type="button">ランクアップ</button>
-      <button class="button tavern-menu-button" data-action="bar-view" data-view="quests" type="button">クエスト受注</button>
+      <button class="button tavern-menu-button" data-action="bar-view" data-view="hire" type="button">コールドスリープ解除</button>
+      <button class="button tavern-menu-button" data-action="bar-view" data-view="rank-up" type="button">パイロット強化</button>
+      <button class="button tavern-menu-button" data-action="bar-view" data-view="lifeline" type="button">ライフライン復旧</button>
+      <button class="button tavern-menu-button" data-action="bar-view" data-view="ein-trace" type="button">アイン追跡</button>
+      <button class="button tavern-menu-button" data-action="bar-view" data-view="quests" type="button">出撃準備</button>
     </section>
     <section class="panel panel-pad">
-      <div class="section-head"><h2>酒場ログ</h2><span>INFO</span></div>
+      <div class="section-head"><h2>ブリッジログ</h2><span>INFO</span></div>
       <div class="log-scroll">${logHtml("bar")}</div>
+    </section>
+  `;
+}
+
+function renderBridgeShipStatus() {
+  const state = window.GameState;
+  const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship || {};
+  return `
+    <section class="panel panel-pad">
+      <div class="section-head"><h2>船団ステータス</h2><span>YGGDRASILL</span></div>
+      <div class="compact-list">
+        <div class="material-row"><span>漂流</span><strong>${formatNumber(ship.driftDay || 1)}日目</strong></div>
+        <div class="material-row"><span>食料</span><strong>${formatNumber(ship.food || 0)}</strong></div>
+        <div class="material-row"><span>エネルギー</span><strong>${formatNumber(ship.energy || 0)}</strong></div>
+        <div class="material-row"><span>起床パイロット</span><strong>${formatNumber((state.pilots || []).length)}名</strong></div>
+        <div class="material-row"><span>稼働機体</span><strong>${formatNumber((state.mechs || []).length)}機</strong></div>
+        <div class="material-row"><span>アイン追跡率</span><strong>${Math.floor(Number(ship.einTrace || 0))}%</strong></div>
+      </div>
     </section>
   `;
 }
@@ -166,7 +200,7 @@ function renderPilotRankUpView() {
   return `
     <section class="panel panel-pad">
       <div class="section-head">
-        <h2>ランクアップ</h2>
+        <h2>パイロット強化</h2>
         <button class="button" data-action="bar-view" data-view="home" type="button">戻る</button>
       </div>
       <div class="compact-list">${pilots.length ? pilots.map(renderPilotRankUpCard).join("") : `<div class="muted">対象パイロットがいません。</div>`}</div>
@@ -198,7 +232,7 @@ function renderPilotRankUpCard(pilot) {
         <div class="material-row"><span>次Rank</span><strong>${requirement.nextRank || "なし"}</strong></div>
         <div class="material-row"><span>必要素材</span><strong>${requirementText}</strong></div>
       </div>
-      <button class="button tavern-wide-action" data-action="rank-up-pilot" data-pilot="${pilot.id}" ${canRankUp ? "" : "disabled"} type="button">ランクアップ</button>
+      <button class="button tavern-wide-action" data-action="rank-up-pilot" data-pilot="${pilot.id}" ${canRankUp ? "" : "disabled"} type="button">強化</button>
     </article>
   `;
 }
@@ -245,11 +279,11 @@ function renderHireView() {
   return `
     <section class="panel panel-pad">
       <div class="section-head">
-        <h2>雇用候補</h2>
+        <h2>解除候補</h2>
         <button class="button" data-action="bar-view" data-view="home" type="button">戻る</button>
       </div>
       <div class="tavern-sub-actions">
-        <span class="muted">RANK Cまでの候補のみ表示</span>
+        <span class="muted">低リスク解除候補のみ表示</span>
         <button class="button" data-action="refresh-candidates" type="button">候補更新</button>
       </div>
       <div class="pilot-list">${state.tavernCandidates.map(renderCandidateCard).join("")}</div>
@@ -269,10 +303,10 @@ function renderCandidateCard(pilot) {
         <div class="muted pilot-class-name">${className}</div>
       </div>
       <div class="cost-box">
-        <span class="muted">雇用費用</span>
-        <strong>${formatNumber(pilot.hireCost)} G</strong>
+        <span class="muted">解除コスト</span>
+        <strong>食料 ${formatNumber(pilot.hireCost)}</strong>
         <button class="button" data-action="open-tavern-candidate-detail" data-pilot="${pilot.id}" type="button">詳細</button>
-        <button class="button" data-action="hire" data-pilot="${pilot.id}" ${window.GameState.pilots.length >= 4 ? "disabled" : ""} type="button">雇う</button>
+        <button class="button" data-action="hire" data-pilot="${pilot.id}" ${window.GameState.pilots.length >= 4 ? "disabled" : ""} type="button">解除</button>
       </div>
     </article>
   `;
@@ -298,12 +332,12 @@ function renderCandidateDetail() {
           <div class="material-row"><span>CLASS</span><strong>${className}</strong></div>
           <div class="material-row"><span>ROLE</span><strong>${classRole || "-"}</strong></div>
           <div class="material-row"><span>LEVEL</span><strong>${pilot.level || 1}</strong></div>
-          <div class="material-row"><span>COST</span><strong>${formatNumber(pilot.hireCost)} G</strong></div>
+          <div class="material-row"><span>解除コスト</span><strong>食料 ${formatNumber(pilot.hireCost)}</strong></div>
         </div>
       </div>
       <div class="section-head" style="margin-top:10px"><h3>スキル / 才能</h3></div>
       <div class="compact-list">${skills.length ? skills.map(renderSkillDetail).join("") : `<div class="material-row"><span>初期スキル</span><strong>なし</strong></div>`}</div>
-      <button class="button tavern-wide-action" data-action="hire" data-pilot="${pilot.id}" ${window.GameState.pilots.length >= 4 ? "disabled" : ""} type="button">このキャラクターを雇う</button>
+      <button class="button tavern-wide-action" data-action="hire" data-pilot="${pilot.id}" ${window.GameState.pilots.length >= 4 ? "disabled" : ""} type="button">コールドスリープを解除</button>
     </section>
   `;
 }
@@ -326,7 +360,7 @@ function renderTavernQuests() {
   return `
     <section class="panel panel-pad">
       <div class="section-head">
-        <h2>クエスト受注</h2>
+        <h2>出撃準備</h2>
         <button class="button" data-action="bar-view" data-view="home" type="button">戻る</button>
       </div>
       <div class="compact-list">${availablePlanets.map(renderTavernQuestCard).join("")}</div>
@@ -358,8 +392,82 @@ function renderTavernQuestCard(planet, index) {
         <span class="tag">コア x${coreReward}</span>
         <span class="tag">レア素材 ${template.reward.rare}</span>
       </div>
-      <button class="button tavern-wide-action" data-action="accept-tavern-quest" data-planet="${planet.id}" type="button">受注して探索へ</button>
+      <button class="button tavern-wide-action" data-action="accept-tavern-quest" data-planet="${planet.id}" type="button">出撃する</button>
     </article>
+  `;
+}
+
+function renderLifelineView() {
+  const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : window.GameState.ship || {};
+  return `
+    <section class="panel panel-pad">
+      <div class="section-head">
+        <h2>ライフライン復旧</h2>
+        <button class="button" data-action="bar-view" data-view="home" type="button">戻る</button>
+      </div>
+      <div class="compact-list">
+        ${Object.entries(BRIDGE_FACILITY_CONFIG).map(([facilityId, config]) => renderFacilityCard(facilityId, config, ship)).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderFacilityCard(facilityId, config, ship) {
+  const level = Number(ship.facilities?.[facilityId] || 0);
+  const cost = getFacilityRepairCost(facilityId);
+  return `
+    <article class="panel panel-pad">
+      <div class="section-head"><h3>${config.name}</h3><span>Lv ${level}</span></div>
+      <p class="muted">${config.description}</p>
+      <div class="material-row"><span>復旧コスト</span><strong>${formatNumber(cost)} G</strong></div>
+      <button class="button tavern-wide-action" data-action="repair-ship-facility" data-facility="${facilityId}" type="button">復旧する</button>
+    </article>
+  `;
+}
+
+function getFacilityRepairCost(facilityId) {
+  const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : window.GameState.ship || {};
+  const level = Number(ship.facilities?.[facilityId] || 0);
+  return 300 + level * 200;
+}
+
+window.repairShipFacility = function repairShipFacility(facilityId) {
+  const state = window.GameState;
+  const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship;
+  const config = BRIDGE_FACILITY_CONFIG[facilityId];
+  if (!config || !ship) return;
+  const cost = getFacilityRepairCost(facilityId);
+  if (state.money < cost) {
+    logMessage("bar", "復旧に必要な資金が足りません。", "danger");
+    renderCurrentScene();
+    return;
+  }
+  state.money -= cost;
+  ship.facilities[facilityId] = Number(ship.facilities[facilityId] || 0) + 1;
+  Object.entries(config.effects || {}).forEach(([key, value]) => {
+    ship[key] = Number(ship[key] || 0) + Number(value || 0);
+  });
+  logMessage("bar", `${config.name}をLv${ship.facilities[facilityId]}へ復旧した。`, "good");
+  renderCurrentScene();
+};
+
+function renderEinTraceView() {
+  const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : window.GameState.ship || {};
+  return `
+    <section class="panel panel-pad">
+      <div class="section-head">
+        <h2>アイン追跡</h2>
+        <button class="button" data-action="bar-view" data-view="home" type="button">戻る</button>
+      </div>
+      <div class="compact-list">
+        <div class="material-row"><span>アイン追跡率</span><strong>${Math.floor(Number(ship.einTrace || 0))}%</strong></div>
+        <div class="material-row"><span>現在の目的</span><strong>ガイア深層の信号痕跡を探索</strong></div>
+      </div>
+      <section class="panel panel-pad" style="margin-top:10px">
+        <div class="section-head"><h3>解析ログ</h3><span>ZWEI</span></div>
+        <p class="muted">アインの信号痕跡はまだ薄い。ガイア深層の探索が必要です。</p>
+      </section>
+    </section>
   `;
 }
 
