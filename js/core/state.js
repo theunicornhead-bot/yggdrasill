@@ -14,9 +14,9 @@ window.MaterialCatalog = [
   { id: "ancient_core", name: "エンシェントコア", rank: "UR", rarity: "UR", value: 5000, category: "bossWeaponMaterial", materialRole: "weapon_core", prompts: ["ancient core", "weapon core"] }];
 
 window.EnemyCatalog = [
-  { name: "小型甲殻獣", level: 6, hp: 980, maxHp: 980, atk: 118, def: 48, type: "甲殻", drops: ["broken_shell", "brittle_bone"] },
-  { name: "飛膜蟲", level: 9, hp: 1260, maxHp: 1260, atk: 146, def: 58, type: "飛行型", drops: ["thin_membrane", "broken_shell", "wilted_bloodfilm"] },
-  { name: "神経喰らい", level: 12, hp: 1580, maxHp: 1580, atk: 172, def: 66, type: "神経型", drops: ["dry_nerve", "wilted_bloodfilm", "aged_scale"] }
+  { name: "小型甲殻獣", level: 6, hp: 980, maxHp: 980, atk: 118, def: 48, type: "甲殻", species: "beast", race: "beast", enemyType: "beast", drops: ["broken_shell", "brittle_bone"] },
+  { name: "飛膜蟲", level: 9, hp: 1260, maxHp: 1260, atk: 146, def: 58, type: "飛行型", species: "insect", race: "insect", enemyType: "insect", drops: ["thin_membrane", "broken_shell", "wilted_bloodfilm"] },
+  { name: "神経喰らい", level: 12, hp: 1580, maxHp: 1580, atk: 172, def: 66, type: "神経型", species: "beast", race: "beast", enemyType: "beast", drops: ["dry_nerve", "wilted_bloodfilm", "aged_scale"] }
 ];
 
 window.GameState = {
@@ -36,9 +36,9 @@ window.GameState = {
   },
   money: 12450,
   pilots: [
-    { id: "ray", name: "レイ・クロード", gender: "male", rank: "A", classId: "fighter", traitId: "large_specialist", traitRank: "A", level: 1, exp: 0, skillPoints: 0, learnedSkills: ["fighter_001"], appearanceId: "fighter_male", hireCost: 1200, hired: true, hair: "#15181c", skin: "#9b725c" },
-    { id: "sera", name: "セラ・ノクティス", gender: "female", rank: "B", classId: "gunner", traitId: "fuel_saver", traitRank: "B", level: 1, exp: 0, skillPoints: 0, learnedSkills: ["gunner_001"], appearanceId: "gunner_female", hireCost: 900, hired: true, hair: "#d7d9dd", skin: "#b99481" },
-    { id: "glen", name: "グレン・バルド", gender: "male", rank: "B", classId: "supporter", traitId: "balanced", traitRank: "B", level: 1, exp: 0, skillPoints: 0, learnedSkills: ["supporter_001"], appearanceId: "supporter_male", hireCost: 800, hired: true, hair: "#8b4f2f", skin: "#a56e4e" }
+    { id: "ray", name: "レイ・クロード", gender: "male", rank: "A", classId: "fighter", traitId: "large_specialist", traitRank: "A", talents: [{ talentId: "size_l_specialist", rank: 4 }], level: 1, exp: 0, skillPoints: 0, learnedSkills: ["fighter_001"], appearanceId: "fighter_male", hireCost: 1200, hired: true, hair: "#15181c", skin: "#9b725c" },
+    { id: "sera", name: "セラ・ノクティス", gender: "female", rank: "B", classId: "gunner", traitId: "fuel_saver", traitRank: "B", talents: [{ talentId: "fuel_saver", rank: 3 }], level: 1, exp: 0, skillPoints: 0, learnedSkills: ["gunner_001"], appearanceId: "gunner_female", hireCost: 900, hired: true, hair: "#d7d9dd", skin: "#b99481" },
+    { id: "glen", name: "グレン・バルド", gender: "male", rank: "B", classId: "supporter", traitId: "balanced", traitRank: "B", talents: [{ talentId: "tag_command_specialist", rank: 3 }], level: 1, exp: 0, skillPoints: 0, learnedSkills: ["supporter_001"], appearanceId: "supporter_male", hireCost: 800, hired: true, hair: "#8b4f2f", skin: "#a56e4e" }
   ],
   mechs: [
     {
@@ -181,7 +181,7 @@ window.GameState = {
   runMaterials: {},
   currentScene: "bar",
   tavernCandidates: [],
-  masters: { classes: [], traits: [], skills: [], pilotNames: [], mechs: [], mechTraits: [], overdrives: [] },
+  masters: { classes: [], traits: [], talents: [], skills: [], pilotNames: [], mechs: [], mechTraits: [], overdrives: [] },
   fuel: 100,
   floor: 3,
   maxFloor: 20,

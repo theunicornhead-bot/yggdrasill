@@ -62,6 +62,11 @@ const CLASS_STATUS_PROFILES = {
 };
 const RANK_STATUS_FACTORS = { D: 0.94, C: 1, B: 1.08, A: 1.18, S: 1.3 };
 const BASE_PILOT_STATS = { hp: 320, pp: 42, sAtk: 48, mAtk: 48, lAtk: 48, sDef: 34, mDef: 34, lDef: 34, speed: 40 };
+const LEGACY_TALENT_ALIASES = {
+  large_specialist: "size_l_specialist",
+  medium_specialist: "size_m_specialist",
+  small_specialist: "size_s_specialist"
+};
 const WEAPON_TYPE_ALIASES = {
   melee: "melee",
   short: "melee",
@@ -219,6 +224,104 @@ window.getPilotBaseStats = function getPilotBaseStats(pilot) {
   }, {});
 };
 
+function clampTalentRank(rank) {
+  if (typeof rank === "string") {
+    const letterRank = { E: 1, D: 1, C: 2, B: 3, A: 4, S: 5 }[rank.toUpperCase()];
+    if (letterRank) return letterRank;
+  }
+  return Math.min(5, Math.max(1, Math.floor(statusNumber(rank, 1))));
+}
+
+function normalizeTalentId(talentId) {
+  const id = String(talentId || "").trim();
+  return LEGACY_TALENT_ALIASES[id] || id;
+}
+
+function makeTalentSkill(talent) {
+  const master = window.getTalentMaster(talent.talentId);
+  const value = window.getTalentEffectValue(talent);
+  return {
+    id: `trait:${talent.talentId}:${talent.rank}`,
+    classId: "talent",
+    name: `${master?.name || master?.trait_name || talent.talentId} R${talent.rank}`,
+    description: master?.description || "",
+    learnLevel: 1,
+    type: "passive",
+    rangeType: "none",
+    power: value,
+    ppCost: 0,
+    target: "passive",
+    source: "talent",
+    talentId: talent.talentId,
+    rank: talent.rank
+  };
+}
+
+window.getPilotTalentLimitByRank = function getPilotTalentLimitByRank(rank) {
+  return { D: 1, C: 2, B: 3, A: 4, S: 5 }[window.normalizePilotRank(rank)] || 1;
+};
+
+window.getPilotTalents = function getPilotTalents(pilot) {
+  if (!pilot || typeof pilot !== "object") return [];
+  if (!Array.isArray(pilot.talents)) window.normalizePilotStatus(pilot);
+  return Array.isArray(pilot.talents) ? pilot.talents : [];
+};
+
+window.getTalentMaster = function getTalentMaster(talentId) {
+  const id = normalizeTalentId(talentId);
+  if (typeof window.getTalentMasterById === "function") return window.getTalentMasterById(id);
+  return window.GameState?.masters?.talents?.find((item) => item.talentId === id || item.trait_id === id)
+    || (typeof window.getTraitById === "function" ? window.getTraitById(id) : null)
+    || null;
+};
+
+window.getTalentEffectValue = function getTalentEffectValue(talent) {
+  const master = window.getTalentMaster(talent?.talentId || talent);
+  const rank = clampTalentRank(talent?.rank || 1);
+  const base = statusNumber(master?.value ?? master?.base_value, 0);
+  const scaling = statusNumber(master?.rankScaling ?? master?.rank_scaling, 0);
+  return base + scaling * (rank - 1);
+};
+
+window.hasPilotTalent = function hasPilotTalent(pilot, talentId) {
+  const id = normalizeTalentId(talentId);
+  return window.getPilotTalents(pilot).some((talent) => talent.talentId === id);
+};
+
+window.getAllowedTalentsForClass = function getAllowedTalentsForClass(classId) {
+  const normalizedClassId = window.normalizePilotClassId(classId);
+  const talents = window.GameState?.masters?.talents?.length ? window.GameState.masters.talents : (window.GameState?.masters?.traits || []);
+  return talents.filter((talent) => {
+    const raw = talent.allowedClasses ?? talent.allowed_classes ?? "";
+    const allowed = String(raw || "all").split("|").map((item) => window.normalizePilotClassId(item.trim())).filter(Boolean);
+    return !allowed.length || allowed.includes("all") || allowed.includes(normalizedClassId);
+  });
+};
+
+window.rollTalentForPilot = function rollTalentForPilot(pilot) {
+  const owned = new Set(window.getPilotTalents(pilot).map((talent) => talent.talentId));
+  const classTalents = window.getAllowedTalentsForClass(pilot?.classId).filter((talent) => !owned.has(normalizeTalentId(talent.talentId || talent.trait_id)));
+  const allTalents = (window.GameState?.masters?.talents || []).filter((talent) => {
+    const raw = String(talent.allowedClasses || "all");
+    return (raw === "" || raw === "all") && !owned.has(normalizeTalentId(talent.talentId || talent.trait_id));
+  });
+  const pool = classTalents.length ? classTalents : allTalents;
+  const picked = pool[Math.floor(Math.random() * pool.length)];
+  return picked ? { talentId: normalizeTalentId(picked.talentId || picked.trait_id), rank: 1 } : null;
+};
+
+window.addTalentToPilot = function addTalentToPilot(pilot, talent = null) {
+  if (!pilot) return null;
+  window.normalizePilotStatus(pilot);
+  const limit = window.getPilotTalentLimitByRank(pilot.rank);
+  if (pilot.talents.length >= limit) return null;
+  const nextTalent = talent || window.rollTalentForPilot(pilot);
+  if (!nextTalent || window.hasPilotTalent(pilot, nextTalent.talentId)) return null;
+  pilot.talents.push({ talentId: normalizeTalentId(nextTalent.talentId), rank: clampTalentRank(nextTalent.rank) });
+  window.normalizePilotStatus(pilot);
+  return pilot.talents[pilot.talents.length - 1] || null;
+};
+
 window.normalizePilotStatus = function normalizePilotStatus(pilot) {
   if (!pilot || typeof pilot !== "object") return pilot;
   pilot.rank = window.normalizePilotRank(pilot.rank);
@@ -230,11 +333,24 @@ window.normalizePilotStatus = function normalizePilotStatus(pilot) {
   pilot.skillPoints = Math.max(0, Math.floor(statusNumber(pilot.skillPoints, 0)));
   if (!Array.isArray(pilot.skills)) pilot.skills = Array.isArray(pilot.learnedSkills) ? [...pilot.learnedSkills] : [];
   if (!Array.isArray(pilot.learnedSkills)) pilot.learnedSkills = [...pilot.skills];
+  const talentMap = new Map();
+  (Array.isArray(pilot.talents) ? pilot.talents : []).forEach((talent) => {
+    const talentId = normalizeTalentId(talent?.talentId || talent?.traitId || talent?.id);
+    if (!talentId || talentMap.has(talentId)) return;
+    talentMap.set(talentId, { talentId, rank: clampTalentRank(talent.rank ?? talent.traitRank) });
+  });
+  if (pilot.traitId) {
+    const talentId = normalizeTalentId(pilot.traitId);
+    if (talentId && !talentMap.has(talentId)) talentMap.set(talentId, { talentId, rank: clampTalentRank(pilot.traitRank) });
+  }
+  pilot.talents = [...talentMap.values()].slice(0, window.getPilotTalentLimitByRank(pilot.rank));
   pilot.skills = pilot.skills.filter((skillId) => !String(skillId).startsWith("trait:"));
   pilot.learnedSkills = pilot.learnedSkills.filter((skillId) => !String(skillId).startsWith("trait:"));
-  const traitSkill = window.getPilotTraitSkill(pilot);
-  if (traitSkill && !pilot.skills.includes(traitSkill.id)) pilot.skills.push(traitSkill.id);
-  if (traitSkill && !pilot.learnedSkills.includes(traitSkill.id)) pilot.learnedSkills.push(traitSkill.id);
+  const talentSkills = window.getPilotTalentSkills(pilot);
+  talentSkills.forEach((skill) => {
+    if (!pilot.skills.includes(skill.id)) pilot.skills.push(skill.id);
+    if (!pilot.learnedSkills.includes(skill.id)) pilot.learnedSkills.push(skill.id);
+  });
   const baseStats = window.getPilotBaseStats(pilot);
   const sourceStats = pilot.stats && typeof pilot.stats === "object" ? pilot.stats : {};
   pilot.stats = UNIT_STATUS_KEYS.reduce((stats, key) => {
@@ -247,34 +363,22 @@ window.normalizePilotStatus = function normalizePilotStatus(pilot) {
 };
 
 window.getPilotTraitSkillId = function getPilotTraitSkillId(pilot) {
-  if (!pilot?.traitId) return "";
-  return `trait:${pilot.traitId}:${pilot.traitRank || "N"}`;
+  const talent = window.getPilotTalents(pilot)[0];
+  return talent ? `trait:${talent.talentId}:${talent.rank}` : "";
+};
+
+window.getPilotTalentSkills = function getPilotTalentSkills(pilot) {
+  return window.getPilotTalents(pilot).map(makeTalentSkill);
 };
 
 window.getPilotTraitSkill = function getPilotTraitSkill(pilot) {
-  const id = window.getPilotTraitSkillId(pilot);
-  if (!id) return null;
-  const trait = typeof window.getTraitById === "function" ? window.getTraitById(pilot.traitId) : null;
-  const name = trait?.trait_name || pilot.traitId;
-  return {
-    id,
-    classId: "trait",
-    name: `${name} ${pilot.traitRank || ""}`.trim(),
-    description: trait?.description || "",
-    learnLevel: 1,
-    type: "passive",
-    rangeType: "none",
-    power: Number(trait?.base_value || 0),
-    ppCost: 0,
-    target: "passive",
-    source: "trait"
-  };
+  return window.getPilotTalentSkills(pilot)[0] || null;
 };
 
 window.hasPilotTraitSkill = function hasPilotTraitSkill(pilot, traitId) {
   if (!pilot || !traitId) return false;
-  if (pilot.traitId === traitId) return true;
-  const prefix = `trait:${traitId}:`;
+  if (window.hasPilotTalent(pilot, traitId)) return true;
+  const prefix = `trait:${normalizeTalentId(traitId)}:`;
   return Array.isArray(pilot.skills) && pilot.skills.some((skillId) => String(skillId).startsWith(prefix));
 };
 
@@ -788,6 +892,7 @@ window.canRankUpPilot = function canRankUpPilot(pilot, inventory = null) {
 window.rankUpPilot = function rankUpPilot(pilot) {
   if (!window.canRankUpPilot(pilot, window.GameState?.materials)) return false;
   const requirement = window.getPilotRankUpRequirement(pilot);
+  const beforeTalentLimit = window.getPilotTalentLimitByRank(pilot.rank);
   if (requirement.generatedRequirement) {
     consumeGeneratedRankupMaterials(window.GameState.materials, requirement.generatedRequirement, false, requirement.generatedRequirement.requiredMaterialCount);
     consumeGeneratedRankupMaterials(window.GameState.materials, requirement.generatedRequirement, true, requirement.generatedRequirement.requiredBossMaterialCount);
@@ -797,6 +902,12 @@ window.rankUpPilot = function rankUpPilot(pilot) {
     });
   }
   pilot.rank = requirement.nextRank;
+  const afterTalentLimit = window.getPilotTalentLimitByRank(pilot.rank);
+  let gainedTalent = null;
+  if (afterTalentLimit > beforeTalentLimit) {
+    gainedTalent = window.addTalentToPilot(pilot);
+  }
+  pilot.lastGainedTalent = gainedTalent;
   const baseStats = window.getPilotBaseStats(pilot);
   pilot.stats = UNIT_STATUS_KEYS.reduce((stats, key) => {
     stats[key] = Math.max(statusNumber(pilot.stats?.[key], 0), baseStats[key] || 0);
@@ -896,8 +1007,8 @@ window.getLearnedPilotSkills = function getLearnedPilotSkills(pilot) {
   window.normalizePilotStatus(pilot);
   const ids = new Set(pilot.skills || []);
   const classSkills = Array.isArray(window.ClassSkillMaster) ? window.ClassSkillMaster.filter((skill) => ids.has(skill.id)) : [];
-  const traitSkill = window.getPilotTraitSkill(pilot);
-  const skills = traitSkill && ids.has(traitSkill.id) ? [traitSkill, ...classSkills] : classSkills;
+  const talentSkills = window.getPilotTalentSkills(pilot).filter((skill) => ids.has(skill.id));
+  const skills = [...talentSkills, ...classSkills];
   const knownIds = new Set(skills.map((skill) => skill.id));
   (pilot.learnedSkills || []).forEach((skillId) => {
     if (knownIds.has(skillId) || String(skillId).startsWith("trait:")) return;
@@ -936,6 +1047,9 @@ window.normalizeAllUnitStatuses = function normalizeAllUnitStatuses() {
   (window.EnemyCatalog || []).forEach((enemy) => {
     const stats = window.generateEnemyStats(enemy, state.quest?.floor || 1);
     Object.assign(enemy, stats);
+    enemy.species = enemy.species || enemy.race || enemy.enemyType || enemy.enemyTier || enemy.profileId || "unknown";
+    enemy.race = enemy.race || enemy.species;
+    enemy.enemyType = enemy.enemyType || enemy.species;
     enemy.hp = statusNumber(enemy.hp, 0) > 1 ? statusNumber(enemy.hp, stats.hp) : stats.hp;
     enemy.maxHp = statusNumber(enemy.maxHp, 0) > 1 ? statusNumber(enemy.maxHp, stats.hp) : stats.hp;
     enemy.atk = Math.max(enemy.sAtk, enemy.mAtk, enemy.lAtk);

@@ -11,6 +11,7 @@ window.fallbackMasters = {
     { class_id: "hunter", class_name: "ハンター", role: "デバフ特化", main_stat: "dex", weapon_affinity: "pierce", description: "弱体化と部位狙いに優れるクラス" },
     { class_id: "seeker", class_name: "シーカー", role: "探索特化", main_stat: "luck", weapon_affinity: "scan", description: "探索と素材発見に優れるクラス" }
   ],
+  talents: [],
   traits: [
     { trait_id: "large_specialist", trait_name: "大型機特化", effect_type: "large_bonus", base_value: "5", rank_scaling: "3", description: "大型機搭乗時に性能上昇" },
     { trait_id: "medium_specialist", trait_name: "中型機特化", effect_type: "medium_bonus", base_value: "5", rank_scaling: "3", description: "中型機搭乗時に性能上昇" },
@@ -115,6 +116,7 @@ const MASTER_CSV_CONFIGS = [
   { masterName: "materialMaster", path: "data/material_master.csv", idKey: "materialId" },
   { masterName: "itemMaster", path: "data/item_master.csv", idKey: "itemId" },
   { masterName: "pilotClassMaster", path: "data/pilot_class_master.csv", idKey: "classId" },
+  { masterName: "talentMaster", path: "data/talent_master.csv", idKey: "talentId" },
   { masterName: "pilotGrowthMaster", path: "data/pilot_growth_master.csv", idKey: "growthType" },
   { masterName: "pilotSkillMaster", path: "data/pilot_skill_master.csv", idKey: "skillId" },
   { masterName: "machineRankPromptMaster", path: "data/machine_rank_prompt_master.csv", idKey: "rank" },
@@ -423,6 +425,9 @@ function applyCsvMastersToRuntime(masterData) {
       name: item.name,
       role: item.role || "balanced",
       enemyTier: item.enemyTier || item.profileId || "normal",
+      species: item.species || item.race || item.enemyType || item.enemyTier || item.profileId || "unknown",
+      race: item.race || item.species || item.enemyTier || item.profileId || "unknown",
+      enemyType: item.enemyType || item.species || item.enemyTier || item.profileId || "unknown",
       size: item.size || "M",
       profileId: item.profileId || item.enemyTier || item.role,
       rank: item.rank,
@@ -499,6 +504,28 @@ function buildRuntimePilotSkills() {
   }));
 }
 
+function buildRuntimeTalents() {
+  const rows = masterRowsByName("talentMaster");
+  if (!rows.length) return [];
+  return rows.map((item) => ({
+    talentId: item.talentId,
+    name: item.name,
+    category: item.category,
+    effectType: item.effectType,
+    value: item.value,
+    rankScaling: item.rankScaling,
+    allowedClasses: item.allowedClasses,
+    targetType: item.targetType,
+    targetValue: item.targetValue,
+    description: item.description,
+    trait_id: item.talentId,
+    trait_name: item.name,
+    effect_type: item.effectType,
+    base_value: item.value,
+    rank_scaling: item.rankScaling
+  }));
+}
+
 window.loadMasters = async function loadMasters() {
   const state = window.GameState;
   await loadCsvMasters();
@@ -512,7 +539,11 @@ window.loadMasters = async function loadMasters() {
     ]);
     const classes = buildRuntimePilotClasses();
     const skills = buildRuntimePilotSkills();
-    state.masters = { classes, traits, skills, pilotNames, mechs, mechTraits, overdrives };
+    const talents = buildRuntimeTalents();
+    const compatibleTraits = talents.length
+      ? [...talents, ...traits.filter((trait) => !talents.some((talent) => talent.trait_id === trait.trait_id))]
+      : traits;
+    state.masters = { classes, traits: compatibleTraits, talents, skills, pilotNames, mechs, mechTraits, overdrives };
     state.masterLoadMode = "csv";
   } catch (error) {
     state.masters = typeof structuredClone === "function" ? structuredClone(window.fallbackMasters) : JSON.parse(JSON.stringify(window.fallbackMasters));
@@ -526,7 +557,13 @@ window.getClassById = function getClassById(classId) {
 };
 
 window.getTraitById = function getTraitById(traitId) {
-  return window.GameState.masters.traits.find((item) => item.trait_id === traitId);
+  return window.GameState.masters.traits.find((item) => item.trait_id === traitId || item.talentId === traitId);
+};
+
+window.getTalentMasterById = function getTalentMasterById(talentId) {
+  return window.GameState.masters.talents?.find((item) => item.talentId === talentId || item.trait_id === talentId)
+    || window.getTraitById(talentId)
+    || null;
 };
 
 window.getSkillsByClass = function getSkillsByClass(classId) {

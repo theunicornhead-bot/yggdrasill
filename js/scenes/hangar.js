@@ -6,21 +6,25 @@ function slotLabel(slot) {
 
 window.getPilotMechCompatibility = function getPilotMechCompatibility(pilot, mech) {
   if (!pilot || !mech) return { label: "未搭乗", bonusText: "パイロット未設定", matched: false };
-  const hasTrait = typeof window.hasPilotTraitSkill === "function" ? (traitId) => window.hasPilotTraitSkill(pilot, traitId) : (traitId) => pilot.traitId === traitId;
-  if (hasTrait("large_specialist") && (mech.size === "L" || mech.size === "XL")) {
-    return { label: "大型適性", bonusText: "大型機性能 +", matched: true };
-  }
-  if (hasTrait("medium_specialist") && mech.size === "M") {
-    return { label: "中型適性", bonusText: "中型機性能 +", matched: true };
-  }
-  if (hasTrait("small_specialist") && mech.size === "S") {
-    return { label: "小型適性", bonusText: "小型機性能 +", matched: true };
-  }
-  if (hasTrait("fuel_saver")) {
-    return { label: "燃費補助", bonusText: "探索燃料消費を補助", matched: true };
-  }
-  if (hasTrait("lucky")) {
-    return { label: "探索向き", bonusText: "素材発見に期待", matched: true };
+  const talents = typeof window.getPilotTalents === "function" ? window.getPilotTalents(pilot) : [];
+  const mechSize = String(mech.size || "").toUpperCase().replace("小型", "S").replace("中型", "M").replace("大型", "L");
+  const mechTags = typeof window.normalizeMachineTags === "function" ? window.normalizeMachineTags(mech.tags) : (mech.tags || []);
+  for (const talent of talents) {
+    const master = typeof window.getTalentMaster === "function" ? window.getTalentMaster(talent.talentId) : null;
+    const effectType = master?.effectType || master?.effect_type || "";
+    const targetValue = master?.targetValue || "";
+    if (effectType === "size_bonus" && targetValue && mechSize === String(targetValue).toUpperCase()) {
+      return { label: master?.name || "サイズ適性", bonusText: `${targetValue}機体性能 +`, matched: true };
+    }
+    if (effectType === "tag_bonus" && targetValue && mechTags.includes(targetValue)) {
+      return { label: master?.name || "機体適性", bonusText: `${targetValue}タグ性能 +`, matched: true };
+    }
+    if (effectType === "fuel_cost_down" || effectType === "fuel_cost_up") {
+      return { label: master?.name || "燃費才能", bonusText: master?.description || "燃費に影響", matched: true };
+    }
+    if (effectType === "rare_drop_up") {
+      return { label: master?.name || "探索才能", bonusText: "素材発見に期待", matched: true };
+    }
   }
   return { label: "標準", bonusText: "特別な適性なし", matched: false };
 };
@@ -273,7 +277,9 @@ function renderMachineCompatibilityRows(pilot, mech) {
   if (!pilot || !mech) return "";
   const tagMultiplier = typeof window.getMachineTagCompatibilityMultiplier === "function" ? window.getMachineTagCompatibilityMultiplier(pilot, mech) : 1;
   const rankMultiplier = typeof window.getRankCompatibilityMultiplier === "function" ? window.getRankCompatibilityMultiplier(pilot, mech) : 1;
+  const compatibility = window.getPilotMechCompatibility(pilot, mech);
   const rows = [];
+  if (compatibility.matched) rows.push(`<div class="material-row"><span>才能</span><strong>${compatibility.label}</strong></div>`);
   if (tagMultiplier !== 1) rows.push(`<div class="material-row"><span>タグ相性</span><strong>x${tagMultiplier.toFixed(1)}</strong></div>`);
   if (rankMultiplier !== 1) rows.push(`<div class="material-row"><span>ランク差補正</span><strong>x${rankMultiplier.toFixed(2)}</strong></div>`);
   return rows.length ? `<div class="compact-list" style="margin-top:6px">${rows.join("")}</div>` : "";
@@ -436,7 +442,7 @@ function renderPilotDetailView(pilot) {
       </div>
       <div class="section-head" style="margin-top:10px"><h3>status</h3></div>
       <div class="compact-list">${renderUnitStatRows(stats)}</div>
-      <div class="section-head" style="margin-top:10px"><h3>skills</h3></div>
+      <div class="section-head" style="margin-top:10px"><h3>スキル / 才能</h3></div>
       <div class="tag-row">${skills.length ? skills.map((skill) => `<span class="tag">${skill}</span>`).join("") : `<span class="tag">初期スキルなし</span>`}</div>
       <div class="material-row"><span>SKILL TREE</span><strong>${formatNumber(learnedClassSkillCount)} / ${formatNumber(classSkillTotal)}</strong></div>
       <div class="section-head" style="margin-top:10px"><h3>next skill</h3></div>

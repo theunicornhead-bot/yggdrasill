@@ -43,9 +43,12 @@ window.generateTavernCandidates = function generateTavernCandidates() {
   for (let i = 0; i < 3; i += 1) {
     const classMaster = pickRandom(state.masters.classes);
     const nameMaster = pickRandom(state.masters.pilotNames);
-    const traitMaster = pickRandom(state.masters.traits);
     const rank = rollWeighted(rankWeights);
     const initialSkill = getInitialSkillForClass(classMaster.class_id);
+    const initialTalent = typeof window.rollTalentForPilot === "function"
+      ? window.rollTalentForPilot({ classId: classMaster.class_id, rank, talents: [] })
+      : null;
+    const fallbackTrait = initialTalent ? null : pickRandom(state.masters.traits);
     const candidate = {
       id: `candidate_${Date.now()}_${i}_${Math.floor(Math.random() * 9999)}`,
       name: nameMaster.name,
@@ -53,8 +56,9 @@ window.generateTavernCandidates = function generateTavernCandidates() {
       rank,
       classId: classMaster.class_id,
       growthType: rollWeighted(TAVERN_GROWTH_WEIGHTS, "growthType"),
-      traitId: traitMaster.trait_id,
-      traitRank: rollTraitRankByPilotRank(rank),
+      traitId: initialTalent?.talentId || fallbackTrait?.trait_id || "",
+      traitRank: initialTalent?.rank || rollTraitRankByPilotRank(rank),
+      talents: initialTalent ? [initialTalent] : [],
       level: 1,
       exp: 0,
       nextExp: typeof window.calculateNextExp === "function" ? window.calculateNextExp(1) : 120,
@@ -228,6 +232,11 @@ window.rankUpPilotById = function rankUpPilotById(pilotId) {
     return;
   }
   logMessage("bar", `${pilot.name}のP-Rankが${pilot.rank}になりました。`, "good");
+  if (pilot.lastGainedTalent) {
+    const master = typeof window.getTalentMaster === "function" ? window.getTalentMaster(pilot.lastGainedTalent.talentId) : null;
+    logMessage("bar", `${pilot.name}は才能『${master?.name || master?.trait_name || pilot.lastGainedTalent.talentId}』を獲得した。`, "good");
+    delete pilot.lastGainedTalent;
+  }
   renderCurrentScene();
 };
 
@@ -292,7 +301,7 @@ function renderCandidateDetail() {
           <div class="material-row"><span>COST</span><strong>${formatNumber(pilot.hireCost)} G</strong></div>
         </div>
       </div>
-      <div class="section-head" style="margin-top:10px"><h3>スキル</h3></div>
+      <div class="section-head" style="margin-top:10px"><h3>スキル / 才能</h3></div>
       <div class="compact-list">${skills.length ? skills.map(renderSkillDetail).join("") : `<div class="material-row"><span>初期スキル</span><strong>なし</strong></div>`}</div>
       <button class="button tavern-wide-action" data-action="hire" data-pilot="${pilot.id}" ${window.GameState.pilots.length >= 4 ? "disabled" : ""} type="button">このキャラクターを雇う</button>
     </section>
@@ -302,11 +311,12 @@ function renderCandidateDetail() {
 function renderSkillDetail(skill) {
   const name = skill.skill_name || skill.name || skill.id;
   const detail = skill.description || skill.effect_type || skill.type || "";
-  const tier = skill.tier || (skill.source === "trait" ? "Passive" : "-");
+  const isTalent = skill.source === "trait" || skill.source === "talent";
+  const tier = skill.tier || (isTalent ? "才能" : "-");
   return `
     <div class="material-row">
       <span>${name}<br><span class="muted">${detail}</span></span>
-      <strong>${tier === "Passive" ? tier : `Tier ${tier}`}</strong>
+      <strong>${isTalent ? tier : `Tier ${tier}`}</strong>
     </div>
   `;
 }
