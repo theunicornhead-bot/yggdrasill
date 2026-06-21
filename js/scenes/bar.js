@@ -85,7 +85,7 @@ window.generateTavernCandidates = function generateTavernCandidates() {
 
 window.setBarView = function setBarView(view) {
   const state = window.GameState;
-  state.barView = ["home", "hire", "rank-up", "quests", "lifeline", "ein-trace", "candidate-detail"].includes(view) ? view : "home";
+  state.barView = ["home", "pilots", "hire", "rank-up", "quests", "lifeline", "ein-trace", "candidate-detail"].includes(view) ? view : "home";
   if (state.barView !== "candidate-detail") state.selectedTavernCandidateId = null;
   window.renderCurrentScene();
 };
@@ -93,6 +93,12 @@ window.setBarView = function setBarView(view) {
 window.openTavernCandidateDetail = function openTavernCandidateDetail(candidateId) {
   window.GameState.selectedTavernCandidateId = candidateId;
   window.GameState.barView = "candidate-detail";
+  window.renderCurrentScene();
+};
+
+window.setBridgeMenu = function setBridgeMenu(menu) {
+  const state = window.GameState;
+  state.bridgeMenu = state.bridgeMenu === menu ? "" : menu;
   window.renderCurrentScene();
 };
 
@@ -139,10 +145,15 @@ window.acceptTavernQuest = function acceptTavernQuest(planetId) {
 
 window.renderBar = function renderBar() {
   const state = window.GameState;
+  const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship || {};
+  const driftDay = Number(ship.driftDay || 1);
+  const food = Number(ship.food || 0);
+  const energy = Number(ship.energy || 0);
   state.barView = state.barView || "home";
   if (!state.tavernCandidates.length) generateTavernCandidates();
   const viewHtml = {
     home: renderBarHome,
+    pilots: renderBridgePilotListView,
     hire: renderHireView,
     "rank-up": renderPilotRankUpView,
     quests: renderTavernQuests,
@@ -151,47 +162,92 @@ window.renderBar = function renderBar() {
     "candidate-detail": renderCandidateDetail
   }[state.barView]();
   window.App.root.innerHTML = `
-    ${renderHeader("ブリッジ", "BRIDGE")}
+    ${renderHeader(
+      "ブリッジ",
+      "BRIDGE",
+      `
+        <div class="resource"><small>食料</small><strong>${formatNumber(Number.isFinite(food) ? food : 0)}</strong></div>
+        <div class="resource"><small>エネルギー</small><strong>${formatNumber(Number.isFinite(energy) ? energy : 0)}</strong></div>
+      `,
+      {
+        hideDefaultResources: true,
+        titleMeta: `漂流 ${formatNumber(Number.isFinite(driftDay) ? driftDay : 1)}日目`,
+        resourceRowClass: "bridge-resource-row"
+      }
+    )}
     ${viewHtml}
   `;
 };
 
 function renderBarHome() {
+  const selectedMenu = window.GameState.bridgeMenu || "";
   return `
-    ${renderBridgeShipStatus()}
-    <section class="tavern-master panel">
-      <img class="tavern-master-image" src="bar/master_00.png" alt="艦長">
-      <div class="speech tavern-speech">ブリッジへようこそ。現在、ユグドラシルは漂流状態です。誰を起こすか、どの区画を復旧するか。判断をお願いします。</div>
-    </section>
-    <section class="tavern-menu">
-      <button class="button tavern-menu-button" data-action="bar-view" data-view="hire" type="button">コールドスリープ解除</button>
-      <button class="button tavern-menu-button" data-action="bar-view" data-view="rank-up" type="button">パイロット強化</button>
-      <button class="button tavern-menu-button" data-action="bar-view" data-view="lifeline" type="button">ライフライン復旧</button>
-      <button class="button tavern-menu-button" data-action="bar-view" data-view="ein-trace" type="button">アイン追跡</button>
-      <button class="button tavern-menu-button" data-action="bar-view" data-view="quests" type="button">出撃準備</button>
-    </section>
-    <section class="panel panel-pad">
-      <div class="section-head"><h2>ブリッジログ</h2><span>INFO</span></div>
-      <div class="log-scroll">${logHtml("bar")}</div>
+    <section class="bridge-home">
+      <div class="bridge-captain">
+        <img class="tavern-master-image" src="bar/master_00.png" alt="艦長">
+      </div>
+      <nav class="bridge-home-menu" aria-label="ブリッジメニュー">
+        <div class="bridge-category-row">
+          <button class="button bridge-category-button ${selectedMenu === "ship" ? "active" : ""}" data-action="bridge-menu" data-menu="ship" type="button">アーク・クレイドル</button>
+          <button class="button bridge-category-button ${selectedMenu === "pilots" ? "active" : ""}" data-action="bridge-menu" data-menu="pilots" type="button">パイロット管理</button>
+          <button class="button bridge-category-button ${selectedMenu === "missions" ? "active" : ""}" data-action="bridge-menu" data-menu="missions" type="button">ミッション</button>
+        </div>
+        ${renderBridgeSubMenu(selectedMenu)}
+        <p class="bridge-caption panel panel-pad">アーク・クレイドルは漂流状態です。艦内の復旧、パイロット管理、ミッション選択をここで統括します。</p>
+      </nav>
     </section>
   `;
 }
 
-function renderBridgeShipStatus() {
-  const state = window.GameState;
-  const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship || {};
+function renderBridgeSubMenu(menu) {
+  const menus = {
+    ship: `
+      <section class="bridge-menu-group panel panel-pad">
+        <h2>アーク・クレイドル</h2>
+        <button class="button bridge-menu-button" data-action="bar-view" data-view="lifeline" type="button">ライフライン復旧</button>
+      </section>
+    `,
+    pilots: `
+      <section class="bridge-menu-group panel panel-pad">
+        <h2>パイロット管理</h2>
+        <button class="button bridge-menu-button" data-action="bar-view" data-view="pilots" type="button">パイロット一覧</button>
+        <button class="button bridge-menu-button" data-action="bar-view" data-view="hire" type="button">コールドスリープ解除</button>
+        <button class="button bridge-menu-button" data-action="bar-view" data-view="rank-up" type="button">パイロットランク昇級</button>
+      </section>
+    `,
+    missions: `
+      <section class="bridge-menu-group panel panel-pad">
+        <h2>ミッション</h2>
+        <button class="button bridge-menu-button" data-action="bar-view" data-view="ein-trace" type="button">アイン追跡</button>
+        <button class="button bridge-menu-button" data-screen="quest" type="button">メインミッション</button>
+        <button class="button bridge-menu-button" data-action="bar-view" data-view="quests" type="button">サブミッションの受注</button>
+      </section>
+    `
+  };
+  return menus[menu] || "";
+}
+
+function renderBridgePilotListView() {
+  const pilots = window.GameState.pilots || [];
   return `
     <section class="panel panel-pad">
-      <div class="section-head"><h2>船団ステータス</h2><span>YGGDRASILL</span></div>
-      <div class="compact-list">
-        <div class="material-row"><span>漂流</span><strong>${formatNumber(ship.driftDay || 1)}日目</strong></div>
-        <div class="material-row"><span>食料</span><strong>${formatNumber(ship.food || 0)}</strong></div>
-        <div class="material-row"><span>エネルギー</span><strong>${formatNumber(ship.energy || 0)}</strong></div>
-        <div class="material-row"><span>起床パイロット</span><strong>${formatNumber((state.pilots || []).length)}名</strong></div>
-        <div class="material-row"><span>稼働機体</span><strong>${formatNumber((state.mechs || []).length)}機</strong></div>
-        <div class="material-row"><span>アイン追跡率</span><strong>${Math.floor(Number(ship.einTrace || 0))}%</strong></div>
+      <div class="section-head">
+        <h2>パイロット一覧</h2>
+        <button class="button" data-action="bar-view" data-view="home" type="button">戻る</button>
       </div>
+      <div class="compact-list">${pilots.length ? pilots.map(renderBridgePilotRow).join("") : `<div class="muted">起床中のパイロットがいません。</div>`}</div>
     </section>
+  `;
+}
+
+function renderBridgePilotRow(pilot) {
+  if (typeof window.normalizePilotStatus === "function") window.normalizePilotStatus(pilot);
+  const className = window.getPilotClassDisplayName(pilot.classId);
+  return `
+    <div class="material-row">
+      <span>${pilot.name || "Pilot"}<br><span class="muted">${className || "-"}</span></span>
+      <strong>Rank ${pilot.rank || "-"}</strong>
+    </div>
   `;
 }
 

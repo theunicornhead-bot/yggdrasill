@@ -157,17 +157,22 @@ window.pilotPortraitStyle = function pilotPortraitStyle(pilot) {
   return `style="--hair:${pilot.hair || "#263034"};--skin:${pilot.skin || "#6d777a"}"`;
 };
 
-window.renderHeader = function renderHeader(titleJa, titleEn, extra = "") {
+window.renderHeader = function renderHeader(titleJa, titleEn, extra = "", options = {}) {
   const state = window.GameState;
+  const defaultResources = options.hideDefaultResources ? "" : `
+        <div class="resource"><small>所持金</small><strong>${formatNumber(state.money)} G</strong></div>
+        <button class="resource quest-material-button" data-action="open-base-inventory" type="button"><small>所持素材</small><strong>${totalMaterials()} / 9999</strong></button>
+  `;
+  const resourceRowClass = options.resourceRowClass ? ` resource-row ${options.resourceRowClass}` : "resource-row";
   return `
     <div class="top-bar">
       <div class="title-block">
         <span class="title-ja">${titleJa}</span>
         <span class="title-en">${titleEn}</span>
+        ${options.titleMeta ? `<span class="title-meta">${options.titleMeta}</span>` : ""}
       </div>
-      <div class="resource-row">
-        <div class="resource"><small>所持金</small><strong>${formatNumber(state.money)} G</strong></div>
-        <button class="resource quest-material-button" data-action="open-base-inventory" type="button"><small>所持素材</small><strong>${totalMaterials()} / 9999</strong></button>
+      <div class="${resourceRowClass}">
+        ${defaultResources}
         ${extra}
       </div>
     </div>

@@ -23,20 +23,24 @@
 }
 
 html {
+  height: 100%;
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
+  overflow-y: auto;
   touch-action: manipulation;
   overscroll-behavior: none;
   -webkit-text-size-adjust: 100%;
 }
 
 body {
+  height: 100%;
   width: 100%;
   max-width: 100%;
   min-height: 100vh;
   margin: 0;
   overflow-x: hidden;
+  overflow-y: auto;
   color: var(--text);
   background:
     radial-gradient(circle at 50% 0%, rgba(19, 92, 100, 0.28), transparent 42%),
@@ -73,9 +77,13 @@ a,
 .app-frame {
   position: relative;
   width: min(100vw, 430px);
+  height: 100dvh;
   min-height: 100vh;
-  overflow: hidden;
   overflow-x: clip;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
   background:
     radial-gradient(circle at 22% 12%, rgba(58, 158, 169, 0.2), transparent 30%),
     radial-gradient(circle at 80% 38%, rgba(120, 72, 155, 0.12), transparent 28%),
@@ -209,6 +217,14 @@ a,
   margin-top: 4px;
 }
 
+.title-meta {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
 .resource-row {
   justify-content: flex-end;
   flex-wrap: wrap;
@@ -232,6 +248,15 @@ a,
 .resource strong {
   font-size: 17px;
   font-weight: 500;
+}
+
+.bridge-resource-row {
+  flex: 0 1 210px;
+}
+
+.bridge-resource-row .resource {
+  flex: 1 1 92px;
+  min-width: 0;
 }
 
 .panel {
@@ -380,6 +405,15 @@ a,
   filter: drop-shadow(0 14px 20px rgba(0, 0, 0, 0.68));
 }
 
+.bridge-captain .tavern-master-image {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: none;
+  object-fit: cover;
+  object-position: center top;
+}
+
 .tavern-speech {
   z-index: 3;
   right: 12px;
@@ -392,6 +426,65 @@ a,
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin-bottom: 12px;
+}
+
+.bridge-home {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(172px, 0.95fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.bridge-captain {
+  position: relative;
+  min-height: 430px;
+  overflow: hidden;
+  border: 1px solid var(--line-soft);
+  background: rgba(1, 7, 8, 0.48);
+  clip-path: polygon(0 7px, 7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%);
+}
+
+.bridge-home-menu {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.bridge-category-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.bridge-category-button {
+  width: 100%;
+  min-height: 48px;
+  text-align: left;
+}
+
+.bridge-menu-group {
+  display: grid;
+  gap: 7px;
+}
+
+.bridge-menu-group h2 {
+  margin: 0 0 2px;
+  color: var(--cyan);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.bridge-menu-button {
+  width: 100%;
+  min-height: 42px;
+  text-align: left;
+}
+
+.bridge-caption {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.55;
 }
 
 .sub-tabs {
@@ -2380,6 +2473,14 @@ a,
   .screen {
     padding-left: 10px;
     padding-right: 10px;
+  }
+
+  .bridge-home {
+    grid-template-columns: 1fr;
+  }
+
+  .bridge-captain {
+    min-height: 360px;
   }
 
   .panel-pad {

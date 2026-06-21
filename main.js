@@ -98,6 +98,7 @@ document.addEventListener("click", (event) => {
     window.renderCurrentScene();
   }
   if (action === "bar-view") window.setBarView(target.dataset.view);
+  if (action === "bridge-menu") window.setBridgeMenu(target.dataset.menu);
   if (action === "open-tavern-candidate-detail") window.openTavernCandidateDetail(target.dataset.pilot);
   if (action === "accept-tavern-quest") window.acceptTavernQuest(target.dataset.planet);
   if (action === "hire") window.hirePilot(target.dataset.pilot);
