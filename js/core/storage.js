@@ -1,7 +1,7 @@
 "use strict";
 
 window.PLAYER_SAVE_KEY = "yggdrasil_player_save_v1";
-window.PLAYER_SAVE_VERSION = 2;
+window.PLAYER_SAVE_VERSION = 3;
 window.MAX_OWNED_MECHS = 30;
 window.MAX_PARTY_MECHS = 4;
 

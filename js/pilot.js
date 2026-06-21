@@ -1,6 +1,15 @@
 "use strict";
 
 const PILOT_CLASS_IMAGE_MAP = {
+  ace: {
+    classId: "ace",
+    className: "エース",
+    role: "専用万能",
+    maleImage: "character/character_1000.png",
+    femaleImage: "character/character_1000.png",
+    imageIndexMale: 1000,
+    imageIndexFemale: 1000
+  },
   striker: {
     classId: "striker",
     className: "ストライカー",

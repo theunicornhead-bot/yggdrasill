@@ -1,4 +1,5 @@
 classId,displayName,role,mainStat,weaponAffinity,description
+ace,エース,専用万能,sAtk,melee,ティリア専用クラス。近接戦闘と指揮能力を兼ね備える。
 striker,ストライカー,近接攻撃,sAtk,melee,近接戦闘に優れる
 gunner,ガンナー,遠距離攻撃,lAtk,ranged,射撃戦に優れる
 wizard,ウィザード,魔法攻撃,mAtk,magic,魔法攻撃に優れる

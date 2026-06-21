@@ -30,6 +30,7 @@ const TAG_ALIASES = {
   recon: "scout"
 };
 const CLASS_TAG_COMPATIBILITY = {
+  ace: "melee",
   striker: "melee",
   fighter: "melee",
   gunner: "ranged",
@@ -51,6 +52,7 @@ const GROWTH_TYPE_LABELS = { early: "Early", normal: "Normal", late: "Late", sup
 const GROWTH_TYPE_FACTORS = { early: 0.9, normal: 1, late: 1.1, superLate: 1.2 };
 const GROWTH_INITIAL_FACTORS = { early: 1.12, normal: 1, late: 0.92, superLate: 0.84 };
 const CLASS_STATUS_PROFILES = {
+  ace: { sAtk: 1.22, lAtk: 1.05, mAtk: 0.9, sDef: 1.1, lDef: 1.02, mDef: 0.95, speed: 1.08 },
   striker: { sAtk: 1.25, lAtk: 0.85, mAtk: 0.85, sDef: 1.2, lDef: 0.9, mDef: 0.9, speed: 1 },
   gunner: { sAtk: 0.85, lAtk: 1.25, mAtk: 0.85, sDef: 1, lDef: 1.2, mDef: 0.9, speed: 1 },
   wizard: { sAtk: 0.85, lAtk: 0.85, mAtk: 1.25, sDef: 0.9, lDef: 1, mDef: 1.2, speed: 1 },
