@@ -715,11 +715,18 @@ window.createMechFromMaster = function createMechFromMaster(mechMasterId) {
 
 window.initializeStartingMechs = function initializeStartingMechs() {
   const state = window.GameState;
-  const hasSavedMechs = state.storage?.loaded && Array.isArray(state.mechs) && state.mechs.length > 0;
-  if (hasSavedMechs) return;
+  const hasInitialMechs = Array.isArray(state.mechs) && state.mechs.length > 0;
+  if (hasInitialMechs) {
+    if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
+    if (!state.selectedMechId || !state.mechs.some((mech) => mech.id === state.selectedMechId)) {
+      state.selectedMechId = state.mechs[0]?.id || null;
+    }
+    return;
+  }
   const first = createMechFromMaster("frame_s_001");
   if (first && state.pilots[0]) first.pilotId = state.pilots[0].id;
   state.mechs = [first].filter(Boolean);
+  if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
   if (typeof window.normalizeAllUnitStatuses === "function") window.normalizeAllUnitStatuses();
   state.selectedMechId = state.mechs[0]?.id || null;
 };

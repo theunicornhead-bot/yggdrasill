@@ -283,6 +283,10 @@ window.switchScene = function switchScene(sceneName) {
 window.renderCurrentScene = function renderCurrentScene() {
   renderBottomNav();
   const state = window.GameState;
+  if (state.scenario?.active && typeof window.renderScenario === "function") {
+    window.renderScenario();
+    return;
+  }
   if (state.currentScene !== "battle" && typeof window.stopAutoBattleTimer === "function") window.stopAutoBattleTimer();
   const renderer = window.App.scenes[state.currentScene];
   if (renderer) renderer();

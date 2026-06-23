@@ -1,7 +1,7 @@
 "use strict";
 
 window.PLAYER_SAVE_KEY = "yggdrasil_player_save_v1";
-window.PLAYER_SAVE_VERSION = 3;
+window.PLAYER_SAVE_VERSION = 4;
 window.MAX_OWNED_MECHS = 30;
 window.MAX_PARTY_MECHS = 4;
 
@@ -26,6 +26,30 @@ function ensureInventoryState() {
 }
 
 window.ensureInventoryState = ensureInventoryState;
+
+function defaultScenarioState() {
+  return {
+    active: false,
+    currentId: null,
+    index: 0,
+    returnScene: "bar",
+    seen: {}
+  };
+}
+
+function ensureStoredScenarioState(source) {
+  if (typeof window.ensureScenarioState === "function") return window.ensureScenarioState(source);
+  const current = source && typeof source === "object" ? source : window.GameState.scenario;
+  const fallback = defaultScenarioState();
+  window.GameState.scenario = {
+    active: Boolean(current?.active),
+    currentId: typeof current?.currentId === "string" ? current.currentId : null,
+    index: Math.max(0, Math.floor(Number(current?.index || 0))),
+    returnScene: typeof current?.returnScene === "string" ? current.returnScene : fallback.returnScene,
+    seen: current?.seen && typeof current.seen === "object" ? current.seen : {}
+  };
+  return window.GameState.scenario;
+}
 
 function cloneMaterialCounts(source = {}) {
   return Object.entries(source || {}).reduce((counts, [id, count]) => {
@@ -193,6 +217,7 @@ window.createPlayerSavePayload = function createPlayerSavePayload() {
   ensureMechRosterState();
   ensureMaterialInventoryState();
   ensureShipState();
+  ensureStoredScenarioState();
   state.player.createdAt = state.player.createdAt || nowIsoString();
   state.player.updatedAt = nowIsoString();
 
@@ -215,6 +240,7 @@ window.createPlayerSavePayload = function createPlayerSavePayload() {
     inventory: clonePlain(ensureInventoryState()),
     market: clonePlain(state.market || { listings: [] }),
     exploration: clonePlain(state.exploration || {}),
+    scenario: clonePlain(state.scenario || defaultScenarioState()),
     currentScene: state.currentScene || "bar"
   };
 };
@@ -243,6 +269,7 @@ window.applyPlayerSavePayload = function applyPlayerSavePayload(payload) {
   ensureShipState();
   state.market = payload.market && typeof payload.market === "object" ? payload.market : state.market;
   state.exploration = payload.exploration && typeof payload.exploration === "object" ? { ...state.exploration, ...payload.exploration } : state.exploration;
+  ensureStoredScenarioState(payload.scenario);
   state.currentScene = typeof payload.currentScene === "string" ? payload.currentScene : state.currentScene;
   ensureMechRosterState();
   if (typeof window.normalizeAllUnitStatuses === "function") window.normalizeAllUnitStatuses();
@@ -259,6 +286,7 @@ window.loadPlayerData = function loadPlayerData() {
   ensureMaterialInventoryState();
   ensureShipState();
   ensureMechRosterState();
+  ensureStoredScenarioState();
   if (typeof window.normalizeAllUnitStatuses === "function") window.normalizeAllUnitStatuses();
   syncPlayerFromRuntimeState();
 

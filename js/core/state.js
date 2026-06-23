@@ -20,7 +20,7 @@ window.EnemyCatalog = [
 ];
 
 window.GameState = {
-  saveVersion: 3,
+  saveVersion: 4,
   maxOwnedMechs: 30,
   maxPartyMechs: 4,
   player: {
@@ -147,6 +147,13 @@ window.GameState = {
   },
   market: {
     listings: []
+  },
+  scenario: {
+    active: false,
+    currentId: null,
+    index: 0,
+    returnScene: "bar",
+    seen: {}
   },
   exploration: {
     fuel: 100,

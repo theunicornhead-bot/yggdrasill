@@ -34,7 +34,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   window.loadPlayerData();
   await window.loadMasters();
   window.renderBottomNav();
-  window.renderCurrentScene();
+  if (typeof window.tryStartInitialScenario === "function" && window.tryStartInitialScenario()) {
+    window.renderScenario();
+  } else {
+    window.renderCurrentScene();
+  }
   window.savePlayerData();
 });
 
@@ -97,6 +101,10 @@ document.addEventListener("click", (event) => {
     window.generateTavernCandidates();
     window.renderCurrentScene();
   }
+  if (action === "scenario-next") window.advanceScenario();
+  if (action === "scenario-skip") window.skipScenario();
+  if (action === "scenario-start") window.startScenario(target.dataset.scenario, target.dataset.returnScene);
+  if (action === "scenario-reset-seen") window.resetScenarioSeen(target.dataset.scenario);
   if (action === "bar-view") window.setBarView(target.dataset.view);
   if (action === "bridge-menu") window.setBridgeMenu(target.dataset.menu);
   if (action === "open-tavern-candidate-detail") window.openTavernCandidateDetail(target.dataset.pilot);
