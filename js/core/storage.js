@@ -98,24 +98,92 @@ function ensureShipState() {
   const state = window.GameState;
   const ship = state.ship && typeof state.ship === "object" ? state.ship : {};
   const facilities = ship.facilities && typeof ship.facilities === "object" ? ship.facilities : {};
+  const resourceCaps = ship.resourceCaps && typeof ship.resourceCaps === "object" ? ship.resourceCaps : {};
   state.ship = {
+    ...ship,
     driftDay: Math.max(1, Math.floor(Number(ship.driftDay || 1))),
     food: Math.max(0, Math.floor(Number(ship.food ?? 100))),
+    medicine: Math.max(0, Math.floor(Number(ship.medicine ?? 30))),
+    fuel: Math.max(0, Math.floor(Number(ship.fuel ?? 300))),
+    materials: Math.max(0, Math.floor(Number(ship.materials ?? 0))),
     energy: Math.max(0, Math.floor(Number(ship.energy ?? 100))),
+    resourceCaps: {
+      food: Math.max(1, Math.floor(Number(resourceCaps.food ?? 500))),
+      medicine: Math.max(1, Math.floor(Number(resourceCaps.medicine ?? 200))),
+      fuel: Math.max(1, Math.floor(Number(resourceCaps.fuel ?? 1000))),
+      materials: Math.max(1, Math.floor(Number(resourceCaps.materials ?? 9999)))
+    },
     foodProduction: Math.max(0, Number(ship.foodProduction || 0)),
+    medicineProduction: Math.max(0, Number(ship.medicineProduction || 0)),
     energyProduction: Math.max(0, Number(ship.energyProduction || 0)),
     foodCostReduction: Math.max(0, Number(ship.foodCostReduction || 0)),
+    medicineCostReduction: Math.max(0, Number(ship.medicineCostReduction || 0)),
     energyCostReduction: Math.max(0, Number(ship.energyCostReduction || 0)),
+    fuelCostReduction: Math.max(0, Number(ship.fuelCostReduction || 0)),
+    explorationFuelCostReduction: Math.max(0, Number(ship.explorationFuelCostReduction || 0)),
+    foodStorageStability: Math.max(0, Number(ship.foodStorageStability || 0)),
+    materialYieldBonus: Math.max(0, Number(ship.materialYieldBonus || 0)),
+    repairCostReduction: Math.max(0, Number(ship.repairCostReduction || 0)),
+    mechCostReduction: Math.max(0, Number(ship.mechCostReduction || 0)),
+    infectionRecoveryReduction: Math.max(0, Math.floor(Number(ship.infectionRecoveryReduction || 0))),
+    infectionRateReduction: Math.max(0, Number(ship.infectionRateReduction || 0)),
+    medicineRecoveryBonus: Math.max(0, Number(ship.medicineRecoveryBonus || 0)),
+    diseaseRecoveryReduction: Math.max(0, Number(ship.diseaseRecoveryReduction || 0)),
+    shortRecoveryReduction: Math.max(0, Number(ship.shortRecoveryReduction || 0)),
+    dailyTrainingExp: Math.max(0, Number(ship.dailyTrainingExp || 0)),
+    reservePilotExpRate: Math.max(0, Number(ship.reservePilotExpRate || 0)),
+    battleExpBonus: Math.max(0, Number(ship.battleExpBonus || 0)),
+    sortieBuffChance: Math.max(0, Number(ship.sortieBuffChance || 0)),
+    sortieBuffPower: Math.max(0, Number(ship.sortieBuffPower || 0)),
+    pilotBaseBonus: Math.max(0, Number(ship.pilotBaseBonus || 0)),
+    weaponLevelBonus: Math.max(0, Number(ship.weaponLevelBonus || 0)),
+    generatedMechLevelBonus: Math.max(0, Number(ship.generatedMechLevelBonus || 0)),
+    machineEnhanceExpBonus: Math.max(0, Number(ship.machineEnhanceExpBonus || 0)),
+    hangarBonus: Math.max(0, Number(ship.hangarBonus || 0)),
+    pilotCapacityBonus: Math.max(0, Number(ship.pilotCapacityBonus || 0)),
+    lifeSupportCostReduction: Math.max(0, Number(ship.lifeSupportCostReduction || 0)),
     facilities: {
       foodStorage: Math.max(0, Math.floor(Number(facilities.foodStorage || 0))),
       engine: Math.max(0, Math.floor(Number(facilities.engine || 0))),
       lifeSupport: Math.max(0, Math.floor(Number(facilities.lifeSupport || 0))),
       tacticalSupport: Math.max(0, Math.floor(Number(facilities.tacticalSupport || 0))),
-      mechDevelopment: Math.max(0, Math.floor(Number(facilities.mechDevelopment || 0)))
+      mechDevelopment: Math.max(0, Math.floor(Number(facilities.mechDevelopment || 0))),
+      fuelMaintenance: Math.max(0, Math.floor(Number(facilities.fuelMaintenance || 0))),
+      fuelEfficiency: Math.max(0, Math.floor(Number(facilities.fuelEfficiency || 0))),
+      foodMaintenance: Math.max(0, Math.floor(Number(facilities.foodMaintenance || 0))),
+      materialYield: Math.max(0, Math.floor(Number(facilities.materialYield || 0))),
+      repairEfficiency: Math.max(0, Math.floor(Number(facilities.repairEfficiency || 0))),
+      medicalRecovery: Math.max(0, Math.floor(Number(facilities.medicalRecovery || 0))),
+      infectionControl: Math.max(0, Math.floor(Number(facilities.infectionControl || 0))),
+      medicineSupply: Math.max(0, Math.floor(Number(facilities.medicineSupply || 0))),
+      foodPlant: Math.max(0, Math.floor(Number(facilities.foodPlant ?? facilities.lifeSupport ?? 0))),
+      wasteProcessor: Math.max(0, Math.floor(Number(facilities.wasteProcessor || 0))),
+      mealQuality: Math.max(0, Math.floor(Number(facilities.mealQuality || 0))),
+      satisfyingMeals: Math.max(0, Math.floor(Number(facilities.satisfyingMeals ?? facilities.foodMaintenance ?? facilities.foodStorage ?? 0))),
+      shortRecovery: Math.max(0, Math.floor(Number(facilities.shortRecovery ?? facilities.medicalRecovery ?? 0))),
+      diseaseTreatment: Math.max(0, Math.floor(Number(facilities.diseaseTreatment ?? facilities.infectionControl ?? 0))),
+      medicalPlant: Math.max(0, Math.floor(Number(facilities.medicalPlant ?? facilities.medicineSupply ?? 0))),
+      medicalEfficiency: Math.max(0, Math.floor(Number(facilities.medicalEfficiency || 0))),
+      weaponDevelopment: Math.max(0, Math.floor(Number(facilities.weaponDevelopment || 0))),
+      frameDevelopment: Math.max(0, Math.floor(Number(facilities.frameDevelopment ?? facilities.mechDevelopment ?? 0))),
+      maintenanceKnowhow: Math.max(0, Math.floor(Number(facilities.maintenanceKnowhow || 0))),
+      materialSaving: Math.max(0, Math.floor(Number(facilities.materialSaving ?? facilities.repairEfficiency ?? 0))),
+      learningComputer: Math.max(0, Math.floor(Number(facilities.learningComputer || 0))),
+      sleepLearning: Math.max(0, Math.floor(Number(facilities.sleepLearning || 0))),
+      simulatorTraining: Math.max(0, Math.floor(Number(facilities.simulatorTraining || 0))),
+      pilotBaseTraining: Math.max(0, Math.floor(Number(facilities.pilotBaseTraining || 0))),
+      hangarExpansion: Math.max(0, Math.floor(Number(facilities.hangarExpansion || 0))),
+      cryosleepWard: Math.max(0, Math.floor(Number(facilities.cryosleepWard || 0))),
+      warehouseExpansion: Math.max(0, Math.floor(Number(facilities.warehouseExpansion || 0))),
+      lifeSupportSystem: Math.max(0, Math.floor(Number(facilities.lifeSupportSystem ?? facilities.lifeSupport ?? 0)))
     },
     einTrace: Math.max(0, Math.min(100, Number(ship.einTrace || 0))),
     specialists: Array.isArray(ship.specialists) ? ship.specialists : []
   };
+  Object.keys(state.ship.facilities).forEach((facilityId) => {
+    state.ship.facilities[facilityId] = Math.max(0, Math.min(20, Math.floor(Number(state.ship.facilities[facilityId] || 0))));
+  });
+  if (typeof window.recalculateShipLifelineEffects === "function") window.recalculateShipLifelineEffects(state.ship);
   return state.ship;
 }
 

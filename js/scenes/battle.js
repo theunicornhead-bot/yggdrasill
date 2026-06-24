@@ -566,6 +566,9 @@ function applyBattleDamage(target, damage) {
   const safeDamage = Math.max(1, Math.floor(battleNumber(damage, 1)));
   target.currentHp = Math.max(0, target.currentHp - safeDamage);
   target.isDefeated = target.currentHp <= 0;
+  if (target.isDefeated && target.side === "ally" && typeof window.markPilotInjuryFromDefeat === "function") {
+    window.markPilotInjuryFromDefeat(target.pilotId);
+  }
   syncBattleUnitToMech(target);
   return safeDamage;
 }
@@ -1357,10 +1360,20 @@ function winBattle() {
   });
   getBattleUnits().filter((unit) => unit.side === "ally").forEach((unit) => {
     const pilot = getPilot(unit.pilotId);
-    if (pilot && typeof window.addPilotExp === "function") window.addPilotExp(pilot, 35 + Number(enemyUnit.level || 1) * 8);
+    const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship || {};
+    const sortieBuff = state.quest?.activeSortieBuff;
+    const expRate = 1 + Number(ship.battleExpBonus || 0) + (sortieBuff?.type === "exp" ? Number(sortieBuff.power || 0) : 0);
+    if (pilot && typeof window.addPilotExp === "function") window.addPilotExp(pilot, Math.round((35 + Number(enemyUnit.level || 1) * 8) * expRate));
     unit.isDefending = false;
     syncBattleUnitToMech(unit);
   });
+  const sortiePilotIds = new Set(getBattleUnits().filter((unit) => unit.side === "ally").map((unit) => unit.pilotId));
+  const reserveRate = Number((typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship || {}).reservePilotExpRate || 0);
+  if (reserveRate > 0 && typeof window.addPilotExp === "function") {
+    (state.pilots || []).filter((pilot) => !sortiePilotIds.has(pilot.id) && !pilot.lost).forEach((pilot) => {
+      window.addPilotExp(pilot, Math.round((35 + Number(enemyUnit.level || 1) * 8) * reserveRate));
+    });
+  }
   const food = calculateEnemyFoodReward(enemyUnit);
   const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship;
   if (ship) ship.food = Math.max(0, Number(ship.food || 0) + food);

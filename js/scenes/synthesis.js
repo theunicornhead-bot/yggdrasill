@@ -717,6 +717,13 @@ window.startSynthesisProcess = async function startSynthesisProcess() {
   }
 
   const mech = window.createGeneratedMechData(preview, slots);
+  const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship || {};
+  const initialLevelBonus = Math.floor(Number(ship.generatedMechLevelBonus || 0));
+  if (initialLevelBonus > 0) {
+    const cap = typeof window.getMachineLevelCap === "function" ? window.getMachineLevelCap(mech.rank) : 20;
+    mech.level = Math.min(cap, Math.max(1, Number(mech.level || 1) + initialLevelBonus));
+    mech.exp = 0;
+  }
   state.pendingGeneratedMech = mech;
   state.selectedMechId = mech.id;
   state.synthesisSlots = [];
@@ -914,7 +921,9 @@ window.enhanceMachine = function enhanceMachine(machine, materials) {
   const cap = typeof window.getMachineLevelCap === "function" ? window.getMachineLevelCap(machine.rank) : 10;
   selected.forEach(([id, count]) => {
     window.consumeBaseMaterial(id, Number(count || 0));
-    machine.exp = Math.max(0, Number(machine.exp || 0)) + materialEnhanceExp(window.getMaterial(id)) * Number(count || 0);
+    const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : window.GameState.ship || {};
+    const expRate = 1 + Number(ship.machineEnhanceExpBonus || 0);
+    machine.exp = Math.max(0, Number(machine.exp || 0)) + Math.round(materialEnhanceExp(window.getMaterial(id)) * Number(count || 0) * expRate);
   });
   let gained = 0;
   while ((machine.level || 1) < cap) {

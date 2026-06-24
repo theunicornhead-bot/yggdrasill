@@ -333,6 +333,18 @@ window.normalizePilotStatus = function normalizePilotStatus(pilot) {
   pilot.exp = Math.max(0, Math.floor(statusNumber(pilot.exp, 0)));
   pilot.nextExp = Math.max(1, Math.floor(statusNumber(pilot.nextExp, window.calculateNextExp(pilot.level))));
   pilot.skillPoints = Math.max(0, Math.floor(statusNumber(pilot.skillPoints, 0)));
+  const survival = pilot.survival && typeof pilot.survival === "object" ? pilot.survival : {};
+  pilot.survival = {
+    hungry: Boolean(survival.hungry),
+    hungerDays: Math.max(0, Math.floor(statusNumber(survival.hungerDays, 0))),
+    fatigue: Math.max(0, Math.min(100, Math.floor(statusNumber(survival.fatigue, 0)))),
+    condition: survival.condition || "healthy",
+    severity: survival.severity || "none",
+    recoveryDays: Math.max(0, Math.floor(statusNumber(survival.recoveryDays, 0))),
+    cooldownDays: Math.max(0, Math.floor(statusNumber(survival.cooldownDays, 0))),
+    lostReason: survival.lostReason || ""
+  };
+  pilot.lost = Boolean(pilot.lost);
   if (!Array.isArray(pilot.skills)) pilot.skills = Array.isArray(pilot.learnedSkills) ? [...pilot.learnedSkills] : [];
   if (!Array.isArray(pilot.learnedSkills)) pilot.learnedSkills = [...pilot.skills];
   const talentMap = new Map();
@@ -354,9 +366,12 @@ window.normalizePilotStatus = function normalizePilotStatus(pilot) {
     if (!pilot.learnedSkills.includes(skill.id)) pilot.learnedSkills.push(skill.id);
   });
   const baseStats = window.getPilotBaseStats(pilot);
+  const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : window.GameState?.ship || {};
+  const baseBonus = 1 + statusNumber(ship.pilotBaseBonus, 0);
   const sourceStats = pilot.stats && typeof pilot.stats === "object" ? pilot.stats : {};
   pilot.stats = UNIT_STATUS_KEYS.reduce((stats, key) => {
-    stats[key] = Math.max(0, Math.floor(statusNumber(sourceStats[key] ?? pilot[key], baseStats[key])));
+    const minimum = Math.floor((baseStats[key] || 0) * baseBonus);
+    stats[key] = Math.max(0, Math.floor(Math.max(statusNumber(sourceStats[key] ?? pilot[key], baseStats[key]), minimum)));
     pilot[key] = stats[key];
     return stats;
   }, {});
@@ -560,7 +575,8 @@ window.calculateMachineStatsWithOptions = function calculateMachineStatsWithOpti
 window.calculateFinalUnitStats = function calculateFinalUnitStats(pilot, machine) {
   if (pilot) window.normalizePilotStatus(pilot);
   window.normalizeMachineStatus(machine);
-  const pilotStats = pilot ? copyStats(pilot.stats) : emptyStats();
+  const conditionPenalty = pilot?.lost || ["injury", "disease"].includes(pilot?.survival?.condition) ? 0.3 : 1;
+  const pilotStats = pilot ? multiplyStats(pilot.stats, conditionPenalty) : emptyStats();
   const machineStats = window.calculateMachineStatsWithOptions(machine);
   const rankMultiplier = window.getRankCompatibilityMultiplier(pilot, machine);
   const adjustedMachineStats = multiplyStats(machineStats, rankMultiplier);

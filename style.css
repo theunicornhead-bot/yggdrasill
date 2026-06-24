@@ -528,6 +528,74 @@ a,
   margin-top: 8px;
 }
 
+.lifeline-tree-list {
+  display: grid;
+  gap: 12px;
+}
+
+.lifeline-resource-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.lifeline-resource-strip span {
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(126, 222, 236, 0.16);
+  background: rgba(1, 7, 8, 0.35);
+}
+
+.lifeline-resource-strip strong {
+  float: right;
+}
+
+.lifeline-tree-group {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(126, 222, 236, 0.16);
+  background: rgba(1, 7, 8, 0.24);
+}
+
+.lifeline-tree-group.locked {
+  border-color: rgba(126, 222, 236, 0.08);
+  opacity: 0.72;
+}
+
+.lifeline-tree-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lifeline-tree-head h3,
+.lifeline-tree-head p {
+  margin: 0;
+}
+
+.lifeline-tree-head .tag {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.lifeline-tree-head > div {
+  min-width: 0;
+}
+
+.lifeline-facility-card.locked {
+  background: rgba(1, 7, 8, 0.32);
+}
+
+.lifeline-facility-card .material-row strong {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
 .synthesis-vat {
   width: 100%;
   max-width: 100%;

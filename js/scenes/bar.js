@@ -12,12 +12,8 @@ const TAVERN_QUEST_TEMPLATES = [
   { type: "delivery", title: "素材回収", description: "探索で指定資材を回収し、ブリッジへ報告する。", reward: { money: 650, core: 0, rare: "中確率" } },
   { type: "survey", title: "領域調査", description: "未踏階層の地形と資源反応を調査する。", reward: { money: 780, core: 1, rare: "低確率" } }
 ];
-const BRIDGE_FACILITY_CONFIG = {
-  foodStorage: { name: "食糧庫拡張", description: "食料上限・備蓄安定化。生命維持の食料効率を改善する。", cost: 300, effects: { foodCostReduction: 0.05 } },
-  engine: { name: "エンジン拡張", description: "推進系と配電効率を改善する。", cost: 300, effects: { energyCostReduction: 0.05 } },
-  lifeSupport: { name: "生命維持区画", description: "水耕槽と培養食料ラインを復旧する。", cost: 450, effects: { foodProduction: 1 } },
-  tacticalSupport: { name: "発電区画", description: "補助発電とブリッジ系統を復旧する。", cost: 450, effects: { energyProduction: 1 } }
-};
+const BRIDGE_FACILITY_CONFIG = typeof window.getLifelineFacilities === "function" ? window.getLifelineFacilities() : {};
+const BRIDGE_FACILITY_TREES = typeof window.getLifelineTrees === "function" ? window.getLifelineTrees() : [];
 
 function pickRandom(items) {
   return items[Math.floor(Math.random() * items.length)];
@@ -148,7 +144,8 @@ window.renderBar = function renderBar() {
   const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship || {};
   const driftDay = Number(ship.driftDay || 1);
   const food = Number(ship.food || 0);
-  const energy = Number(ship.energy || 0);
+  const medicine = Number(ship.medicine || 0);
+  const fuel = Number(ship.fuel || 0);
   state.barView = state.barView || "home";
   if (!state.tavernCandidates.length) generateTavernCandidates();
   const viewHtml = {
@@ -167,7 +164,8 @@ window.renderBar = function renderBar() {
       "BRIDGE",
       `
         <div class="resource"><small>食料</small><strong>${formatNumber(Number.isFinite(food) ? food : 0)}</strong></div>
-        <div class="resource"><small>エネルギー</small><strong>${formatNumber(Number.isFinite(energy) ? energy : 0)}</strong></div>
+        <div class="resource"><small>医療品</small><strong>${formatNumber(Number.isFinite(medicine) ? medicine : 0)}</strong></div>
+        <div class="resource"><small>燃料</small><strong>${formatNumber(Number.isFinite(fuel) ? fuel : 0)}</strong></div>
       `,
       {
         hideDefaultResources: true,
@@ -455,36 +453,108 @@ function renderTavernQuestCard(planet, index) {
 
 function renderLifelineView() {
   const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : window.GameState.ship || {};
+  const materialStock = typeof window.getLifelineMaterialStock === "function" ? window.getLifelineMaterialStock() : Object.values(window.GameState.materials || {}).reduce((sum, count) => sum + Number(count || 0), 0);
   return `
     <section class="panel panel-pad">
       <div class="section-head">
         <h2>ライフライン復旧</h2>
         <button class="button" data-action="bar-view" data-view="home" type="button">戻る</button>
       </div>
-      <div class="compact-list">
-        ${Object.entries(BRIDGE_FACILITY_CONFIG).map(([facilityId, config]) => renderFacilityCard(facilityId, config, ship)).join("")}
+      <div class="lifeline-resource-strip">
+        <span>資材 <strong>${formatNumber(materialStock)}</strong></span>
+        <span>主炉 Lv <strong>${formatNumber(Number(ship.facilities?.engine || 0))}</strong></span>
+      </div>
+      <div class="lifeline-tree-list">
+        ${BRIDGE_FACILITY_TREES.map((tree) => renderFacilityTreeGroup(tree, ship)).join("")}
       </div>
     </section>
   `;
 }
 
-function renderFacilityCard(facilityId, config, ship) {
-  const level = Number(ship.facilities?.[facilityId] || 0);
-  const cost = getFacilityRepairCost(facilityId);
+function renderFacilityTreeGroup(tree, ship) {
+  const powerLevel = Number(ship.facilities?.engine || 0);
+  const unlocked = typeof window.isLifelineTreeUnlocked === "function" ? window.isLifelineTreeUnlocked(tree.id, ship) : powerLevel >= Number(tree.unlockPowerLevel || tree.unlockLevel || 0);
+  const cap = typeof window.getLifelineTreeCap === "function" ? window.getLifelineTreeCap(tree.id, ship) : 20;
+  const facilities = Object.entries(BRIDGE_FACILITY_CONFIG).filter(([, config]) => config.tree === tree.id);
   return `
-    <article class="panel panel-pad">
-      <div class="section-head"><h3>${config.name}</h3><span>Lv ${level}</span></div>
+    <section class="lifeline-tree-group ${unlocked ? "" : "locked"}">
+      <div class="lifeline-tree-head">
+        <div>
+          <h3>${tree.name}</h3>
+          <p class="muted">${tree.description}</p>
+        </div>
+        <span class="tag">${unlocked ? `上限 Lv${cap}` : `動力 Lv${tree.unlockPowerLevel || tree.unlockLevel || 0}で解放`}</span>
+      </div>
+      <div class="compact-list">
+        ${facilities.map(([facilityId, config]) => renderFacilityCard(facilityId, config, ship, unlocked, tree)).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderFacilityCard(facilityId, config, ship, unlocked = true, tree = null) {
+  const level = Number(ship.facilities?.[facilityId] || 0);
+  const cost = getFacilityRepairCost(facilityId, ship);
+  const cap = typeof window.getLifelineTreeCap === "function" ? window.getLifelineTreeCap(config.tree, ship) : 20;
+  const materialStock = typeof window.getLifelineMaterialStock === "function" ? window.getLifelineMaterialStock() : window.GameState.money;
+  const currentEffects = typeof window.renderLifelineEffectSummary === "function" ? window.renderLifelineEffectSummary(config.effects || {}, level) : renderFacilityEffectSummary(config.effects || {}, level);
+  const nextEffects = typeof window.renderLifelineEffectSummary === "function" ? window.renderLifelineEffectSummary(config.effects || {}, Math.min(cap, level + 1)) : renderFacilityEffectSummary(config.effects || {}, level + 1);
+  const canRepair = unlocked && level < cap && materialStock >= cost;
+  const disabledAttr = canRepair ? "" : " disabled";
+  const buttonLabel = !unlocked ? `動力 Lv${tree?.unlockPowerLevel || tree?.unlockLevel || 0}で解放` : level >= cap ? "上限到達" : "復旧する";
+  return `
+    <article class="panel panel-pad lifeline-facility-card ${unlocked ? "" : "locked"}">
+      <div class="section-head"><h3>${config.name}</h3><span>Lv ${level} / ${cap}</span></div>
       <p class="muted">${config.description}</p>
-      <div class="material-row"><span>復旧コスト</span><strong>${formatNumber(cost)} G</strong></div>
-      <button class="button tavern-wide-action" data-action="repair-ship-facility" data-facility="${facilityId}" type="button">復旧する</button>
+      <div class="material-row"><span>現在効果</span><strong>${currentEffects}</strong></div>
+      <div class="material-row"><span>次Lv効果</span><strong>${nextEffects}</strong></div>
+      <div class="material-row"><span>必要資材</span><strong>${formatNumber(cost)}</strong></div>
+      <div class="material-row"><span>解放条件</span><strong>${tree?.unlockPowerLevel || tree?.unlockLevel ? `動力 Lv${tree.unlockPowerLevel || tree.unlockLevel}` : "初期解放"}</strong></div>
+      <button class="button tavern-wide-action" data-action="repair-ship-facility" data-facility="${facilityId}" type="button"${disabledAttr}>${buttonLabel}</button>
     </article>
   `;
 }
 
-function getFacilityRepairCost(facilityId) {
-  const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : window.GameState.ship || {};
-  const level = Number(ship.facilities?.[facilityId] || 0);
-  return 300 + level * 200;
+function getFacilityRepairCost(facilityId, currentShip = null) {
+  if (typeof window.getLifelineRepairCost === "function") return window.getLifelineRepairCost(facilityId, currentShip);
+  return 300;
+}
+
+function isFacilityUnlocked(facilityId, ship) {
+  if (typeof window.isLifelineFacilityUnlocked === "function") return window.isLifelineFacilityUnlocked(facilityId, ship);
+  return true;
+}
+
+function renderFacilityEffectSummary(effects, level) {
+  const entries = Object.entries(effects || {});
+  if (!entries.length) return "-";
+  return entries.map(([key, value]) => `${getFacilityEffectLabel(key)} ${formatFacilityEffectValue(key, Number(value || 0) * Number(level || 0))}`).join(" / ");
+}
+
+function getFacilityEffectLabel(key) {
+  const labels = {
+    energyCostReduction: "エネルギー消費軽減",
+    fuelCostReduction: "機体維持燃料軽減",
+    explorationFuelCostReduction: "探索燃料消費軽減",
+    energyProduction: "エネルギー生産",
+    foodCostReduction: "人員維持食料軽減",
+    foodProduction: "食料生産",
+    foodStorageStability: "備蓄安定化",
+    materialYieldBonus: "探索資材獲得",
+    repairCostReduction: "復旧コスト軽減",
+    mechCostReduction: "機体整備コスト軽減",
+    infectionRecoveryReduction: "感染復帰短縮",
+    infectionRateReduction: "感染率低下",
+    medicineRecoveryBonus: "特効薬回復量"
+  };
+  return labels[key] || key;
+}
+
+function formatFacilityEffectValue(key, value) {
+  if (key === "energyProduction" || key === "foodProduction") return `+${formatNumber(value)}`;
+  if (key === "infectionRecoveryReduction") return value > 0 ? `-${formatNumber(value)}ターン` : "0ターン";
+  const percent = Math.round(Number(value || 0) * 100);
+  return `${percent >= 0 ? "+" : ""}${percent}%`;
 }
 
 window.repairShipFacility = function repairShipFacility(facilityId) {
@@ -492,17 +562,26 @@ window.repairShipFacility = function repairShipFacility(facilityId) {
   const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship;
   const config = BRIDGE_FACILITY_CONFIG[facilityId];
   if (!config || !ship) return;
-  const cost = getFacilityRepairCost(facilityId);
-  if (state.money < cost) {
-    logMessage("bar", "復旧に必要な資金が足りません。", "danger");
+  if (!isFacilityUnlocked(facilityId, ship)) {
+    logMessage("bar", "この復旧ツリーはまだ解放されていません。", "danger");
     renderCurrentScene();
     return;
   }
-  state.money -= cost;
+  const cap = typeof window.getLifelineTreeCap === "function" ? window.getLifelineTreeCap(config.tree, ship) : 20;
+  if (Number(ship.facilities[facilityId] || 0) >= cap) {
+    logMessage("bar", "この設備は現在の上限Lvに到達しています。", "warn");
+    renderCurrentScene();
+    return;
+  }
+  const cost = getFacilityRepairCost(facilityId, ship);
+  if (typeof window.consumeLifelineMaterials === "function" ? !window.consumeLifelineMaterials(cost) : state.money < cost) {
+    logMessage("bar", "復旧に必要な資材が足りません。", "danger");
+    renderCurrentScene();
+    return;
+  }
+  if (typeof window.consumeLifelineMaterials !== "function") state.money -= cost;
   ship.facilities[facilityId] = Number(ship.facilities[facilityId] || 0) + 1;
-  Object.entries(config.effects || {}).forEach(([key, value]) => {
-    ship[key] = Number(ship[key] || 0) + Number(value || 0);
-  });
+  if (typeof window.recalculateShipLifelineEffects === "function") window.recalculateShipLifelineEffects(ship);
   logMessage("bar", `${config.name}をLv${ship.facilities[facilityId]}へ復旧した。`, "good");
   renderCurrentScene();
 };

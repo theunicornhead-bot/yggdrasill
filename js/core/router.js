@@ -94,15 +94,18 @@ window.enforceBaseMaterialLimit = function enforceBaseMaterialLimit() {
 window.addExploreMaterial = function addExploreMaterial(materialId, amount = 1) {
   if (!materialId) return 0;
   if (typeof window.ensureMaterialInventoryState === "function") window.ensureMaterialInventoryState();
+  const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : window.GameState.ship || {};
   const explore = window.GameState.exploreInventory;
   const materials = explore.materials || {};
   const limit = Number(explore.slotLimit || 100);
   const currentTotal = Object.values(materials).reduce((sum, count) => sum + Number(count || 0), 0);
-  const addable = Math.min(Math.max(0, Math.floor(Number(amount || 0))), Math.max(0, limit - currentTotal));
+  const bonusAmount = Math.floor(Number(amount || 0) * Math.max(0, Number(ship.materialYieldBonus || 0)));
+  const addable = Math.min(Math.max(0, Math.floor(Number(amount || 0)) + bonusAmount), Math.max(0, limit - currentTotal));
   if (addable <= 0) return 0;
   materials[materialId] = Math.max(0, Number(materials[materialId] || 0)) + addable;
   explore.materials = materials;
   window.GameState.runMaterials = materials;
+  if (typeof window.applyWasteFoodConversion === "function") window.applyWasteFoodConversion(materialId, addable);
   return addable;
 };
 
