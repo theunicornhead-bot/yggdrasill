@@ -4,12 +4,12 @@ function wrapLifelineRuntime() {
   if (window.__lifelineRuntimeWrapped) return;
   window.__lifelineRuntimeWrapped = true;
 
-  const baseStartSelectedPlanetQuest = window.startSelectedPlanetQuest;
-  if (typeof baseStartSelectedPlanetQuest === "function") {
-    window.startSelectedPlanetQuest = function startSelectedPlanetQuestWithLifeline() {
+  const baseDepartSelectedPlanetQuest = window.departSelectedPlanetQuest;
+  if (typeof baseDepartSelectedPlanetQuest === "function") {
+    window.departSelectedPlanetQuest = function departSelectedPlanetQuestWithLifeline() {
       const state = window.GameState;
       const sortie = typeof window.applyLifelineSortieStart === "function" ? window.applyLifelineSortieStart() : null;
-      const started = baseStartSelectedPlanetQuest();
+      const started = baseDepartSelectedPlanetQuest();
       if (!started) return false;
       const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship || {};
       if (state.quest) {
@@ -69,4 +69,3 @@ function wrapLifelineRuntime() {
 }
 
 wrapLifelineRuntime();
-

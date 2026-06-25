@@ -597,6 +597,114 @@ function renderFuelMeter(quest) {
   `;
 }
 
+function renderQuestPartySetupModal() {
+  const state = window.GameState;
+  if (!state.quest?.partySetupOpen) return "";
+  const sortieIds = getQuestSortieIds();
+  if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
+  const mechs = state.mechs || [];
+  const selectedSet = new Set(sortieIds.filter(Boolean));
+  return `
+    <div class="modal-backdrop quest-party-setup-modal-backdrop">
+      <section class="quest-party-setup-modal panel panel-pad" role="dialog" aria-modal="true" aria-label="探索パーティ編成">
+        <div class="section-head">
+          <h2>探索パーティ編成</h2>
+          <button class="button mini-map-close" data-action="close-quest-party-setup" type="button">閉じる</button>
+        </div>
+        ${state.quest.partyWarning ? `<div class="log-line log-danger">${state.quest.partyWarning}</div>` : ""}
+        <div class="quest-party-setup-grid">
+          <div>
+            <div class="section-head"><h3>出撃メンバー</h3><span>ハンガー編成を初期表示</span></div>
+            <div class="quest-party-slot-list">
+              ${sortieIds.map((mechId, index) => renderQuestPartySlot(mechId, index)).join("")}
+            </div>
+          </div>
+          <div>
+            <div class="section-head"><h3>入れ替え候補</h3><span>${formatNumber(mechs.length)}機</span></div>
+            <div class="quest-party-candidate-list">
+              ${mechs.map((mech) => renderQuestPartyCandidate(mech, selectedSet)).join("") || `<div class="muted">機体がありません。</div>`}
+            </div>
+          </div>
+        </div>
+        <div class="quest-party-setup-actions">
+          <button class="button" data-action="quest-rest-day" type="button">休息</button>
+          <button class="button primary" data-action="depart-selected-planet-quest" type="button">探索へ出発</button>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function renderQuestPartySlot(mechId, index) {
+  const mech = mechId ? getMech(mechId) : null;
+  const pilot = mech ? getPilot(mech.pilotId) : null;
+  const vitality = pilot ? pilotVitality(pilot) : 0;
+  return `
+    <article class="quest-party-slot panel panel-pad ${pilot && vitality <= 0 ? "danger" : ""}">
+      <div class="section-head"><h3>SLOT ${index + 1}</h3><span>${pilot ? `体力 ${formatNumber(vitality)}` : "-"}</span></div>
+      ${mech ? `<div class="material-row"><span>${mech.name || mech.id}<br><span class="muted">${pilot?.name || "未搭乗"}</span></span><button class="button mini-map-close" data-action="remove-quest-sortie-slot" data-slot="${index}" type="button">外す</button></div>` : `<div class="muted">未編成</div>`}
+    </article>
+  `;
+}
+
+function renderQuestPartyCandidate(mech, selectedSet) {
+  const pilot = getPilot(mech?.pilotId);
+  const vitality = pilot ? pilotVitality(pilot) : 0;
+  const selected = selectedSet.has(mech.id);
+  return `
+    <article class="quest-party-candidate panel panel-pad ${pilot && vitality <= 0 ? "danger" : ""}">
+      <div class="section-head"><h3>${mech.name || mech.id}</h3><span>${selected ? "編成中" : "候補"}</span></div>
+      <div class="material-row"><span>${pilot?.name || "未搭乗"}</span><strong>体力 ${pilot ? formatNumber(vitality) : "-"}</strong></div>
+      <div class="quest-party-candidate-actions">
+        ${getQuestSortieIds().map((_, index) => `<button class="button mini-map-close" data-action="assign-quest-sortie-slot" data-slot="${index}" data-mech="${mech.id}" ${selected ? "disabled" : ""} type="button">${index + 1}</button>`).join("")}
+      </div>
+    </article>
+  `;
+}
+
+window.closeQuestPartySetup = function closeQuestPartySetup() {
+  if (window.GameState.quest) window.GameState.quest.partySetupOpen = false;
+  window.renderCurrentScene();
+};
+
+window.assignQuestSortieSlot = function assignQuestSortieSlot(slot, mechId) {
+  const state = window.GameState;
+  const index = Number(slot);
+  const ids = getQuestSortieIds().map((id) => id === mechId ? null : id);
+  if (!getMech(mechId) || index < 0 || index >= ids.length) return;
+  ids[index] = mechId;
+  state.quest.sortieMechIds = ids;
+  state.quest.partyWarning = "";
+  window.renderCurrentScene();
+};
+
+window.removeQuestSortieSlot = function removeQuestSortieSlot(slot) {
+  const state = window.GameState;
+  const ids = getQuestSortieIds();
+  const index = Number(slot);
+  if (index < 0 || index >= ids.length) return;
+  ids[index] = null;
+  state.quest.sortieMechIds = ids;
+  state.quest.partyWarning = "";
+  window.renderCurrentScene();
+};
+
+window.restQuestDay = function restQuestDay() {
+  const state = window.GameState;
+  state.quest = state.quest || {};
+  state.currentScene = "quest";
+  buildExploreReturnResult({
+    materials: {},
+    message: "探索を見送り、休息した。",
+    consumeVitality: false
+  });
+  state.quest.partySetupOpen = false;
+  state.quest.partyWarning = "";
+  state.currentScene = "quest";
+  if (typeof window.savePlayerData === "function") window.savePlayerData();
+  window.renderCurrentScene();
+};
+
 
 function renderPlanetSelect() {
   const state = window.GameState;
@@ -621,6 +729,7 @@ function renderPlanetSelect() {
       ${state.quest?.startError ? `<div class="log-line log-danger">${state.quest.startError}</div>` : ""}
       <button class="button planet-start-button" data-action="start-selected-planet-quest" ${unlocked ? "" : "disabled"}>探索開始</button>
     </section>
+    ${renderQuestPartySetupModal()}
     ${renderExploreReturnResultModal()}
   `;
 }
@@ -693,11 +802,35 @@ window.validateSortieParty = function validateSortieParty() {
     logMessage("bar", "出撃可能な機体がありません。", "danger");
     return false;
   }
+  const pilots = units.map((mech) => getPilot(mech.pilotId)).filter(Boolean);
+  const exhausted = pilots.filter((pilot) => pilotVitality(pilot) <= 0);
+  const availablePilots = (state.pilots || []).filter((pilot) => !pilot.lost && pilotVitality(pilot) > 0);
+  if (pilots.length && exhausted.length === pilots.length && !availablePilots.length) {
+    if (state.quest) state.quest.partyWarning = "全員の体力が0です。探索には出発できません。休息してください。";
+    return false;
+  }
+  if (exhausted.length) {
+    if (state.quest) state.quest.partyWarning = `体力0のメンバーがいます: ${exhausted.map((pilot) => pilot.name || pilot.id).join(" / ")}。外すか入れ替えてください。`;
+    return false;
+  }
   if (state.quest) state.quest.startError = "";
+  if (state.quest) state.quest.partyWarning = "";
   return true;
 };
 
 window.startSelectedPlanetQuest = function startSelectedPlanetQuest() {
+  const state = window.GameState;
+  const planet = window.getPlanetById(state.quest?.selectedPlanetId || state.selectedPlanetId);
+  if (!planet || !window.isPlanetUnlocked(planet)) return false;
+  state.selectedPlanetId = planet.id;
+  state.quest = state.quest || {};
+  state.quest.selectedPlanetId = planet.id;
+  initializeQuestSortieParty();
+  window.renderCurrentScene();
+  return true;
+};
+
+window.departSelectedPlanetQuest = function departSelectedPlanetQuest() {
   const state = window.GameState;
   const planet = window.getPlanetById(state.quest?.selectedPlanetId || state.selectedPlanetId);
   if (!planet || !window.isPlanetUnlocked(planet)) return false;
@@ -707,6 +840,8 @@ window.startSelectedPlanetQuest = function startSelectedPlanetQuest() {
   }
   state.selectedPlanetId = planet.id;
   if (state.quest) {
+    state.quest.partySetupOpen = false;
+    state.quest.partyWarning = "";
     state.quest.selectedPlanetId = planet.id;
     state.quest.currentPlanetId = planet.id;
     state.quest.planetId = planet.id;
@@ -970,11 +1105,27 @@ function rollExploreReturnInfections() {
   return infections;
 }
 
-function buildExploreReturnResult({ materials, lostMaterials = {}, forced = false, message = "" }) {
+function consumeSortieVitality(amount = 25) {
+  const changes = [];
+  const units = typeof window.getSortieUnits === "function" ? window.getSortieUnits() : [];
+  units.forEach((mech) => {
+    const pilot = getPilot(mech.pilotId);
+    if (!pilot) return;
+    if (typeof window.normalizePilotStatus === "function") window.normalizePilotStatus(pilot);
+    const before = pilotVitality(pilot);
+    const after = Math.max(0, before - amount);
+    pilot.survival.vitality = after;
+    changes.push({ pilotId: pilot.id, name: pilot.name || pilot.id, before, after });
+  });
+  return changes;
+}
+
+function buildExploreReturnResult({ materials, lostMaterials = {}, forced = false, message = "", consumeVitality = true }) {
   const state = window.GameState;
   const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship || {};
   const beforeDay = Math.max(1, Math.floor(Number(ship.driftDay || 1)));
   const infections = rollExploreReturnInfections();
+  const vitalityChanges = consumeVitality ? consumeSortieVitality(25) : [];
   const dayResult = typeof window.advanceShipDriftDay === "function" ? window.advanceShipDriftDay() : null;
   const latestShip = typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship || ship;
   let afterDay = Math.floor(Number(latestShip.driftDay || beforeDay));
@@ -990,6 +1141,7 @@ function buildExploreReturnResult({ materials, lostMaterials = {}, forced = fals
     materials: { ...(materials || {}) },
     lostMaterials: { ...(lostMaterials || {}) },
     infections,
+    vitalityChanges,
     dayResult,
     createdAt: Date.now()
   };
@@ -1058,6 +1210,15 @@ function renderExploreReturnResultModal() {
         <div class="material-row"><span>食料</span><strong>-${formatNumber(foodConsumed)}</strong></div>
         <div class="material-row"><span>医療品</span><strong>-${formatNumber(medicineConsumed)}</strong></div>
         ${survival.foodShortage ? `<div class="material-row"><span>空腹</span><strong>${formatNumber(survival.foodShortage)}人</strong></div>` : ""}
+        ${result.vitalityChanges?.length ? `
+          <div class="section-head battle-result-section"><h3>体力消費</h3></div>
+          <div class="quest-material-list">${result.vitalityChanges.map((entry) => `
+            <div class="material-row">
+              <span style="flex:1">${entry.name}</span>
+              <strong>${formatNumber(entry.before)} -> ${formatNumber(entry.after)}</strong>
+            </div>
+          `).join("")}</div>
+        ` : ""}
         <div class="section-head battle-result-section"><h3>健康状態</h3></div>
         <div class="quest-material-list">
           ${result.infections?.length ? result.infections.map((infection) => `
