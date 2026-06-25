@@ -64,7 +64,7 @@ window.renderMechImage = function renderMechImage(mech, variant = "card") {
 
 window.renderHangar = function renderHangar() {
   const state = window.GameState;
-  if (!["party", "mechs", "pilots"].includes(state.hangarTab)) state.hangarTab = "party";
+  if (!["party", "mechs", "pilots", "medical"].includes(state.hangarTab)) state.hangarTab = "party";
   if (!["list", "mech-detail", "mech-assign", "pilot-assign", "pilot-detail"].includes(state.hangarView)) state.hangarView = "list";
   if (state.hangarTab !== "mechs" && state.hangarView === "mech-detail") state.hangarView = "list";
   if (state.hangarTab !== "party" && state.hangarView === "mech-assign") state.hangarView = "list";
@@ -88,6 +88,7 @@ window.renderHangar = function renderHangar() {
       ${renderHangarTabButton("party", "パーティ編成")}
       ${renderHangarTabButton("mechs", "所持機体")}
       ${renderHangarTabButton("pilots", "パイロット")}
+      ${renderHangarTabButton("medical", "医務室")}
     </section>
     ${state.hangarTab === "party" ? `
       ${state.hangarView === "mech-assign" ? renderMechAssignView(assigningSlot) : ""}
@@ -116,6 +117,7 @@ window.renderHangar = function renderHangar() {
         </section>
       `}
     ` : ""}
+    ${state.hangarTab === "medical" ? renderMedicalRoomView() : ""}
   `;
 };
 
@@ -387,14 +389,56 @@ function renderPartSlots(mech) {
 function renderStoredPilot(pilot) {
   if (typeof window.normalizePilotStatus === "function") window.normalizePilotStatus(pilot);
   const className = window.getPilotClassDisplayName(pilot.classId);
+  const conditionLabel = typeof window.getPilotConditionLabel === "function" ? window.getPilotConditionLabel(pilot) : pilot.survival?.condition || "健康";
   return `
     <button class="storage-card pilot-storage-card panel" data-action="open-pilot-detail" data-pilot="${pilot.id}" type="button">
       <div class="pilot-face-frame">${window.renderPilotPortraitImage(pilot, "pilot-portrait--face")}</div>
       <strong>${pilot.name}</strong><br>
       <span class="muted">RANK ${pilot.rank}</span><br>
-      <span class="muted pilot-class-name">${className}</span>
+      <span class="muted pilot-class-name">${className}</span><br>
+      <span class="tag">${conditionLabel}</span>
     </button>
   `;
+}
+
+function renderMedicalRoomView() {
+  const pilots = (window.GameState.pilots || []).filter((pilot) => {
+    if (typeof window.normalizePilotStatus === "function") window.normalizePilotStatus(pilot);
+    return typeof window.isPilotConditionActive === "function" ? window.isPilotConditionActive(pilot) : pilot.survival?.condition !== "healthy";
+  });
+  const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : window.GameState.ship || {};
+  const medicalUnlocked = typeof window.isLifelineTreeUnlocked === "function" ? window.isLifelineTreeUnlocked("medical", ship) : false;
+  return `
+    <section class="panel panel-pad">
+      <div class="section-head"><h2>医務室</h2><span>${pilots.length}名隔離中</span></div>
+      <div class="muted" style="margin-bottom:8px">怪我・感染症は医務室にいる時だけ治療が進みます。感染症の治療には医療ツリー解放が必要です。</div>
+      ${medicalUnlocked ? "" : `<div class="material-row danger"><span>医療ツリー</span><strong>未解放</strong></div>`}
+      <div class="compact-list">${pilots.length ? pilots.map(renderMedicalRoomPilotRow).join("") : `<div class="muted">治療対象のパイロットはいません。</div>`}</div>
+    </section>
+  `;
+}
+
+function renderMedicalRoomPilotRow(pilot) {
+  const conditionLabel = typeof window.getPilotConditionLabel === "function" ? window.getPilotConditionLabel(pilot) : pilot.survival?.condition || "-";
+  const severity = pilot.survival?.severity || "none";
+  const recoveryDays = Math.max(0, Number(pilot.survival?.recoveryDays || 0));
+  const inMedicalRoom = Boolean(pilot.survival?.inMedicalRoom);
+  const canRecover = typeof window.canRecoverPilotCondition === "function" && window.canRecoverPilotCondition(pilot);
+  const assignedMech = (window.GameState.mechs || []).find((mech) => mech.pilotId === pilot.id);
+  const statusText = inMedicalRoom ? (canRecover ? "治療中" : "治療停止") : "強行出撃中";
+  return `
+    <article class="material-row medical-room-row">
+      <span style="flex:1">${pilot.name || "Pilot"}<br><span class="muted">${conditionLabel} / ${conditionSeverityLabelLocal(severity)} / 残り${formatNumber(recoveryDays)}日 / ${assignedMech?.name || "未搭乗"}</span></span>
+      <strong>${statusText}</strong>
+      ${inMedicalRoom
+        ? `<button class="button danger" data-action="force-sortie-pilot" data-pilot="${pilot.id}" type="button">強行出撃</button>`
+        : `<button class="button" data-action="return-pilot-medical" data-pilot="${pilot.id}" type="button">医務室へ戻す</button>`}
+    </article>
+  `;
+}
+
+function conditionSeverityLabelLocal(severity) {
+  return { minor: "軽症", moderate: "中等症", severe: "重症", none: "-" }[severity] || severity || "-";
 }
 
 function renderPilotDetailView(pilot) {
@@ -703,6 +747,7 @@ function renderPilotAssignCandidate(pilot, mech, slot) {
   const className = window.getPilotClassDisplayName(pilot.classId);
   const status = isCurrent ? "この機体に搭乗中" : isAssignedElsewhere ? "別機体に搭乗中" : "未編成";
   const actionLabel = isCurrent ? "搭乗中" : isAssignedElsewhere ? "入れ替え" : "乗せる";
+  const conditionLabel = typeof window.getPilotConditionLabel === "function" ? window.getPilotConditionLabel(pilot) : "健康";
   return `
     <article class="pilot-card pilot-assign-card panel">
       <div class="pilot-card-portrait">${window.renderPilotPortraitImage(pilot, "pilot-portrait--tavern-card")}</div>
@@ -710,7 +755,7 @@ function renderPilotAssignCandidate(pilot, mech, slot) {
         <h3>${pilot.name}</h3>
         <div>RANK <strong>${pilot.rank}</strong></div>
         <div class="muted pilot-class-name">${className}</div>
-        <div class="tag-row"><span class="tag">${status}</span><span class="tag">${compatibility.label}</span></div>
+        <div class="tag-row"><span class="tag">${status}</span><span class="tag">${compatibility.label}</span><span class="tag">${conditionLabel}</span></div>
       </div>
       <div class="cost-box">
         <button class="button" data-action="assign-pilot" data-slot="${slot}" data-mech="${mech.id}" data-pilot="${pilot.id}" type="button" ${isCurrent ? "disabled" : ""}>${actionLabel}</button>
@@ -808,6 +853,16 @@ window.assignPilotToMech = function assignPilotToMech(mechId, pilotId) {
   const mech = getMech(mechId);
   const pilot = getPilot(pilotId);
   if (!mech || !pilot) return;
+  if (typeof window.normalizePilotStatus === "function") window.normalizePilotStatus(pilot);
+  if (typeof window.isPilotConditionActive === "function" && window.isPilotConditionActive(pilot) && pilot.survival?.inMedicalRoom) {
+    const conditionLabel = typeof window.getPilotConditionLabel === "function" ? window.getPilotConditionLabel(pilot) : "負傷";
+    const confirmed = window.confirm
+      ? window.confirm(`${pilot.name}は${conditionLabel}で医務室に隔離中です。強行出撃させますか？ 戦闘不能になるとロストします。`)
+      : true;
+    if (!confirmed) return;
+    pilot.survival.inMedicalRoom = false;
+    pilot.survival.forceSortie = true;
+  }
   const currentMech = state.mechs.find((item) => item.pilotId === pilotId);
   if (currentMech && currentMech.id !== mech.id) {
     const existingPilot = getPilot(mech.pilotId);
@@ -822,6 +877,36 @@ window.assignPilotToMech = function assignPilotToMech(mechId, pilotId) {
   state.hangarView = "list";
   window.savePlayerData();
   renderCurrentScene();
+};
+
+window.forceSortiePilot = function forceSortiePilot(pilotId) {
+  const pilot = getPilot(pilotId);
+  if (!pilot) return false;
+  if (typeof window.normalizePilotStatus === "function") window.normalizePilotStatus(pilot);
+  if (!(typeof window.isPilotConditionActive === "function" && window.isPilotConditionActive(pilot))) return false;
+  const confirmed = window.confirm
+    ? window.confirm(`${pilot.name}を医務室から出しますか？ この状態で戦闘不能になるとロストします。`)
+    : true;
+  if (!confirmed) return false;
+  pilot.survival.inMedicalRoom = false;
+  pilot.survival.forceSortie = true;
+  logMessage("bar", `${pilot.name}を強行出撃可能にしました。`, "warn");
+  window.savePlayerData();
+  renderCurrentScene();
+  return true;
+};
+
+window.returnPilotToMedicalRoom = function returnPilotToMedicalRoom(pilotId) {
+  const pilot = getPilot(pilotId);
+  if (!pilot) return false;
+  if (typeof window.normalizePilotStatus === "function") window.normalizePilotStatus(pilot);
+  if (!(typeof window.isPilotConditionActive === "function" && window.isPilotConditionActive(pilot))) return false;
+  pilot.survival.inMedicalRoom = true;
+  pilot.survival.forceSortie = false;
+  logMessage("bar", `${pilot.name}を医務室へ戻しました。`, "good");
+  window.savePlayerData();
+  renderCurrentScene();
+  return true;
 };
 
 window.unassignPilotFromMech = function unassignPilotFromMech(mechId) {

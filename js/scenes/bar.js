@@ -184,6 +184,7 @@ window.renderBar = function renderBar() {
       }
     )}
     ${viewHtml}
+    ${typeof window.renderExploreReturnResultModal === "function" ? window.renderExploreReturnResultModal() : ""}
   `;
 };
 

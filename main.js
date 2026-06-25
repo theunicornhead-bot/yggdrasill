@@ -197,6 +197,8 @@ document.addEventListener("click", (event) => {
   if (action === "assign-mech-to-party-slot") window.assignMechToPartySlot(target.dataset.slot, target.dataset.mech);
   if (action === "assign-pilot") window.assignPilotToMech(target.dataset.mech, target.dataset.pilot);
   if (action === "unassign-pilot") window.unassignPilotFromMech(target.dataset.mech);
+  if (action === "force-sortie-pilot") window.forceSortiePilot(target.dataset.pilot);
+  if (action === "return-pilot-medical") window.returnPilotToMedicalRoom(target.dataset.pilot);
   if (action === "select-mech") {
     window.GameState.selectedMechId = target.dataset.mech;
     window.renderCurrentScene();

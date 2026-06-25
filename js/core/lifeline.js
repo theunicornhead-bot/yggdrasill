@@ -65,6 +65,48 @@ function lifelineNumber(value, fallback = 0) {
   return Number.isFinite(number) ? number : fallback;
 }
 
+const PILOT_DISEASE_TYPES = [
+  { id: "biofever", name: "生体熱", minDifficulty: 1, baseDays: { minor: 2, moderate: 4, severe: 6 } },
+  { id: "spore_lung", name: "胞子肺炎", minDifficulty: 2, baseDays: { minor: 3, moderate: 5, severe: 8 } },
+  { id: "nerve_rot", name: "神経腐敗", minDifficulty: 3, baseDays: { minor: 4, moderate: 6, severe: 9 } },
+  { id: "ash_blood", name: "灰血症", minDifficulty: 4, baseDays: { minor: 4, moderate: 7, severe: 10 } },
+  { id: "eden_syndrome", name: "エデン症候群", minDifficulty: 5, baseDays: { minor: 5, moderate: 8, severe: 12 } }
+];
+
+window.getPilotDiseaseTypes = function getPilotDiseaseTypes(difficulty = 1) {
+  const level = Math.max(1, Math.floor(lifelineNumber(difficulty, 1)));
+  return PILOT_DISEASE_TYPES.filter((disease) => level >= disease.minDifficulty);
+};
+
+window.pickPilotDiseaseType = function pickPilotDiseaseType(difficulty = 1) {
+  const candidates = window.getPilotDiseaseTypes(difficulty);
+  return candidates[Math.floor(Math.random() * candidates.length)] || PILOT_DISEASE_TYPES[0];
+};
+
+window.isPilotConditionActive = function isPilotConditionActive(pilot) {
+  const condition = pilot?.survival?.condition || "healthy";
+  return Boolean(condition && condition !== "healthy");
+};
+
+window.getPilotConditionLabel = function getPilotConditionLabel(pilot) {
+  const condition = pilot?.survival?.condition || "healthy";
+  if (condition === "injury") return "怪我";
+  if (condition === "disease") return pilot?.survival?.diseaseName || "感染症";
+  return "健康";
+};
+
+window.needsMedicalTreeForCondition = function needsMedicalTreeForCondition(pilot) {
+  return pilot?.survival?.condition === "disease";
+};
+
+window.canRecoverPilotCondition = function canRecoverPilotCondition(pilot, ship = null) {
+  if (!window.isPilotConditionActive(pilot)) return false;
+  if (!pilot.survival?.inMedicalRoom) return false;
+  if (!window.needsMedicalTreeForCondition(pilot)) return true;
+  const currentShip = ship || (typeof window.ensureShipState === "function" ? window.ensureShipState() : window.GameState?.ship || {});
+  return typeof window.isLifelineTreeUnlocked === "function" ? window.isLifelineTreeUnlocked("medical", currentShip) : false;
+};
+
 function clampLifelineLevel(value) {
   return Math.max(0, Math.min(LIFELINE_MAX_LEVEL, Math.floor(lifelineNumber(value, 0))));
 }
@@ -247,6 +289,7 @@ window.applyDailySurvival = function applyDailySurvival() {
   const medicalCostBase = pilots.reduce((sum, pilot) => {
     const condition = pilot.survival?.condition;
     if (!condition || condition === "healthy") return sum;
+    if (!pilot.survival?.inMedicalRoom) return sum;
     const severity = pilot.survival?.severity || "minor";
     return sum + ({ minor: 1, moderate: 3, severe: 5 }[severity] || 1);
   }, 0);
@@ -261,10 +304,14 @@ window.applyDailySurvival = function applyDailySurvival() {
     pilot.survival.vitality = Math.min(100, Math.max(0, Math.floor(Number(pilot.survival.vitality ?? 100))) + 25);
     pilot.survival.fatigue = Math.max(0, Math.floor(Number(pilot.survival.fatigue || 0)) - 12);
     if (ship.dailyTrainingExp > 0 && typeof window.addPilotExp === "function" && !pilot.lost) window.addPilotExp(pilot, ship.dailyTrainingExp);
-    if (pilot.survival.recoveryDays > 0) pilot.survival.recoveryDays = Math.max(0, pilot.survival.recoveryDays - 1);
+    if (pilot.survival.recoveryDays > 0 && window.canRecoverPilotCondition(pilot, ship)) pilot.survival.recoveryDays = Math.max(0, pilot.survival.recoveryDays - 1);
     if (pilot.survival.condition && pilot.survival.condition !== "healthy" && pilot.survival.recoveryDays <= 0) {
       pilot.survival.condition = "healthy";
+      pilot.survival.diseaseId = "";
+      pilot.survival.diseaseName = "";
       pilot.survival.severity = "none";
+      pilot.survival.inMedicalRoom = false;
+      pilot.survival.forceSortie = false;
     }
   });
   return { foodConsumed: fed, foodShortage: Math.max(0, pilots.length - fed), medicineConsumed: medicalCost };
@@ -276,13 +323,17 @@ window.markPilotInjuryFromDefeat = function markPilotInjuryFromDefeat(pilotId) {
   pilot.survival = pilot.survival && typeof pilot.survival === "object" ? pilot.survival : {};
   if (pilot.survival.condition === "injury" || pilot.survival.condition === "disease") {
     pilot.lost = true;
-    pilot.survival.lostReason = "怪我・病気状態で戦闘不能";
+    pilot.survival.lostReason = "怪我・感染症状態で戦闘不能";
     return;
   }
   const roll = Math.random();
   if (roll < 0.35) {
     pilot.survival.condition = "injury";
+    pilot.survival.diseaseId = "";
+    pilot.survival.diseaseName = "";
     pilot.survival.severity = roll < 0.08 ? "severe" : roll < 0.18 ? "moderate" : "minor";
     pilot.survival.recoveryDays = { minor: 2, moderate: 4, severe: 7 }[pilot.survival.severity];
+    pilot.survival.inMedicalRoom = true;
+    pilot.survival.forceSortie = false;
   }
 };

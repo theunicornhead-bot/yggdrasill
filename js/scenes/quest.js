@@ -627,8 +627,8 @@ function renderQuestPartySetupModal() {
           </div>
         </div>
         <div class="quest-party-setup-actions">
-          <button class="button" data-action="quest-rest-day" type="button">休息</button>
-          <button class="button primary" data-action="depart-selected-planet-quest" type="button">探索へ出発</button>
+          <button class="button" data-action="quest-rest-day" onclick="event.stopPropagation(); window.restQuestDay?.()" type="button">休息</button>
+          <button class="button primary" data-action="depart-selected-planet-quest" onclick="event.stopPropagation(); window.departSelectedPlanetQuest?.()" type="button">探索へ出発</button>
         </div>
       </section>
     </div>
@@ -823,6 +823,7 @@ window.startSelectedPlanetQuest = function startSelectedPlanetQuest() {
   const planet = window.getPlanetById(state.quest?.selectedPlanetId || state.selectedPlanetId);
   if (!planet || !window.isPlanetUnlocked(planet)) return false;
   state.selectedPlanetId = planet.id;
+  state.currentScene = "quest";
   state.quest = state.quest || {};
   state.quest.selectedPlanetId = planet.id;
   initializeQuestSortieParty();
@@ -1095,12 +1096,17 @@ function rollExploreReturnInfections() {
     if (Math.random() >= rate + fatigueBonus) return;
     const severityRoll = Math.random();
     const severity = severityRoll < 0.12 ? "severe" : severityRoll < 0.38 ? "moderate" : "minor";
-    const baseDays = { minor: 2, moderate: 4, severe: 7 }[severity] || 2;
+    const disease = typeof window.pickPilotDiseaseType === "function" ? window.pickPilotDiseaseType(difficulty) : null;
+    const baseDays = disease?.baseDays?.[severity] || { minor: 2, moderate: 4, severe: 7 }[severity] || 2;
     const recoveryDays = Math.max(1, Math.ceil(baseDays * (1 - recoveryReduction)));
     pilot.survival.condition = "disease";
+    pilot.survival.diseaseId = disease?.id || "disease";
+    pilot.survival.diseaseName = disease?.name || "感染症";
     pilot.survival.severity = severity;
     pilot.survival.recoveryDays = recoveryDays;
-    infections.push({ pilotId: pilot.id, name: pilot.name || pilot.id, severity, recoveryDays });
+    pilot.survival.inMedicalRoom = true;
+    pilot.survival.forceSortie = false;
+    infections.push({ pilotId: pilot.id, name: pilot.name || pilot.id, diseaseName: pilot.survival.diseaseName, severity, recoveryDays });
   });
   return infections;
 }
@@ -1232,6 +1238,8 @@ function renderExploreReturnResultModal() {
     </div>
   `;
 }
+
+window.renderExploreReturnResultModal = renderExploreReturnResultModal;
 
 window.closeExploreReturnResultModal = function closeExploreReturnResultModal() {
   window.GameState.lastExploreReturnResult = null;

@@ -2130,6 +2130,8 @@ a,
 
 .quest-party-setup-modal {
   width: min(94vw, 760px);
+  max-height: min(86vh, 720px);
+  overflow: auto;
 }
 
 .quest-party-setup-grid {
@@ -2159,6 +2161,10 @@ a,
 .quest-party-setup-actions {
   grid-template-columns: 1fr 1.4fr;
   margin-top: 12px;
+  position: sticky;
+  bottom: -12px;
+  padding-top: 8px;
+  background: rgba(14, 18, 20, 0.96);
 }
 
 .day-advance {

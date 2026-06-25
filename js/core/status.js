@@ -340,8 +340,12 @@ window.normalizePilotStatus = function normalizePilotStatus(pilot) {
     vitality: Math.max(0, Math.min(100, Math.floor(statusNumber(survival.vitality, 100)))),
     fatigue: Math.max(0, Math.min(100, Math.floor(statusNumber(survival.fatigue, 0)))),
     condition: survival.condition || "healthy",
+    diseaseId: survival.diseaseId || "",
+    diseaseName: survival.diseaseName || "",
     severity: survival.severity || "none",
     recoveryDays: Math.max(0, Math.floor(statusNumber(survival.recoveryDays, 0))),
+    inMedicalRoom: Boolean(survival.inMedicalRoom),
+    forceSortie: Boolean(survival.forceSortie),
     cooldownDays: Math.max(0, Math.floor(statusNumber(survival.cooldownDays, 0))),
     lostReason: survival.lostReason || ""
   };
