@@ -813,6 +813,23 @@ window.validateSortieParty = function validateSortieParty() {
     if (state.quest) state.quest.partyWarning = `体力0のメンバーがいます: ${exhausted.map((pilot) => pilot.name || pilot.id).join(" / ")}。外すか入れ替えてください。`;
     return false;
   }
+  const isolated = pilots.filter((pilot) => {
+    if (typeof window.normalizePilotStatus === "function") window.normalizePilotStatus(pilot);
+    return typeof window.isPilotConditionActive === "function" && window.isPilotConditionActive(pilot) && pilot.survival?.inMedicalRoom;
+  });
+  if (isolated.length) {
+    const confirmed = window.confirm
+      ? window.confirm(`${isolated.map((pilot) => pilot.name || pilot.id).join(" / ")}は医務室に隔離中です。強行出撃させますか？ 戦闘不能になるとロストします。`)
+      : true;
+    if (!confirmed) {
+      if (state.quest) state.quest.partyWarning = "医務室のパイロットを出撃させるには確認が必要です。";
+      return false;
+    }
+    isolated.forEach((pilot) => {
+      pilot.survival.inMedicalRoom = false;
+      pilot.survival.forceSortie = true;
+    });
+  }
   if (state.quest) state.quest.startError = "";
   if (state.quest) state.quest.partyWarning = "";
   return true;
