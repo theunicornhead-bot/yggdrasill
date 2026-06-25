@@ -150,10 +150,21 @@ document.addEventListener("click", (event) => {
   if (action === "change-hangar-tab") {
     window.GameState.hangarTab = target.dataset.tab || "party";
     window.GameState.hangarView = "list";
+    window.GameState.pilotHangarTab = "list";
     window.GameState.assigningMechId = null;
     window.GameState.assigningPartySlot = null;
     window.renderCurrentScene();
   }
+  if (action === "change-pilot-hangar-tab") {
+    window.GameState.hangarTab = "pilots";
+    window.GameState.hangarView = "list";
+    window.GameState.pilotHangarTab = target.dataset.tab || "list";
+    window.GameState.assigningMechId = null;
+    window.GameState.assigningPartySlot = null;
+    window.renderCurrentScene();
+  }
+  if (action === "select-party-set") window.selectPartySet(target.dataset.partyIndex);
+  if (action === "select-quest-party-set") window.selectQuestPartySet(target.dataset.partyIndex);
   if (action === "open-mech-detail") {
     window.GameState.selectedMechId = target.dataset.mech;
     window.GameState.hangarTab = "mechs";

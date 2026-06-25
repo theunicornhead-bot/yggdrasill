@@ -197,7 +197,7 @@ function renderBarHome() {
       </div>
       <nav class="bridge-home-menu" aria-label="ブリッジメニュー">
         <div class="bridge-category-row">
-          <button class="button bridge-category-button ${selectedMenu === "ship" ? "active" : ""}" data-action="bridge-menu" data-menu="ship" type="button">アーク・クレイドル</button>
+          <button class="button bridge-category-button" data-action="bar-view" data-view="lifeline" type="button">アーク・クレイドル</button>
           <button class="button bridge-category-button ${selectedMenu === "pilots" ? "active" : ""}" data-action="bridge-menu" data-menu="pilots" type="button">パイロット管理</button>
           <button class="button bridge-category-button ${selectedMenu === "missions" ? "active" : ""}" data-action="bridge-menu" data-menu="missions" type="button">ミッション</button>
         </div>

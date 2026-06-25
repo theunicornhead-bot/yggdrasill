@@ -194,21 +194,38 @@ function ensureMechRosterState() {
   if (!Array.isArray(state.mechs)) state.mechs = [];
   state.maxOwnedMechs = Number(state.maxOwnedMechs || window.MAX_OWNED_MECHS);
   state.maxPartyMechs = Number(state.maxPartyMechs || window.MAX_PARTY_MECHS);
+  const partySetCount = 5;
   const ownedIds = new Set(state.mechs.map((mech) => mech?.id).filter(Boolean));
-  const sourceIds = Array.isArray(state.partyMechIds) && state.partyMechIds.length
-    ? state.partyMechIds
-    : state.mechs.slice(0, state.maxPartyMechs).map((mech) => mech?.id);
-  const usedIds = new Set();
-  const normalizedPartyIds = Array.from({ length: state.maxPartyMechs }, (_, index) => {
-    const id = sourceIds[index];
-    if (!id || !ownedIds.has(id) || usedIds.has(id)) return null;
-    usedIds.add(id);
-    return id;
+  const normalizePartyIds = (sourceIds) => {
+    const usedIds = new Set();
+    return Array.from({ length: state.maxPartyMechs }, (_, index) => {
+      const id = sourceIds?.[index];
+      if (!id || !ownedIds.has(id) || usedIds.has(id)) return null;
+      usedIds.add(id);
+      return id;
+    });
+  };
+  const fallbackPartyIds = normalizePartyIds(state.mechs.slice(0, state.maxPartyMechs).map((mech) => mech?.id));
+  const legacyPartyIds = Array.isArray(state.partyMechIds) && state.partyMechIds.length ? state.partyMechIds : fallbackPartyIds;
+  const sourceSets = Array.isArray(state.partySets) && state.partySets.length ? state.partySets : [];
+  state.partySets = Array.from({ length: partySetCount }, (_, index) => {
+    const source = sourceSets[index] || {};
+    const sourceIds = Array.isArray(source.mechIds) && source.mechIds.length ? source.mechIds : (index === 0 ? legacyPartyIds : []);
+    let mechIds = normalizePartyIds(sourceIds);
+    if (index === 0 && !mechIds.some(Boolean) && state.mechs.length) mechIds = fallbackPartyIds;
+    return {
+      id: source.id || `party_${index + 1}`,
+      name: source.name || `パーティ${index + 1}`,
+      mechIds
+    };
   });
-  const fallbackPartyIds = state.mechs.slice(0, state.maxPartyMechs).map((mech) => mech?.id || null);
-  state.partyMechIds = normalizedPartyIds.some(Boolean) || !state.mechs.length
-    ? normalizedPartyIds
-    : Array.from({ length: state.maxPartyMechs }, (_, index) => fallbackPartyIds[index] || null);
+  const clampPartyIndex = (value, fallback = 0) => {
+    const number = Math.floor(Number(value));
+    return Number.isFinite(number) ? Math.max(0, Math.min(partySetCount - 1, number)) : fallback;
+  };
+  state.activePartyIndex = clampPartyIndex(state.activePartyIndex, 0);
+  state.selectedQuestPartyIndex = clampPartyIndex(state.selectedQuestPartyIndex, state.activePartyIndex);
+  state.partyMechIds = [...state.partySets[state.activePartyIndex].mechIds];
   if (state.selectedMechId && !ownedIds.has(state.selectedMechId)) state.selectedMechId = state.mechs[0]?.id || null;
   return state.partyMechIds;
 }
@@ -295,6 +312,9 @@ window.createPlayerSavePayload = function createPlayerSavePayload() {
     pilots: clonePlain(state.pilots || []),
     mechs: clonePlain(state.mechs || []),
     partyMechIds: clonePlain(state.partyMechIds || []),
+    partySets: clonePlain(state.partySets || []),
+    activePartyIndex: Number(state.activePartyIndex || 0),
+    selectedQuestPartyIndex: Number(state.selectedQuestPartyIndex ?? state.activePartyIndex ?? 0),
     pendingGeneratedMech: state.pendingGeneratedMech ? clonePlain(state.pendingGeneratedMech) : null,
     selectedMechId: state.selectedMechId || null,
     selectedPlanetId: state.selectedPlanetId || state.quest?.planetId || null,
@@ -322,6 +342,9 @@ window.applyPlayerSavePayload = function applyPlayerSavePayload(payload) {
   state.pilots = Array.isArray(payload.pilots) ? payload.pilots : state.pilots;
   state.mechs = Array.isArray(payload.mechs) ? payload.mechs : state.mechs;
   state.partyMechIds = Array.isArray(payload.partyMechIds) ? payload.partyMechIds : state.partyMechIds;
+  state.partySets = Array.isArray(payload.partySets) ? payload.partySets : state.partySets;
+  state.activePartyIndex = Number(payload.activePartyIndex ?? state.activePartyIndex ?? 0);
+  state.selectedQuestPartyIndex = Number(payload.selectedQuestPartyIndex ?? state.selectedQuestPartyIndex ?? state.activePartyIndex ?? 0);
   state.pendingGeneratedMech = payload.pendingGeneratedMech && typeof payload.pendingGeneratedMech === "object" ? payload.pendingGeneratedMech : null;
   state.selectedMechId = payload.selectedMechId || state.selectedMechId;
   state.selectedPlanetId = payload.selectedPlanetId || state.selectedPlanetId || payload.exploration?.planetId || null;

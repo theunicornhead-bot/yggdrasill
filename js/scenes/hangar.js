@@ -64,12 +64,18 @@ window.renderMechImage = function renderMechImage(mech, variant = "card") {
 
 window.renderHangar = function renderHangar() {
   const state = window.GameState;
-  if (!["party", "mechs", "pilots", "medical"].includes(state.hangarTab)) state.hangarTab = "party";
+  if (state.hangarTab === "medical") {
+    state.hangarTab = "pilots";
+    state.pilotHangarTab = "medical";
+  }
+  if (!["party", "mechs", "pilots"].includes(state.hangarTab)) state.hangarTab = "party";
   if (!["list", "mech-detail", "mech-assign", "pilot-assign", "pilot-detail"].includes(state.hangarView)) state.hangarView = "list";
+  if (!["list", "medical"].includes(state.pilotHangarTab)) state.pilotHangarTab = "list";
   if (state.hangarTab !== "mechs" && state.hangarView === "mech-detail") state.hangarView = "list";
   if (state.hangarTab !== "party" && state.hangarView === "mech-assign") state.hangarView = "list";
   if (state.hangarTab !== "party" && state.hangarView === "pilot-assign") state.hangarView = "list";
   if (state.hangarTab !== "pilots" && state.hangarView === "pilot-detail") state.hangarView = "list";
+  if (state.hangarTab !== "pilots") state.pilotHangarTab = "list";
   if ((state.hangarView === "mech-assign" || state.hangarView === "pilot-assign") && !isValidPartySlot(state.assigningPartySlot)) {
     state.hangarView = "list";
     state.assigningPartySlot = null;
@@ -81,21 +87,21 @@ window.renderHangar = function renderHangar() {
   const assigningSlot = Number(state.assigningPartySlot);
   const assigningMech = getPartyMech(assigningSlot);
   const partyMechs = getPartyMechs();
-  const sortieCount = typeof window.getSortieUnits === "function" ? window.getSortieUnits().length : partyMechs.filter((mech) => mech && getPilot(mech.pilotId)).length;
+  const sortieCount = partyMechs.filter((mech) => mech && getPilot(mech.pilotId)).length;
   window.App.root.innerHTML = `
     ${renderHeader("ハンガー", "HANGER")}
     <section class="hangar-tabs" role="tablist" aria-label="ハンガータブ">
       ${renderHangarTabButton("party", "パーティ編成")}
       ${renderHangarTabButton("mechs", "所持機体")}
       ${renderHangarTabButton("pilots", "パイロット")}
-      ${renderHangarTabButton("medical", "医務室")}
     </section>
     ${state.hangarTab === "party" ? `
+      ${renderPartySetSelector("hangar")}
       ${state.hangarView === "mech-assign" ? renderMechAssignView(assigningSlot) : ""}
       ${state.hangarView === "pilot-assign" ? renderPilotAssignView(assigningMech, assigningSlot) : ""}
       ${state.hangarView === "list" ? `
         <section class="panel panel-pad">
-          <div class="section-head"><h2>パーティ編成</h2><span>出撃機体 ${sortieCount} / 4</span></div>
+          <div class="section-head"><h2>${getActivePartySet().name}</h2><span>出撃機体 ${sortieCount} / 4</span></div>
           <div class="hangar-party-grid">${Array.from({ length: 4 }, (_, index) => renderPartySlot(partyMechs[index], index)).join("")}</div>
         </section>
       ` : ""}
@@ -110,14 +116,8 @@ window.renderHangar = function renderHangar() {
       `}
     ` : ""}
     ${state.hangarTab === "pilots" ? `
-      ${state.hangarView === "pilot-detail" && getPilot(state.selectedPilotId) ? renderPilotDetailView(getPilot(state.selectedPilotId)) : `
-        <section class="panel panel-pad">
-          <div class="section-head"><h2>パイロット</h2><span>雇用中 ${state.pilots.length} / 4</span></div>
-          <div class="storage-grid">${state.pilots.map(renderStoredPilot).join("")}</div>
-        </section>
-      `}
+      ${state.hangarView === "pilot-detail" && getPilot(state.selectedPilotId) ? renderPilotDetailView(getPilot(state.selectedPilotId)) : renderPilotHangarView()}
     ` : ""}
-    ${state.hangarTab === "medical" ? renderMedicalRoomView() : ""}
   `;
 };
 
@@ -129,24 +129,59 @@ function isValidPartySlot(slot) {
 function getPartyMechs() {
   if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
   const mechs = window.GameState.mechs || [];
-  return (window.GameState.partyMechIds || []).map((id) => mechs.find((mech) => mech.id === id) || null);
+  return getActivePartyIds().map((id) => mechs.find((mech) => mech.id === id) || null);
 }
 
 function getPartyMech(slot) {
   if (!isValidPartySlot(slot)) return null;
-  const mechId = (window.GameState.partyMechIds || [])[Number(slot)];
+  const mechId = getActivePartyIds()[Number(slot)];
   return mechId ? getMech(mechId) : null;
 }
 
 function isMechInParty(mechId) {
   if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
-  return (window.GameState.partyMechIds || []).includes(mechId);
+  return getActivePartyIds().includes(mechId);
 }
 
 function partyMechCount() {
   if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
-  return (window.GameState.partyMechIds || []).filter(Boolean).length;
+  return getActivePartyIds().filter(Boolean).length;
 }
+
+function getActivePartySet() {
+  if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
+  const state = window.GameState;
+  return state.partySets?.[state.activePartyIndex || 0] || { name: "パーティ1", mechIds: state.partyMechIds || [] };
+}
+
+function getActivePartyIds() {
+  return getActivePartySet().mechIds || [];
+}
+
+function setActivePartyIds(ids) {
+  if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
+  const state = window.GameState;
+  const index = state.activePartyIndex || 0;
+  if (!state.partySets?.[index]) return;
+  state.partySets[index].mechIds = ids;
+  state.partyMechIds = [...ids];
+}
+
+function renderPartySetSelector(context = "hangar") {
+  if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
+  const state = window.GameState;
+  return `
+    <section class="hangar-tabs party-set-tabs" role="tablist" aria-label="パーティ選択">
+      ${(state.partySets || []).map((party, index) => {
+        const active = context === "quest" ? Number(state.selectedQuestPartyIndex || 0) === index : Number(state.activePartyIndex || 0) === index;
+        const action = context === "quest" ? "select-quest-party-set" : "select-party-set";
+        return `<button class="button hangar-tab-button ${active ? "active" : ""}" data-action="${action}" data-party-index="${index}" type="button" role="tab" aria-selected="${active}">${party.name || `パーティ${index + 1}`}</button>`;
+      }).join("")}
+    </section>
+  `;
+}
+
+window.renderPartySetSelector = renderPartySetSelector;
 
 function renderPendingGeneratedMechNotice() {
   const pending = window.GameState.pendingGeneratedMech;
@@ -168,6 +203,27 @@ function renderPendingGeneratedMechNotice() {
 function renderHangarTabButton(tab, label) {
   const active = window.GameState.hangarTab === tab;
   return `<button class="button hangar-tab-button ${active ? "active" : ""}" data-action="change-hangar-tab" data-tab="${tab}" type="button" role="tab" aria-selected="${active}">${label}</button>`;
+}
+
+function renderPilotHangarView() {
+  const state = window.GameState;
+  return `
+    <section class="hangar-tabs pilot-hangar-tabs" role="tablist" aria-label="パイロットタブ">
+      ${renderPilotHangarTabButton("list", "一覧")}
+      ${renderPilotHangarTabButton("medical", "医務室")}
+    </section>
+    ${state.pilotHangarTab === "medical" ? renderMedicalRoomView() : `
+      <section class="panel panel-pad">
+        <div class="section-head"><h2>パイロット</h2><span>雇用中 ${state.pilots.length} / 4</span></div>
+        <div class="storage-grid">${state.pilots.map(renderStoredPilot).join("")}</div>
+      </section>
+    `}
+  `;
+}
+
+function renderPilotHangarTabButton(tab, label) {
+  const active = window.GameState.pilotHangarTab === tab;
+  return `<button class="button hangar-tab-button ${active ? "active" : ""}" data-action="change-pilot-hangar-tab" data-tab="${tab}" type="button" role="tab" aria-selected="${active}">${label}</button>`;
 }
 
 function renderMechCard(mech, index) {
@@ -319,6 +375,7 @@ window.sellMech = function sellMech(mechId) {
   if (!confirmed) return;
 
   state.mechs = state.mechs.filter((item) => item.id !== mechId);
+  state.partySets = (state.partySets || []).map((party) => ({ ...party, mechIds: (party.mechIds || []).map((id) => id === mechId ? null : id) }));
   state.partyMechIds = (state.partyMechIds || []).map((id) => id === mechId ? null : id);
   if (mech.imageId && typeof window.deleteMechImageBlob === "function") {
     window.deleteMechImageBlob(mech.imageId).catch(() => false);
@@ -344,6 +401,7 @@ window.deleteMech = async function deleteMech(mechId) {
   const confirmed = window.confirm ? window.confirm(`${mech.name || "Machine"}を削除しますか？`) : true;
   if (!confirmed) return;
   state.mechs = state.mechs.filter((item) => item.id !== mechId);
+  state.partySets = (state.partySets || []).map((party) => ({ ...party, mechIds: (party.mechIds || []).map((id) => id === mechId ? null : id) }));
   state.partyMechIds = (state.partyMechIds || []).map((id) => id === mechId ? null : id);
   if (state.selectedMechId === mechId) state.selectedMechId = state.mechs[0]?.id || null;
   if (mech.imageId && typeof window.deleteMechImageBlob === "function") {
@@ -770,9 +828,11 @@ window.assignMechToPartySlot = function assignMechToPartySlot(slot, mechId) {
   const selected = getMech(mechId);
   if (!isValidPartySlot(targetIndex) || !selected) return false;
   if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
-  if (isMechInParty(mechId) && state.partyMechIds[targetIndex] !== mechId) return false;
-  state.partyMechIds = Array.from({ length: typeof window.getPartyMechLimit === "function" ? window.getPartyMechLimit() : 4 }, (_, index) => state.partyMechIds[index] || null);
-  state.partyMechIds[targetIndex] = mechId;
+  const activeIds = getActivePartyIds();
+  if (isMechInParty(mechId) && activeIds[targetIndex] !== mechId) return false;
+  const nextIds = Array.from({ length: typeof window.getPartyMechLimit === "function" ? window.getPartyMechLimit() : 4 }, (_, index) => activeIds[index] || null);
+  nextIds[targetIndex] = mechId;
+  setActivePartyIds(nextIds);
   state.selectedMechId = selected.id;
   state.assigningPartySlot = null;
   state.hangarView = "list";
@@ -793,9 +853,11 @@ window.addMechToParty = function addMechToParty(mechId) {
     window.renderCurrentScene();
     return false;
   }
-  const targetIndex = Array.from({ length: limit }, (_, index) => state.partyMechIds[index] || null).findIndex((id) => !id);
-  state.partyMechIds = Array.from({ length: limit }, (_, index) => state.partyMechIds[index] || null);
-  state.partyMechIds[targetIndex] = mechId;
+  const activeIds = getActivePartyIds();
+  const targetIndex = Array.from({ length: limit }, (_, index) => activeIds[index] || null).findIndex((id) => !id);
+  const nextIds = Array.from({ length: limit }, (_, index) => activeIds[index] || null);
+  nextIds[targetIndex] = mechId;
+  setActivePartyIds(nextIds);
   state.selectedMechId = mechId;
   logMessage("bar", `${mech.name || "Machine"}を編成に入れました。`, "good");
   window.savePlayerData();
@@ -806,11 +868,24 @@ window.addMechToParty = function addMechToParty(mechId) {
 window.removeMechFromParty = function removeMechFromParty(mechId) {
   const state = window.GameState;
   const mech = getMech(mechId);
-  state.partyMechIds = (state.partyMechIds || []).map((id) => id === mechId ? null : id);
+  setActivePartyIds(getActivePartyIds().map((id) => id === mechId ? null : id));
   logMessage("bar", `${mech?.name || "Machine"}を編成から外しました。`, "warn");
   window.savePlayerData();
   window.renderCurrentScene();
   return true;
+};
+
+window.selectPartySet = function selectPartySet(index) {
+  const state = window.GameState;
+  if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
+  const parsedIndex = Math.floor(Number(index));
+  const nextIndex = Math.max(0, Math.min((state.partySets || []).length - 1, Number.isFinite(parsedIndex) ? parsedIndex : 0));
+  state.activePartyIndex = nextIndex;
+  state.partyMechIds = [...(state.partySets[nextIndex]?.mechIds || [])];
+  state.assigningPartySlot = null;
+  state.hangarView = "list";
+  window.savePlayerData();
+  window.renderCurrentScene();
 };
 
 window.confirmPendingGeneratedMech = function confirmPendingGeneratedMech() {

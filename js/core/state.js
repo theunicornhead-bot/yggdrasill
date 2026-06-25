@@ -129,6 +129,15 @@ window.GameState = {
     }
   ],
   partyMechIds: ["sabellion_s", "sabellion_a", "honeybee_b", null],
+  activePartyIndex: 0,
+  selectedQuestPartyIndex: 0,
+  partySets: [
+    { id: "party_1", name: "パーティ1", mechIds: ["sabellion_s", "sabellion_a", "honeybee_b", null] },
+    { id: "party_2", name: "パーティ2", mechIds: [null, null, null, null] },
+    { id: "party_3", name: "パーティ3", mechIds: [null, null, null, null] },
+    { id: "party_4", name: "パーティ4", mechIds: [null, null, null, null] },
+    { id: "party_5", name: "パーティ5", mechIds: [null, null, null, null] }
+  ],
   pendingGeneratedMech: null,
   materials: { broken_shell: 12, thin_membrane: 8, dry_nerve: 6, brittle_bone: 10 },
   baseInventory: {

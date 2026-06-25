@@ -653,6 +653,7 @@ function renderQuestPartySetupModal() {
           <button class="button mini-map-close" data-action="close-quest-party-setup" type="button">閉じる</button>
         </div>
         ${state.quest.partyWarning ? `<div class="log-line log-danger">${state.quest.partyWarning}</div>` : ""}
+        ${typeof window.renderPartySetSelector === "function" ? window.renderPartySetSelector("quest") : ""}
         <div class="quest-party-setup-grid">
           ${renderQuestStartFloorSelector()}
           <div class="section-head"><h3>出撃メンバー</h3><span>ハンガー編成を初期表示</span></div>
@@ -872,8 +873,12 @@ function pilotVitality(pilot) {
 
 function initializeQuestSortieParty() {
   const state = window.GameState;
+  if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
   const limit = typeof window.getPartyMechLimit === "function" ? window.getPartyMechLimit() : 4;
-  const ids = Array.from({ length: limit }, (_, index) => (state.partyMechIds || [])[index] || null);
+  const partyIndex = Math.max(0, Math.min((state.partySets || []).length - 1, Math.floor(Number(state.selectedQuestPartyIndex ?? state.activePartyIndex ?? 0))));
+  state.selectedQuestPartyIndex = partyIndex;
+  const source = state.partySets?.[partyIndex]?.mechIds || state.partyMechIds || [];
+  const ids = Array.from({ length: limit }, (_, index) => source[index] || null);
   state.quest = state.quest || {};
   state.quest.sortieMechIds = ids;
   state.quest.partySetupOpen = true;
@@ -882,6 +887,21 @@ function initializeQuestSortieParty() {
   state.quest.startFloor = getValidQuestStartFloor(planet, state.quest.startFloor || 1);
   return ids;
 }
+
+window.selectQuestPartySet = function selectQuestPartySet(index) {
+  const state = window.GameState;
+  if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
+  const parsedIndex = Math.floor(Number(index));
+  const nextIndex = Math.max(0, Math.min((state.partySets || []).length - 1, Number.isFinite(parsedIndex) ? parsedIndex : 0));
+  const limit = typeof window.getPartyMechLimit === "function" ? window.getPartyMechLimit() : 4;
+  const source = state.partySets?.[nextIndex]?.mechIds || [];
+  state.selectedQuestPartyIndex = nextIndex;
+  state.quest = state.quest || {};
+  state.quest.sortieMechIds = Array.from({ length: limit }, (_, slot) => source[slot] || null);
+  state.quest.partyWarning = "";
+  state.quest.partySwapSlot = null;
+  window.renderCurrentScene();
+};
 
 function getQuestSortieIds() {
   const state = window.GameState;

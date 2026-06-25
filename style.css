@@ -77,10 +77,9 @@ a,
 .app-frame {
   position: relative;
   width: min(100vw, 430px);
-  height: 100dvh;
-  min-height: 100vh;
+  min-height: 100dvh;
   overflow-x: clip;
-  overflow-y: auto;
+  overflow-y: visible;
   overscroll-behavior-y: contain;
   scrollbar-gutter: stable;
   -webkit-overflow-scrolling: touch;
@@ -111,8 +110,8 @@ a,
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  min-height: 100vh;
-  padding: 14px 12px calc(var(--nav-h) + 18px);
+  min-height: 100dvh;
+  padding: 14px 12px calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 96px);
 }
 
 .top-bar,
@@ -251,16 +250,17 @@ a,
 }
 
 .bridge-resource-row {
-  flex: 0 0 100%;
+  flex: 0 0 168px;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
 }
 
 .bridge-resource-row .resource {
   width: 100%;
   min-width: 0;
-  padding: 6px 5px;
+  min-height: 42px;
+  padding: 5px 4px;
   text-align: center;
 }
 
@@ -1264,6 +1264,10 @@ a,
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
   margin-bottom: 10px;
+}
+
+.party-set-tabs {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .hangar-tab-button {
