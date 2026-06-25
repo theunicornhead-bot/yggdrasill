@@ -214,8 +214,12 @@ window.closeBaseInventoryModal = function closeBaseInventoryModal() {
   window.renderCurrentScene();
 };
 window.renderBottomNav = function renderBottomNav() {
+  const state = window.GameState;
+  const nav = document.querySelector(".bottom-nav");
+  const isExploring = Boolean(state.quest?.currentPlanetId || state.quest?.planetId) && (state.currentScene === "quest" || state.currentScene === "battle");
+  if (nav) nav.classList.toggle("bottom-nav--hidden", isExploring);
   document.querySelectorAll(".nav-btn").forEach((button) => {
-    button.classList.toggle("active", button.dataset.screen === window.GameState.currentScene);
+    button.classList.toggle("active", button.dataset.screen === state.currentScene);
   });
 };
 

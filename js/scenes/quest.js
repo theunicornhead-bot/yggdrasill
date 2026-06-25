@@ -59,6 +59,47 @@ window.isPlanetUnlocked = function isPlanetUnlocked(planet) {
   return (window.GameState.player?.maxReachedFloor || 1) >= Number(planet.unlockCondition.maxReachedFloor || 1);
 };
 
+function ensurePlanetProgressState() {
+  const state = window.GameState;
+  if (!state.planetProgress || typeof state.planetProgress !== "object") state.planetProgress = {};
+  return state.planetProgress;
+}
+
+function getPlanetClearedFloor(planetId) {
+  const progress = ensurePlanetProgressState();
+  return Math.max(0, Math.floor(Number(progress[planetId]?.maxClearedFloor || 0)));
+}
+
+function recordPlanetClearedFloor(planetId, floor) {
+  if (!planetId) return;
+  const clearedFloor = Math.max(0, Math.floor(Number(floor || 0)));
+  const progress = ensurePlanetProgressState();
+  const current = progress[planetId] && typeof progress[planetId] === "object" ? progress[planetId] : {};
+  progress[planetId] = {
+    ...current,
+    maxClearedFloor: Math.max(Number(current.maxClearedFloor || 0), clearedFloor)
+  };
+  if (window.GameState.player) {
+    window.GameState.player.maxReachedFloor = Math.max(Number(window.GameState.player.maxReachedFloor || 1), clearedFloor);
+  }
+}
+
+function getQuestStartFloorOptions(planet) {
+  if (!planet) return [1];
+  const maxFloor = Math.max(1, Math.floor(Number(planet.maxFloor || 1)));
+  const maxCleared = Math.min(maxFloor, getPlanetClearedFloor(planet.id));
+  const maxCheckpoint = Math.floor(maxCleared / 5) * 5;
+  const floors = [1];
+  for (let floor = 5; floor <= maxCheckpoint; floor += 5) floors.push(floor);
+  return floors;
+}
+
+function getValidQuestStartFloor(planet, requestedFloor) {
+  const floor = Math.max(1, Math.floor(Number(requestedFloor || 1)));
+  const options = getQuestStartFloorOptions(planet);
+  return options.includes(floor) ? floor : 1;
+}
+
 function weightedPick(table, keyName) {
   let roll = Math.random() * table.reduce((sum, item) => sum + item.weight, 0);
   for (const item of table) {
@@ -130,11 +171,14 @@ window.generateDungeonFloor = function generateDungeonFloor(floor, planetId = nu
 
   placeEvents(map, reachable, startPosition, floor, terrain, planet);
   const stairsPosition = window.placeStairs(map, startPosition);
+  const previousQuest = state.quest || {};
   state.quest = {
-    selectedPlanetId: state.quest?.selectedPlanetId || planet.id,
+    selectedPlanetId: previousQuest.selectedPlanetId || planet.id,
     currentPlanetId: planet.id,
     planetId: planet.id,
     planetName: planet.name,
+    sortieMechIds: Array.isArray(previousQuest.sortieMechIds) ? previousQuest.sortieMechIds : undefined,
+    startFloor: previousQuest.startFloor || floor,
     floor,
     size,
     terrain,
@@ -142,7 +186,7 @@ window.generateDungeonFloor = function generateDungeonFloor(floor, planetId = nu
     height: dimension,
     map,
     player: { x: startPosition.x, y: startPosition.y, direction: "N" },
-    fuel: state.quest?.fuel ?? 100,
+    fuel: previousQuest.fuel ?? 100,
     maxFuel: 100,
     discovered: {},
     foundStairs: false,
@@ -151,7 +195,7 @@ window.generateDungeonFloor = function generateDungeonFloor(floor, planetId = nu
     planetDifficulty: planet.difficulty,
     materialPool: planet.materialPool,
     promptThemes: planet.promptThemes,
-    battleTacticId: state.quest?.battleTacticId || "standard",
+    battleTacticId: previousQuest.battleTacticId || "standard",
     pendingFieldEnemy: null,
     fieldEnemies: [],
     nextFieldEnemySerial: 1,
@@ -601,9 +645,6 @@ function renderQuestPartySetupModal() {
   const state = window.GameState;
   if (!state.quest?.partySetupOpen) return "";
   const sortieIds = getQuestSortieIds();
-  if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
-  const mechs = state.mechs || [];
-  const selectedSet = new Set(sortieIds.filter(Boolean));
   return `
     <div class="modal-backdrop quest-party-setup-modal-backdrop">
       <section class="quest-party-setup-modal panel panel-pad" role="dialog" aria-modal="true" aria-label="探索パーティ編成">
@@ -613,17 +654,10 @@ function renderQuestPartySetupModal() {
         </div>
         ${state.quest.partyWarning ? `<div class="log-line log-danger">${state.quest.partyWarning}</div>` : ""}
         <div class="quest-party-setup-grid">
-          <div>
-            <div class="section-head"><h3>出撃メンバー</h3><span>ハンガー編成を初期表示</span></div>
-            <div class="quest-party-slot-list">
-              ${sortieIds.map((mechId, index) => renderQuestPartySlot(mechId, index)).join("")}
-            </div>
-          </div>
-          <div>
-            <div class="section-head"><h3>入れ替え候補</h3><span>${formatNumber(mechs.length)}機</span></div>
-            <div class="quest-party-candidate-list">
-              ${mechs.map((mech) => renderQuestPartyCandidate(mech, selectedSet)).join("") || `<div class="muted">機体がありません。</div>`}
-            </div>
+          ${renderQuestStartFloorSelector()}
+          <div class="section-head"><h3>出撃メンバー</h3><span>ハンガー編成を初期表示</span></div>
+          <div class="quest-party-slot-list">
+            ${sortieIds.map((mechId, index) => renderQuestPartySlot(mechId, index)).join("")}
           </div>
         </div>
         <div class="quest-party-setup-actions">
@@ -631,6 +665,24 @@ function renderQuestPartySetupModal() {
           <button class="button primary" data-action="depart-selected-planet-quest" onclick="event.stopPropagation(); window.departSelectedPlanetQuest?.()" type="button">探索へ出発</button>
         </div>
       </section>
+      ${renderQuestPartySwapModal()}
+    </div>
+  `;
+}
+
+function renderQuestStartFloorSelector() {
+  const state = window.GameState;
+  const planet = window.getPlanetById(state.quest?.selectedPlanetId || state.selectedPlanetId);
+  const options = getQuestStartFloorOptions(planet);
+  const selected = getValidQuestStartFloor(planet, state.quest?.startFloor || 1);
+  return `
+    <div class="quest-start-floor-selector panel panel-pad">
+      <div class="section-head"><h3>開始階</h3><span>${planet ? planet.name : "-"}</span></div>
+      <div class="quest-start-floor-options">
+        ${options.map((floor) => `
+          <button class="button ${floor === selected ? "active" : ""}" data-action="select-quest-start-floor" data-floor="${floor}" type="button">${floor}F</button>
+        `).join("")}
+      </div>
     </div>
   `;
 }
@@ -642,12 +694,38 @@ function renderQuestPartySlot(mechId, index) {
   return `
     <article class="quest-party-slot panel panel-pad ${pilot && vitality <= 0 ? "danger" : ""}">
       <div class="section-head"><h3>SLOT ${index + 1}</h3><span>${pilot ? `体力 ${formatNumber(vitality)}` : "-"}</span></div>
-      ${mech ? `<div class="material-row"><span>${mech.name || mech.id}<br><span class="muted">${pilot?.name || "未搭乗"}</span></span><button class="button mini-map-close" data-action="remove-quest-sortie-slot" data-slot="${index}" type="button">外す</button></div>` : `<div class="muted">未編成</div>`}
+      <div class="material-row">
+        <span style="flex:1">${mech ? `${mech.name || mech.id}<br><span class="muted">${pilot?.name || "未搭乗"}</span>` : `<span class="muted">未編成</span>`}</span>
+        <button class="button mini-map-close" data-action="open-quest-sortie-swap" data-slot="${index}" type="button">入れ替え</button>
+        <button class="button mini-map-close" data-action="remove-quest-sortie-slot" data-slot="${index}" ${mech ? "" : "disabled"} type="button">外す</button>
+      </div>
     </article>
   `;
 }
 
-function renderQuestPartyCandidate(mech, selectedSet) {
+function renderQuestPartySwapModal() {
+  const state = window.GameState;
+  const slot = Number(state.quest?.partySwapSlot);
+  if (!Number.isInteger(slot) || slot < 0) return "";
+  if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
+  const mechs = state.mechs || [];
+  const selectedSet = new Set(getQuestSortieIds().filter(Boolean));
+  return `
+    <div class="modal-backdrop quest-party-swap-modal-backdrop">
+      <section class="quest-materials-modal quest-party-swap-modal panel panel-pad" role="dialog" aria-modal="true" aria-label="入れ替え候補">
+        <div class="section-head">
+          <h2>入れ替え候補</h2>
+          <button class="button mini-map-close" data-action="close-quest-sortie-swap" type="button">閉じる</button>
+        </div>
+        <div class="quest-party-candidate-list">
+          ${mechs.map((mech) => renderQuestPartyCandidate(mech, selectedSet, slot)).join("") || `<div class="muted">機体がありません。</div>`}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function renderQuestPartyCandidate(mech, selectedSet, slot) {
   const pilot = getPilot(mech?.pilotId);
   const vitality = pilot ? pilotVitality(pilot) : 0;
   const selected = selectedSet.has(mech.id);
@@ -655,15 +733,28 @@ function renderQuestPartyCandidate(mech, selectedSet) {
     <article class="quest-party-candidate panel panel-pad ${pilot && vitality <= 0 ? "danger" : ""}">
       <div class="section-head"><h3>${mech.name || mech.id}</h3><span>${selected ? "編成中" : "候補"}</span></div>
       <div class="material-row"><span>${pilot?.name || "未搭乗"}</span><strong>体力 ${pilot ? formatNumber(vitality) : "-"}</strong></div>
-      <div class="quest-party-candidate-actions">
-        ${getQuestSortieIds().map((_, index) => `<button class="button mini-map-close" data-action="assign-quest-sortie-slot" data-slot="${index}" data-mech="${mech.id}" ${selected ? "disabled" : ""} type="button">${index + 1}</button>`).join("")}
-      </div>
+      <button class="button" data-action="assign-quest-sortie-slot" data-slot="${slot}" data-mech="${mech.id}" ${selected ? "disabled" : ""} type="button">この機体に入れ替え</button>
     </article>
   `;
 }
 
 window.closeQuestPartySetup = function closeQuestPartySetup() {
-  if (window.GameState.quest) window.GameState.quest.partySetupOpen = false;
+  if (window.GameState.quest) {
+    window.GameState.quest.partySetupOpen = false;
+    window.GameState.quest.partySwapSlot = null;
+  }
+  window.renderCurrentScene();
+};
+
+window.openQuestSortieSwap = function openQuestSortieSwap(slot) {
+  const state = window.GameState;
+  state.quest = state.quest || {};
+  state.quest.partySwapSlot = Number(slot);
+  window.renderCurrentScene();
+};
+
+window.closeQuestSortieSwap = function closeQuestSortieSwap() {
+  if (window.GameState.quest) window.GameState.quest.partySwapSlot = null;
   window.renderCurrentScene();
 };
 
@@ -675,6 +766,7 @@ window.assignQuestSortieSlot = function assignQuestSortieSlot(slot, mechId) {
   ids[index] = mechId;
   state.quest.sortieMechIds = ids;
   state.quest.partyWarning = "";
+  state.quest.partySwapSlot = null;
   window.renderCurrentScene();
 };
 
@@ -756,7 +848,19 @@ window.selectPlanet = function selectPlanet(planetId) {
   if (!planet || !window.isPlanetUnlocked(planet)) return;
   const state = window.GameState;
   state.selectedPlanetId = planet.id;
-  if (state.quest) state.quest.selectedPlanetId = planet.id;
+  if (state.quest) {
+    state.quest.selectedPlanetId = planet.id;
+    state.quest.startFloor = getValidQuestStartFloor(planet, state.quest.startFloor || 1);
+  }
+  window.renderCurrentScene();
+};
+
+window.selectQuestStartFloor = function selectQuestStartFloor(floor) {
+  const state = window.GameState;
+  const planet = window.getPlanetById(state.quest?.selectedPlanetId || state.selectedPlanetId);
+  if (!planet) return;
+  state.quest = state.quest || {};
+  state.quest.startFloor = getValidQuestStartFloor(planet, floor);
   window.renderCurrentScene();
 };
 
@@ -774,6 +878,8 @@ function initializeQuestSortieParty() {
   state.quest.sortieMechIds = ids;
   state.quest.partySetupOpen = true;
   state.quest.partyWarning = "";
+  const planet = window.getPlanetById(state.quest.selectedPlanetId || state.selectedPlanetId);
+  state.quest.startFloor = getValidQuestStartFloor(planet, state.quest.startFloor || 1);
   return ids;
 }
 
@@ -864,10 +970,10 @@ window.departSelectedPlanetQuest = function departSelectedPlanetQuest() {
     state.quest.currentPlanetId = planet.id;
     state.quest.planetId = planet.id;
     state.quest.map = [];
-    state.quest.floor = 1;
+    state.quest.floor = getValidQuestStartFloor(planet, state.quest.startFloor || 1);
     state.quest.fuel = state.quest.maxFuel || 100;
   }
-  window.generateDungeonFloor(1, planet.id);
+  window.generateDungeonFloor(getValidQuestStartFloor(planet, state.quest?.startFloor || 1), planet.id);
   window.renderCurrentScene();
   return true;
 };
@@ -1672,11 +1778,13 @@ window.goToNextFloor = function goToNextFloor() {
     return;
   }
   if (quest.floor >= planet.maxFloor) {
+    recordPlanetClearedFloor(planet.id, quest.floor);
     addQuestLog(`${planet.name}の最深部に到達済みだ。`, "good");
     window.renderCurrentScene();
     return;
   }
   const nextFuel = quest.fuel;
+  recordPlanetClearedFloor(planet.id, quest.floor);
   window.generateDungeonFloor(quest.floor + 1, planet.id);
   window.GameState.quest.fuel = nextFuel;
   window.GameState.fuel = nextFuel;

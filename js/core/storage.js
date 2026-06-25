@@ -298,6 +298,7 @@ window.createPlayerSavePayload = function createPlayerSavePayload() {
     pendingGeneratedMech: state.pendingGeneratedMech ? clonePlain(state.pendingGeneratedMech) : null,
     selectedMechId: state.selectedMechId || null,
     selectedPlanetId: state.selectedPlanetId || state.quest?.planetId || null,
+    planetProgress: clonePlain(state.planetProgress || {}),
     nextMechSerial: state.nextMechSerial || 1,
     nextWeaponSerial: state.nextWeaponSerial || 1,
     materials: clonePlain(state.materials || {}),
@@ -324,6 +325,7 @@ window.applyPlayerSavePayload = function applyPlayerSavePayload(payload) {
   state.pendingGeneratedMech = payload.pendingGeneratedMech && typeof payload.pendingGeneratedMech === "object" ? payload.pendingGeneratedMech : null;
   state.selectedMechId = payload.selectedMechId || state.selectedMechId;
   state.selectedPlanetId = payload.selectedPlanetId || state.selectedPlanetId || payload.exploration?.planetId || null;
+  state.planetProgress = payload.planetProgress && typeof payload.planetProgress === "object" ? payload.planetProgress : state.planetProgress || {};
   state.nextMechSerial = Number(payload.nextMechSerial || state.nextMechSerial || 1);
   state.nextWeaponSerial = Number(payload.nextWeaponSerial || state.nextWeaponSerial || 1);
   state.materials = payload.materials && typeof payload.materials === "object" ? payload.materials : state.materials;

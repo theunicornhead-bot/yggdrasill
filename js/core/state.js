@@ -35,6 +35,7 @@ window.GameState = {
     updatedAt: ""
   },
   money: 12450,
+  planetProgress: {},
   pilots: [
     { id: "tilia", name: "ティリア・ハーツ", gender: "female", rank: "A", classId: "ace", class: "エース", role: "戦闘指揮官", description: "アーク・クレイドルの戦闘指揮官。専用機フランベルジュを失い、序盤はレイのサーベリオン[S型]に搭乗する。", traitId: "overdrive_specialist", traitRank: "A", talents: [{ talentId: "overdrive_specialist", rank: 4 }], level: 1, exp: 0, skillPoints: 0, learnedSkills: ["ace_001"], appearanceId: "ace_female", hireCost: 0, hired: true, hair: "#d9dce2", skin: "#b99481" },
     { id: "ray", name: "レイ・クロード", gender: "male", rank: "B", classId: "striker", traitId: "size_m_specialist", traitRank: "B", talents: [{ talentId: "size_m_specialist", rank: 3 }], level: 1, exp: 0, skillPoints: 0, learnedSkills: ["striker_001"], appearanceId: "striker_male", hireCost: 1200, hired: true, hair: "#15181c", skin: "#9b725c", description: "近接戦闘が得意なストライカー。お調子者で猪突猛進な戦闘狂。" },

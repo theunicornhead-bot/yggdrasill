@@ -84,6 +84,11 @@ document.addEventListener("click", (event) => {
     window.savePlayerData();
     return;
   }
+  if (event.target.classList?.contains("quest-party-swap-modal-backdrop")) {
+    window.closeQuestSortieSwap();
+    window.savePlayerData();
+    return;
+  }
   if (event.target.classList?.contains("base-inventory-modal-backdrop")) {
     window.closeBaseInventoryModal();
     window.savePlayerData();
@@ -230,7 +235,10 @@ document.addEventListener("click", (event) => {
   if (action === "select-planet") window.selectPlanet(target.dataset.planet);
   if (action === "start-selected-planet-quest") window.startSelectedPlanetQuest();
   if (action === "depart-selected-planet-quest") window.departSelectedPlanetQuest();
+  if (action === "select-quest-start-floor") window.selectQuestStartFloor(target.dataset.floor);
   if (action === "close-quest-party-setup") window.closeQuestPartySetup();
+  if (action === "open-quest-sortie-swap") window.openQuestSortieSwap(target.dataset.slot);
+  if (action === "close-quest-sortie-swap") window.closeQuestSortieSwap();
   if (action === "assign-quest-sortie-slot") window.assignQuestSortieSlot(target.dataset.slot, target.dataset.mech);
   if (action === "remove-quest-sortie-slot") window.removeQuestSortieSlot(target.dataset.slot);
   if (action === "quest-rest-day") window.restQuestDay();

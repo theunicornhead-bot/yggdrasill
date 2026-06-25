@@ -2138,7 +2138,6 @@ a,
 
 .quest-party-setup-grid {
   display: grid;
-  grid-template-columns: minmax(240px, 0.9fr) minmax(280px, 1.1fr);
   gap: 12px;
   flex: 1 1 auto;
   min-height: 0;
@@ -2149,15 +2148,20 @@ a,
 
 .quest-party-slot-list,
 .quest-party-candidate-list,
-.quest-party-candidate-actions,
+.quest-start-floor-selector,
 .quest-party-setup-actions {
   display: grid;
   gap: 8px;
 }
 
-.quest-party-candidate-actions {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin-top: 8px;
+.quest-start-floor-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.quest-party-swap-modal {
+  width: min(92vw, 520px);
 }
 
 .quest-party-slot.danger,
@@ -2172,6 +2176,10 @@ a,
   padding-top: 10px;
   border-top: 1px solid rgba(232, 238, 229, 0.12);
   background: rgba(14, 18, 20, 0.98);
+}
+
+.bottom-nav--hidden {
+  display: none;
 }
 
 .day-advance {
