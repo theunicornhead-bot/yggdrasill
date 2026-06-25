@@ -98,6 +98,12 @@ window.setBridgeMenu = function setBridgeMenu(menu) {
   window.renderCurrentScene();
 };
 
+window.setLifelineTreeTab = function setLifelineTreeTab(treeId) {
+  const fallbackTree = BRIDGE_FACILITY_TREES[0]?.id || "power";
+  window.GameState.lifelineTreeTab = BRIDGE_FACILITY_TREES.some((tree) => tree.id === treeId) ? treeId : fallbackTree;
+  window.renderCurrentScene();
+};
+
 window.hirePilot = function hirePilot(candidateId) {
   const state = window.GameState;
   const candidate = state.tavernCandidates.find((pilot) => pilot.id === candidateId);
@@ -454,6 +460,8 @@ function renderTavernQuestCard(planet, index) {
 function renderLifelineView() {
   const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : window.GameState.ship || {};
   const materialStock = typeof window.getLifelineMaterialStock === "function" ? window.getLifelineMaterialStock() : Object.values(window.GameState.materials || {}).reduce((sum, count) => sum + Number(count || 0), 0);
+  const selectedTreeId = getSelectedLifelineTreeId();
+  const selectedTree = BRIDGE_FACILITY_TREES.find((tree) => tree.id === selectedTreeId) || BRIDGE_FACILITY_TREES[0];
   return `
     <section class="panel panel-pad">
       <div class="section-head">
@@ -464,10 +472,30 @@ function renderLifelineView() {
         <span>資材 <strong>${formatNumber(materialStock)}</strong></span>
         <span>主炉 Lv <strong>${formatNumber(Number(ship.facilities?.engine || 0))}</strong></span>
       </div>
-      <div class="lifeline-tree-list">
-        ${BRIDGE_FACILITY_TREES.map((tree) => renderFacilityTreeGroup(tree, ship)).join("")}
+      <div class="lifeline-tab-row" role="tablist" aria-label="Lifeline trees">
+        ${BRIDGE_FACILITY_TREES.map((tree) => renderLifelineTreeTab(tree, ship, selectedTreeId)).join("")}
       </div>
+      ${selectedTree ? renderFacilityTreeGroup(selectedTree, ship) : ""}
     </section>
+  `;
+}
+
+function getSelectedLifelineTreeId() {
+  const current = window.GameState.lifelineTreeTab;
+  return BRIDGE_FACILITY_TREES.some((tree) => tree.id === current) ? current : (BRIDGE_FACILITY_TREES[0]?.id || "power");
+}
+
+function renderLifelineTreeTab(tree, ship, selectedTreeId) {
+  const unlocked = typeof window.isLifelineTreeUnlocked === "function" ? window.isLifelineTreeUnlocked(tree.id, ship) : true;
+  const active = tree.id === selectedTreeId;
+  const levelTotal = Object.entries(BRIDGE_FACILITY_CONFIG)
+    .filter(([, config]) => config.tree === tree.id)
+    .reduce((sum, [facilityId]) => sum + Number(ship.facilities?.[facilityId] || 0), 0);
+  return `
+    <button class="button lifeline-tab ${active ? "active" : ""} ${unlocked ? "" : "locked"}" data-action="lifeline-tree-tab" data-tree="${tree.id}" role="tab" aria-selected="${active ? "true" : "false"}" type="button">
+      <span>${tree.name}</span>
+      <small>${unlocked ? `Lv ${formatNumber(levelTotal)}` : `動力 Lv${tree.unlockPowerLevel || tree.unlockLevel || 0}`}</small>
+    </button>
   `;
 }
 
