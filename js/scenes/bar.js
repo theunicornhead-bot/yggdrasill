@@ -152,6 +152,9 @@ window.renderBar = function renderBar() {
   const food = Number(ship.food || 0);
   const medicine = Number(ship.medicine || 0);
   const fuel = Number(ship.fuel || 0);
+  const materialStock = typeof window.getLifelineMaterialStock === "function"
+    ? window.getLifelineMaterialStock()
+    : Object.values(state.materials || {}).reduce((sum, count) => sum + Number(count || 0), 0);
   state.barView = state.barView || "home";
   if (!state.tavernCandidates.length) generateTavernCandidates();
   const viewHtml = {
@@ -169,9 +172,10 @@ window.renderBar = function renderBar() {
       "ブリッジ",
       "BRIDGE",
       `
-        <div class="resource"><small>食料</small><strong>${formatNumber(Number.isFinite(food) ? food : 0)}</strong></div>
-        <div class="resource"><small>医療品</small><strong>${formatNumber(Number.isFinite(medicine) ? medicine : 0)}</strong></div>
-        <div class="resource"><small>燃料</small><strong>${formatNumber(Number.isFinite(fuel) ? fuel : 0)}</strong></div>
+        <div class="resource"><small>🔥</small><strong>${formatNumber(Number.isFinite(fuel) ? fuel : 0)}</strong></div>
+        <div class="resource"><small>🍞</small><strong>${formatNumber(Number.isFinite(food) ? food : 0)}</strong></div>
+        <div class="resource"><small>💊</small><strong>${formatNumber(Number.isFinite(medicine) ? medicine : 0)}</strong></div>
+        <div class="resource"><small>🧱</small><strong>${formatNumber(Number.isFinite(materialStock) ? materialStock : 0)}</strong></div>
       `,
       {
         hideDefaultResources: true,

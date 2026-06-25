@@ -621,6 +621,7 @@ function renderPlanetSelect() {
       ${state.quest?.startError ? `<div class="log-line log-danger">${state.quest.startError}</div>` : ""}
       <button class="button planet-start-button" data-action="start-selected-planet-quest" ${unlocked ? "" : "disabled"}>探索開始</button>
     </section>
+    ${renderExploreReturnResultModal()}
   `;
 }
 
@@ -650,10 +651,34 @@ window.selectPlanet = function selectPlanet(planetId) {
   window.renderCurrentScene();
 };
 
+function pilotVitality(pilot) {
+  if (!pilot) return 0;
+  if (typeof window.normalizePilotStatus === "function") window.normalizePilotStatus(pilot);
+  return Math.max(0, Math.min(100, Math.floor(Number(pilot.survival?.vitality ?? 100))));
+}
+
+function initializeQuestSortieParty() {
+  const state = window.GameState;
+  const limit = typeof window.getPartyMechLimit === "function" ? window.getPartyMechLimit() : 4;
+  const ids = Array.from({ length: limit }, (_, index) => (state.partyMechIds || [])[index] || null);
+  state.quest = state.quest || {};
+  state.quest.sortieMechIds = ids;
+  state.quest.partySetupOpen = true;
+  state.quest.partyWarning = "";
+  return ids;
+}
+
+function getQuestSortieIds() {
+  const state = window.GameState;
+  const limit = typeof window.getPartyMechLimit === "function" ? window.getPartyMechLimit() : 4;
+  const source = Array.isArray(state.quest?.sortieMechIds) ? state.quest.sortieMechIds : state.partyMechIds || [];
+  return Array.from({ length: limit }, (_, index) => source[index] || null);
+}
+
 window.getSortieUnits = function getSortieUnits() {
   if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
   const mechs = window.GameState.mechs || [];
-  const partyIds = window.GameState.partyMechIds || [];
+  const partyIds = getQuestSortieIds();
   return partyIds
     .map((id) => mechs.find((mech) => mech.id === id) || null)
     .filter((mech) => mech && getPilot(mech.pilotId))
@@ -852,6 +877,205 @@ function renderQuestMaterialList(entries = questMaterialEntries()) {
     `;
   }).join("");
 }
+
+function resultMaterialName(id) {
+  return (typeof window.displayMaterial === "function" ? window.displayMaterial(id) : null)?.name
+    || (getMaterial(id) || window.getMechGenerationMaterial?.(id) || { name: id }).name;
+}
+
+function renderBattleResultExpRows(rows = []) {
+  if (!rows.length) return `<div class="muted">EXP獲得なし</div>`;
+  return rows.map((row) => {
+    const leveled = Number(row.afterLevel || row.beforeLevel || 1) > Number(row.beforeLevel || 1);
+    return `
+      <div class="material-row">
+        <span style="flex:1">${row.name || row.pilotId}<br><span class="muted">Lv ${row.beforeLevel || 1}${leveled ? ` -> ${row.afterLevel}` : ""}</span></span>
+        <strong>+${formatNumber(row.exp || 0)} EXP</strong>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderBattleResultModal() {
+  const result = window.GameState.lastBattleResult;
+  if (!result) return "";
+  const materialEntries = Object.entries(result.materials || {}).filter(([, count]) => Number(count || 0) > 0);
+  const reserveRows = Array.isArray(result.reserveExpResults) ? result.reserveExpResults.filter((row) => Number(row.exp || 0) > 0) : [];
+  return `
+    <div class="modal-backdrop battle-result-modal-backdrop">
+      <section class="quest-materials-modal battle-result-modal panel panel-pad" role="dialog" aria-modal="true" aria-label="バトルリザルト">
+        <div class="section-head">
+          <h2>バトルリザルト</h2>
+          <button class="button mini-map-close" data-action="close-battle-result" type="button">閉じる</button>
+        </div>
+        <div class="battle-result-summary">
+          <div class="stat-row"><span>撃破</span><strong>${result.enemyName || "Enemy"} Lv ${result.enemyLevel || 1}</strong></div>
+          <div class="stat-row"><span>報酬</span><strong>食料 +${formatNumber(result.rewards?.food || 0)}</strong></div>
+        </div>
+        <div class="section-head battle-result-section"><h3>獲得EXP</h3></div>
+        <div class="quest-material-list">${renderBattleResultExpRows(result.expResults || [])}</div>
+        ${reserveRows.length ? `<div class="section-head battle-result-section"><h3>控えEXP</h3></div><div class="quest-material-list">${renderBattleResultExpRows(reserveRows)}</div>` : ""}
+        <div class="section-head battle-result-section"><h3>獲得資材</h3></div>
+        <div class="quest-material-list">
+          ${materialEntries.length ? materialEntries.map(([id, count]) => `
+            <div class="material-row">
+              <div class="material-icon"></div>
+              <span style="flex:1">${resultMaterialName(id)}</span>
+              <strong>x${formatNumber(count)}</strong>
+            </div>
+          `).join("") : `<div class="muted">資材ドロップなし</div>`}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+window.closeBattleResultModal = function closeBattleResultModal() {
+  window.GameState.lastBattleResult = null;
+  window.renderCurrentScene();
+};
+
+function conditionSeverityLabel(severity) {
+  return { minor: "軽症", moderate: "中等症", severe: "重症", none: "なし" }[severity] || severity || "-";
+}
+
+function rollExploreReturnInfections() {
+  const state = window.GameState;
+  const quest = state.quest;
+  const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship || {};
+  const planet = typeof window.getSelectedPlanet === "function" ? window.getSelectedPlanet() : null;
+  const floor = Number(quest?.floor || 1);
+  const difficulty = Number(planet?.difficulty || 1);
+  const baseRate = Math.min(0.22, 0.035 + floor * 0.003 + difficulty * 0.012);
+  const rate = Math.max(0.005, baseRate * (1 - Math.min(0.85, Number(ship.infectionRateReduction || 0))));
+  const recoveryReduction = Math.min(0.6, Number(ship.diseaseRecoveryReduction || 0));
+  const infections = [];
+  const sortieUnits = typeof window.getSortieUnits === "function" ? window.getSortieUnits() : [];
+  sortieUnits.forEach((mech) => {
+    const pilot = typeof window.getPilot === "function" ? window.getPilot(mech.pilotId) : null;
+    if (!pilot || pilot.lost) return;
+    pilot.survival = pilot.survival && typeof pilot.survival === "object" ? pilot.survival : {};
+    if (pilot.survival.condition && pilot.survival.condition !== "healthy") return;
+    const fatigueBonus = Math.max(0, Number(pilot.survival.fatigue || 0) - 50) * 0.002;
+    if (Math.random() >= rate + fatigueBonus) return;
+    const severityRoll = Math.random();
+    const severity = severityRoll < 0.12 ? "severe" : severityRoll < 0.38 ? "moderate" : "minor";
+    const baseDays = { minor: 2, moderate: 4, severe: 7 }[severity] || 2;
+    const recoveryDays = Math.max(1, Math.ceil(baseDays * (1 - recoveryReduction)));
+    pilot.survival.condition = "disease";
+    pilot.survival.severity = severity;
+    pilot.survival.recoveryDays = recoveryDays;
+    infections.push({ pilotId: pilot.id, name: pilot.name || pilot.id, severity, recoveryDays });
+  });
+  return infections;
+}
+
+function buildExploreReturnResult({ materials, lostMaterials = {}, forced = false, message = "" }) {
+  const state = window.GameState;
+  const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship || {};
+  const beforeDay = Math.max(1, Math.floor(Number(ship.driftDay || 1)));
+  const infections = rollExploreReturnInfections();
+  const dayResult = typeof window.advanceShipDriftDay === "function" ? window.advanceShipDriftDay() : null;
+  const latestShip = typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship || ship;
+  let afterDay = Math.floor(Number(latestShip.driftDay || beforeDay));
+  if (afterDay <= beforeDay) {
+    afterDay = beforeDay + 1;
+    if (latestShip) latestShip.driftDay = afterDay;
+  }
+  state.lastExploreReturnResult = {
+    forced,
+    message,
+    beforeDay,
+    afterDay,
+    materials: { ...(materials || {}) },
+    lostMaterials: { ...(lostMaterials || {}) },
+    infections,
+    dayResult,
+    createdAt: Date.now()
+  };
+}
+
+function resetQuestAfterReturn() {
+  const state = window.GameState;
+  window.restoreAllMachineRuntimeStates();
+  if (state.quest) {
+    state.quest.floor = 1;
+    state.quest.fuel = state.quest.maxFuel || 100;
+    state.quest.map = [];
+    state.quest.foundStairs = false;
+    state.quest.discovered = {};
+    state.quest.currentPlanetId = null;
+    state.quest.planetId = null;
+    state.quest.planetName = "";
+  }
+  state.fuel = 100;
+  state.battle = null;
+  state.currentScene = "quest";
+}
+
+function renderExploreReturnResultModal() {
+  const result = window.GameState.lastExploreReturnResult;
+  if (!result) return "";
+  const materialEntries = Object.entries(result.materials || {}).filter(([, count]) => Number(count || 0) > 0);
+  const lostEntries = Object.entries(result.lostMaterials || {}).filter(([, count]) => Number(count || 0) > 0);
+  const survival = result.dayResult?.survival || {};
+  const foodConsumed = Number(survival.foodConsumed ?? result.dayResult?.foodCost ?? 0);
+  const medicineConsumed = Number(survival.medicineConsumed ?? 0);
+  return `
+    <div class="modal-backdrop explore-return-result-modal-backdrop">
+      <section class="quest-materials-modal explore-return-result-modal panel panel-pad" role="dialog" aria-modal="true" aria-label="探索リザルト">
+        <div class="section-head">
+          <h2>探索リザルト</h2>
+          <button class="button mini-map-close" data-action="close-explore-return-result" type="button">閉じる</button>
+        </div>
+        <div class="day-advance">
+          <span>漂流 ${formatNumber(result.beforeDay)}日目</span>
+          <strong>→</strong>
+          <span>漂流 ${formatNumber(result.afterDay)}日目</span>
+        </div>
+        ${result.message ? `<div class="log-line ${result.forced ? "log-danger" : "log-good"}">${result.message}</div>` : ""}
+        <div class="section-head battle-result-section"><h3>格納資材</h3></div>
+        <div class="quest-material-list">
+          ${materialEntries.length ? materialEntries.map(([id, count]) => `
+            <div class="material-row">
+              <div class="material-icon"></div>
+              <span style="flex:1">${resultMaterialName(id)}</span>
+              <strong>x${formatNumber(count)}</strong>
+            </div>
+          `).join("") : `<div class="muted">持ち帰った資材はありません</div>`}
+        </div>
+        ${lostEntries.length ? `
+          <div class="section-head battle-result-section"><h3>失った資材</h3></div>
+          <div class="quest-material-list">${lostEntries.map(([id, count]) => `
+            <div class="material-row">
+              <div class="material-icon"></div>
+              <span style="flex:1">${resultMaterialName(id)}</span>
+              <strong>x${formatNumber(count)}</strong>
+            </div>
+          `).join("")}</div>
+        ` : ""}
+        <div class="section-head battle-result-section"><h3>日次消費</h3></div>
+        <div class="material-row"><span>食料</span><strong>-${formatNumber(foodConsumed)}</strong></div>
+        <div class="material-row"><span>医療品</span><strong>-${formatNumber(medicineConsumed)}</strong></div>
+        ${survival.foodShortage ? `<div class="material-row"><span>空腹</span><strong>${formatNumber(survival.foodShortage)}人</strong></div>` : ""}
+        <div class="section-head battle-result-section"><h3>健康状態</h3></div>
+        <div class="quest-material-list">
+          ${result.infections?.length ? result.infections.map((infection) => `
+            <div class="material-row">
+              <span style="flex:1">${infection.name}<br><span class="muted">感染症 / ${conditionSeverityLabel(infection.severity)}</span></span>
+              <strong>${formatNumber(infection.recoveryDays)}日</strong>
+            </div>
+          `).join("") : `<div class="muted">新たな感染症は確認されませんでした</div>`}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+window.closeExploreReturnResultModal = function closeExploreReturnResultModal() {
+  window.GameState.lastExploreReturnResult = null;
+  window.renderCurrentScene();
+};
 
 function renderPartyUnit(mech, index) {
   const pilot = displayPilot(mech.pilotId);
@@ -1326,27 +1550,18 @@ window.returnBase = function returnBase() {
   const state = window.GameState;
   if (typeof window.syncBattleUnitsToMechs === "function") window.syncBattleUnitsToMechs();
   const exploreMaterials = typeof window.exploreMaterialCounts === "function" ? window.exploreMaterialCounts() : state.runMaterials || {};
+  const returnedMaterials = { ...exploreMaterials };
   Object.entries(exploreMaterials).forEach(([id, count]) => {
     if (typeof window.addBaseMaterial === "function") window.addBaseMaterial(id, count);
     else state.materials[id] = (state.materials[id] || 0) + count;
   });
   state.runMaterials = {};
   if (state.exploreInventory) state.exploreInventory.materials = {};
-  window.restoreAllMachineRuntimeStates();
-  if (state.quest) {
-    state.quest.floor = 1;
-    state.quest.fuel = state.quest.maxFuel || 100;
-    state.quest.map = [];
-    state.quest.foundStairs = false;
-    state.quest.discovered = {};
-    state.quest.currentPlanetId = null;
-    state.quest.planetId = null;
-    state.quest.planetName = "";
-  }
-  state.fuel = 100;
-  state.battle = null;
-  if (typeof window.advanceShipDriftDay === "function") window.advanceShipDriftDay();
-  state.currentScene = "quest";
+  buildExploreReturnResult({
+    materials: returnedMaterials,
+    message: "探索から帰還し、資材を格納した。"
+  });
+  resetQuestAfterReturn();
   logMessage("bar", "探索から帰還し、素材を格納した。", "good");
   window.renderCurrentScene();
 };
@@ -1354,8 +1569,9 @@ window.returnBase = function returnBase() {
 window.forceReturn = function forceReturn(message, loseMaterials) {
   const state = window.GameState;
   if (typeof window.syncBattleUnitsToMechs === "function") window.syncBattleUnitsToMechs();
+  let lostItems = {};
   if (loseMaterials) {
-    const lostItems = { ...(typeof window.exploreMaterialCounts === "function" ? window.exploreMaterialCounts() : state.runMaterials || {}) };
+    lostItems = { ...(typeof window.exploreMaterialCounts === "function" ? window.exploreMaterialCounts() : state.runMaterials || {}) };
     if (Object.keys(lostItems).length) {
       state.deathLocation = {
         planetId: state.quest?.currentPlanetId || state.quest?.planetId || null,
@@ -1368,21 +1584,13 @@ window.forceReturn = function forceReturn(message, loseMaterials) {
     state.runMaterials = {};
     if (state.exploreInventory) state.exploreInventory.materials = {};
   }
-  window.restoreAllMachineRuntimeStates();
-  if (state.quest) {
-    state.quest.floor = 1;
-    state.quest.fuel = state.quest.maxFuel || 100;
-    state.quest.map = [];
-    state.quest.foundStairs = false;
-    state.quest.discovered = {};
-    state.quest.currentPlanetId = null;
-    state.quest.planetId = null;
-    state.quest.planetName = "";
-  }
-  state.fuel = 100;
-  state.battle = null;
-  if (typeof window.advanceShipDriftDay === "function") window.advanceShipDriftDay();
-  state.currentScene = "quest";
+  buildExploreReturnResult({
+    materials: {},
+    lostMaterials: lostItems,
+    forced: true,
+    message: `${message}${loseMaterials ? " 入手資材の一部を失った。" : ""}`
+  });
+  resetQuestAfterReturn();
   logMessage("bar", `${message}${loseMaterials ? " 入手素材の一部を失った。" : ""}`, "danger");
   window.renderCurrentScene();
 };
@@ -1578,6 +1786,8 @@ window.renderQuest = function renderQuest() {
     ${renderQuestLogModal()}
     ${renderBattleTacticModal()}
     ${renderExploreItemModal()}
+    ${renderBattleResultModal()}
+    ${renderExploreReturnResultModal()}
   `;
 };
 

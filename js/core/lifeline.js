@@ -258,6 +258,7 @@ window.applyDailySurvival = function applyDailySurvival() {
   ship.fuel = Math.max(0, Math.floor(lifelineNumber(ship.fuel, 0) - Math.ceil(Object.values(ship.facilities || {}).reduce((sum, level) => sum + clampLifelineLevel(level), 0) * 0.2 * (1 - Math.min(0.6, lifelineNumber(ship.fuelCostReduction, 0))))));
   pilots.forEach((pilot) => {
     pilot.survival = pilot.survival && typeof pilot.survival === "object" ? pilot.survival : {};
+    pilot.survival.vitality = Math.min(100, Math.max(0, Math.floor(Number(pilot.survival.vitality ?? 100))) + 25);
     pilot.survival.fatigue = Math.max(0, Math.floor(Number(pilot.survival.fatigue || 0)) - 12);
     if (ship.dailyTrainingExp > 0 && typeof window.addPilotExp === "function" && !pilot.lost) window.addPilotExp(pilot, ship.dailyTrainingExp);
     if (pilot.survival.recoveryDays > 0) pilot.survival.recoveryDays = Math.max(0, pilot.survival.recoveryDays - 1);

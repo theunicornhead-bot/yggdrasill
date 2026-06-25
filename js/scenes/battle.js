@@ -1358,25 +1358,63 @@ function winBattle() {
       }
     }
   });
+  const baseExp = 35 + Number(enemyUnit.level || 1) * 8;
+  const expResults = [];
   getBattleUnits().filter((unit) => unit.side === "ally").forEach((unit) => {
     const pilot = getPilot(unit.pilotId);
     const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship || {};
     const sortieBuff = state.quest?.activeSortieBuff;
     const expRate = 1 + Number(ship.battleExpBonus || 0) + (sortieBuff?.type === "exp" ? Number(sortieBuff.power || 0) : 0);
-    if (pilot && typeof window.addPilotExp === "function") window.addPilotExp(pilot, Math.round((35 + Number(enemyUnit.level || 1) * 8) * expRate));
+    const exp = Math.round(baseExp * expRate);
+    if (pilot && typeof window.addPilotExp === "function") {
+      const beforeLevel = Number(pilot.level || 1);
+      const learned = window.addPilotExp(pilot, exp);
+      expResults.push({
+        pilotId: pilot.id,
+        name: pilot.name || unit.name,
+        exp,
+        beforeLevel,
+        afterLevel: Number(pilot.level || beforeLevel),
+        learned: Array.isArray(learned) ? learned : []
+      });
+    }
     unit.isDefending = false;
     syncBattleUnitToMech(unit);
   });
   const sortiePilotIds = new Set(getBattleUnits().filter((unit) => unit.side === "ally").map((unit) => unit.pilotId));
   const reserveRate = Number((typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship || {}).reservePilotExpRate || 0);
+  const reserveExpResults = [];
   if (reserveRate > 0 && typeof window.addPilotExp === "function") {
     (state.pilots || []).filter((pilot) => !sortiePilotIds.has(pilot.id) && !pilot.lost).forEach((pilot) => {
-      window.addPilotExp(pilot, Math.round((35 + Number(enemyUnit.level || 1) * 8) * reserveRate));
+      const exp = Math.round(baseExp * reserveRate);
+      const beforeLevel = Number(pilot.level || 1);
+      const learned = window.addPilotExp(pilot, exp);
+      reserveExpResults.push({
+        pilotId: pilot.id,
+        name: pilot.name || pilot.id,
+        exp,
+        beforeLevel,
+        afterLevel: Number(pilot.level || beforeLevel),
+        learned: Array.isArray(learned) ? learned : []
+      });
     });
   }
   const food = calculateEnemyFoodReward(enemyUnit);
   const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship;
   if (ship) ship.food = Math.max(0, Number(ship.food || 0) + food);
+  state.lastBattleResult = {
+    enemyName: enemyUnit.name || "Enemy",
+    enemyLevel: Number(enemyUnit.level || 1),
+    expResults,
+    reserveExpResults,
+    materials: obtained.reduce((counts, id) => {
+      counts[id] = (counts[id] || 0) + 1;
+      return counts;
+    }, {}),
+    rewards: { food },
+    turn: state.battle?.turn || 1,
+    createdAt: Date.now()
+  };
   const obtainedNames = uniqueBattleList(obtained).map((id) => (getMaterial(id) || window.getMechGenerationMaterial?.(id) || { name: id }).name).join(" / ");
   logMessage("battle", obtainedNames ? `入手素材: ${obtainedNames}` : "入手素材なし", obtainedNames ? "good" : "warn");
   logMessage("battle", `食料 +${food}`, "good");

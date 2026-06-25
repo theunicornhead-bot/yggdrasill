@@ -69,6 +69,16 @@ document.addEventListener("click", (event) => {
     window.savePlayerData();
     return;
   }
+  if (event.target.classList?.contains("battle-result-modal-backdrop")) {
+    window.closeBattleResultModal();
+    window.savePlayerData();
+    return;
+  }
+  if (event.target.classList?.contains("explore-return-result-modal-backdrop")) {
+    window.closeExploreReturnResultModal();
+    window.savePlayerData();
+    return;
+  }
   if (event.target.classList?.contains("base-inventory-modal-backdrop")) {
     window.closeBaseInventoryModal();
     window.savePlayerData();
@@ -208,6 +218,8 @@ document.addEventListener("click", (event) => {
   if (action === "open-explore-items") window.openExploreItemMenu();
   if (action === "close-explore-items") window.closeExploreItemMenu();
   if (action === "use-explore-item") window.useExploreItem(target.dataset.item, target.dataset.target);
+  if (action === "close-battle-result") window.closeBattleResultModal();
+  if (action === "close-explore-return-result") window.closeExploreReturnResultModal();
   if (action === "select-planet") window.selectPlanet(target.dataset.planet);
   if (action === "start-selected-planet-quest") window.startSelectedPlanetQuest();
   if (action === "return-base") window.returnBase();

@@ -337,6 +337,7 @@ window.normalizePilotStatus = function normalizePilotStatus(pilot) {
   pilot.survival = {
     hungry: Boolean(survival.hungry),
     hungerDays: Math.max(0, Math.floor(statusNumber(survival.hungerDays, 0))),
+    vitality: Math.max(0, Math.min(100, Math.floor(statusNumber(survival.vitality, 100)))),
     fatigue: Math.max(0, Math.min(100, Math.floor(statusNumber(survival.fatigue, 0)))),
     condition: survival.condition || "healthy",
     severity: survival.severity || "none",
