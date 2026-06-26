@@ -67,7 +67,7 @@ window.renderMarket = function renderMarket() {
   const state = window.GameState;
   state.marketTab = state.marketTab === "options" ? "options" : "items";
   window.App.root.innerHTML = `
-    ${renderHeader("マーケット", "MARKET")}
+    ${renderHeader("ラボ", "LAB")}
     <section class="sub-tabs">
       <button class="button ${state.marketTab === "items" ? "active" : ""}" data-action="change-market-tab" data-tab="items" type="button">アイテム</button>
       <button class="button ${state.marketTab === "options" ? "active" : ""}" data-action="change-market-tab" data-tab="options" type="button">オプションパーツ</button>

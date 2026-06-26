@@ -307,7 +307,8 @@ window.renderBottomNav = function renderBottomNav() {
   const state = window.GameState;
   const nav = document.querySelector(".bottom-nav");
   const isExploring = Boolean(state.quest?.currentPlanetId || state.quest?.planetId) && (state.currentScene === "quest" || state.currentScene === "battle");
-  if (nav) nav.classList.toggle("bottom-nav--hidden", isExploring);
+  const hasBlockingModal = Boolean(state.quest?.partySetupOpen);
+  if (nav) nav.classList.toggle("bottom-nav--hidden", isExploring || hasBlockingModal);
   document.querySelectorAll(".nav-btn").forEach((button) => {
     button.classList.toggle("active", button.dataset.screen === state.currentScene);
   });

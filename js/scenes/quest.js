@@ -645,6 +645,11 @@ function renderQuestPartySetupModal() {
   const state = window.GameState;
   if (!state.quest?.partySetupOpen) return "";
   const sortieIds = getQuestSortieIds();
+  const needsRest = sortieIds.some((mechId) => {
+    const mech = mechId ? getMech(mechId) : null;
+    const pilot = mech ? getPilot(mech.pilotId) : null;
+    return pilot && pilotVitality(pilot) < 100;
+  });
   return `
     <div class="modal-backdrop quest-party-setup-modal-backdrop">
       <section class="quest-party-setup-modal panel panel-pad" role="dialog" aria-modal="true" aria-label="探索パーティ編成">
@@ -661,8 +666,8 @@ function renderQuestPartySetupModal() {
             ${sortieIds.map((mechId, index) => renderQuestPartySlot(mechId, index)).join("")}
           </div>
         </div>
-        <div class="quest-party-setup-actions">
-          <button class="button" data-action="quest-rest-day" onclick="event.stopPropagation(); window.restQuestDay?.()" type="button">休息</button>
+        <div class="quest-party-setup-actions ${needsRest ? "" : "quest-party-setup-actions--single"}">
+          ${needsRest ? `<button class="button" data-action="quest-rest-day" onclick="event.stopPropagation(); window.restQuestDay?.()" type="button">休息</button>` : ""}
           <button class="button primary" data-action="depart-selected-planet-quest" onclick="event.stopPropagation(); window.departSelectedPlanetQuest?.()" type="button">探索へ出発</button>
         </div>
       </section>

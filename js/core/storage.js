@@ -1,9 +1,22 @@
 "use strict";
 
 window.PLAYER_SAVE_KEY = "yggdrasil_player_save_v1";
-window.PLAYER_SAVE_VERSION = 4;
+window.PLAYER_SAVE_VERSION = 5;
+window.LEGACY_PLAYER_SAVE_VERSIONS = [4];
 window.MAX_OWNED_MECHS = 30;
 window.MAX_PARTY_MECHS = 4;
+const STARTER_MECH_IDS = ["sabellion_s", "sabellion_a", "honeybee_b"];
+const DEFAULT_STARTER_MECHS = clonePlain((window.GameState?.mechs || []).filter((mech) => STARTER_MECH_IDS.includes(mech?.id)));
+const DEFAULT_STARTER_PILOTS = clonePlain(window.GameState?.pilots || []);
+const DEFAULT_PARTY_MECH_IDS = clonePlain(window.GameState?.partyMechIds || ["sabellion_s", "sabellion_a", "honeybee_b", null]);
+const DEFAULT_PARTY_SETS = clonePlain(window.GameState?.partySets || [
+  { id: "party_1", name: "パーティ1", mechIds: DEFAULT_PARTY_MECH_IDS },
+  { id: "party_2", name: "パーティ2", mechIds: [null, null, null, null] },
+  { id: "party_3", name: "パーティ3", mechIds: [null, null, null, null] },
+  { id: "party_4", name: "パーティ4", mechIds: [null, null, null, null] },
+  { id: "party_5", name: "パーティ5", mechIds: [null, null, null, null] }
+]);
+const VALID_SCENE_NAMES = new Set(["bar", "hangar", "quest", "battle", "synthesis", "market", "menu"]);
 
 function nowIsoString() {
   return new Date().toISOString();
@@ -11,6 +24,32 @@ function nowIsoString() {
 
 function clonePlain(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function normalizeSceneName(sceneName) {
+  const scene = String(sceneName || "").trim();
+  if (scene === "bridge" || scene === "tavern" || scene === "酒場") return "bar";
+  return VALID_SCENE_NAMES.has(scene) ? scene : "bar";
+}
+
+function isSupportedSaveVersion(version) {
+  const number = Number(version);
+  return number === window.PLAYER_SAVE_VERSION || window.LEGACY_PLAYER_SAVE_VERSIONS.includes(number);
+}
+
+function restoreStarterRosterIfMissing() {
+  const state = window.GameState;
+  if (!Array.isArray(state.pilots) || !state.pilots.length) {
+    state.pilots = clonePlain(DEFAULT_STARTER_PILOTS);
+  }
+  if (!Array.isArray(state.mechs) || !state.mechs.length) {
+    state.mechs = clonePlain(DEFAULT_STARTER_MECHS);
+    state.partyMechIds = clonePlain(DEFAULT_PARTY_MECH_IDS);
+    state.partySets = clonePlain(DEFAULT_PARTY_SETS);
+    state.activePartyIndex = 0;
+    state.selectedQuestPartyIndex = 0;
+    state.selectedMechId = state.mechs[0]?.id || null;
+  }
 }
 
 function ensureInventoryState() {
@@ -331,12 +370,12 @@ window.createPlayerSavePayload = function createPlayerSavePayload() {
     market: clonePlain(state.market || { listings: [] }),
     exploration: clonePlain(state.exploration || {}),
     scenario: clonePlain(state.scenario || defaultScenarioState()),
-    currentScene: state.currentScene || "bar"
+    currentScene: normalizeSceneName(state.currentScene)
   };
 };
 
 window.applyPlayerSavePayload = function applyPlayerSavePayload(payload) {
-  if (!payload || Number(payload.saveVersion) !== window.PLAYER_SAVE_VERSION) return false;
+  if (!payload || !isSupportedSaveVersion(payload.saveVersion)) return false;
   const state = window.GameState;
   state.saveVersion = window.PLAYER_SAVE_VERSION;
   state.moneyMigratedToMaterials = Boolean(payload.moneyMigratedToMaterials);
@@ -365,7 +404,8 @@ window.applyPlayerSavePayload = function applyPlayerSavePayload(payload) {
   state.market = payload.market && typeof payload.market === "object" ? payload.market : state.market;
   state.exploration = payload.exploration && typeof payload.exploration === "object" ? { ...state.exploration, ...payload.exploration } : state.exploration;
   ensureStoredScenarioState(payload.scenario);
-  state.currentScene = typeof payload.currentScene === "string" ? payload.currentScene : state.currentScene;
+  state.currentScene = "bar";
+  restoreStarterRosterIfMissing();
   ensureMechRosterState();
   if (typeof window.normalizeAllUnitStatuses === "function") window.normalizeAllUnitStatuses();
   syncRuntimeStateFromPlayer();

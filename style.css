@@ -2141,6 +2141,7 @@ a,
 
 .quest-party-setup-modal {
   width: min(94vw, 760px);
+  height: min(92dvh, calc(100dvh - 24px));
   max-height: min(92dvh, calc(100dvh - 24px));
   display: flex;
   flex-direction: column;
@@ -2149,7 +2150,7 @@ a,
 
 .quest-party-setup-grid {
   display: grid;
-  gap: 12px;
+  gap: 8px;
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
@@ -2182,13 +2183,15 @@ a,
 
 .quest-party-setup-actions {
   grid-template-columns: 1fr 1.4fr;
-  margin-top: 12px;
+  margin-top: 8px;
   flex-shrink: 0;
-  padding-top: 10px;
+  padding-top: 8px;
   border-top: 1px solid rgba(232, 238, 229, 0.12);
   background: rgba(14, 18, 20, 0.98);
-  position: sticky;
-  bottom: 0;
+}
+
+.quest-party-setup-actions--single {
+  grid-template-columns: 1fr;
 }
 
 .bottom-nav--hidden {
@@ -2224,9 +2227,37 @@ a,
 }
 
 @media (max-width: 720px) {
-  .quest-party-setup-grid,
-  .quest-party-setup-actions {
+  .quest-party-setup-grid {
     grid-template-columns: 1fr;
+  }
+
+  .quest-party-setup-modal {
+    width: min(94vw, 390px);
+    height: min(88dvh, calc(100dvh - 18px));
+    max-height: min(88dvh, calc(100dvh - 18px));
+    padding: 10px;
+  }
+
+  .quest-party-setup-modal .section-head {
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+  }
+
+  .quest-party-setup-grid > .section-head > span {
+    display: none;
+  }
+
+  .quest-party-setup-actions {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+  }
+
+  .quest-party-setup-actions--single {
+    grid-template-columns: 1fr;
+  }
+
+  .quest-party-setup-actions .button {
+    min-height: 38px;
+    padding: 8px 6px;
   }
 }
 
