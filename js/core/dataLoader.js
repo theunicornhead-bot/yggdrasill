@@ -715,6 +715,9 @@ window.createMechFromMaster = function createMechFromMaster(mechMasterId) {
 
 window.initializeStartingMechs = function initializeStartingMechs() {
   const state = window.GameState;
+  if (typeof window.restoreStarterRosterIfMissing === "function") {
+    window.restoreStarterRosterIfMissing();
+  }
   const hasInitialMechs = Array.isArray(state.mechs) && state.mechs.length > 0;
   if (hasInitialMechs) {
     if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();

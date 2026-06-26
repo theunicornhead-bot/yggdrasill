@@ -42,7 +42,8 @@ function restoreStarterRosterIfMissing() {
   if (!Array.isArray(state.pilots) || !state.pilots.length) {
     state.pilots = clonePlain(DEFAULT_STARTER_PILOTS);
   }
-  if (!Array.isArray(state.mechs) || !state.mechs.length) {
+  const hasOnlyFallbackMech = Array.isArray(state.mechs) && state.mechs.length === 1 && state.mechs[0]?.id === "frame_s_001";
+  if (!Array.isArray(state.mechs) || !state.mechs.length || hasOnlyFallbackMech) {
     state.mechs = clonePlain(DEFAULT_STARTER_MECHS);
     state.partyMechIds = clonePlain(DEFAULT_PARTY_MECH_IDS);
     state.partySets = clonePlain(DEFAULT_PARTY_SETS);
@@ -51,6 +52,8 @@ function restoreStarterRosterIfMissing() {
     state.selectedMechId = state.mechs[0]?.id || null;
   }
 }
+
+window.restoreStarterRosterIfMissing = restoreStarterRosterIfMissing;
 
 function ensureInventoryState() {
   const state = window.GameState;
@@ -460,4 +463,36 @@ window.deletePlayerSave = function deletePlayerSave() {
   if (!canUseLocalStorage()) return false;
   window.localStorage.removeItem(window.PLAYER_SAVE_KEY);
   return true;
+};
+
+window.resetPlayerDataToStarter = function resetPlayerDataToStarter() {
+  const state = window.GameState;
+  state.pilots = clonePlain(DEFAULT_STARTER_PILOTS);
+  state.mechs = clonePlain(DEFAULT_STARTER_MECHS);
+  state.partyMechIds = clonePlain(DEFAULT_PARTY_MECH_IDS);
+  state.partySets = clonePlain(DEFAULT_PARTY_SETS);
+  state.activePartyIndex = 0;
+  state.selectedQuestPartyIndex = 0;
+  state.selectedMechId = state.mechs[0]?.id || null;
+  state.currentScene = "bar";
+  state.quest = {
+    ...(state.quest || {}),
+    selectedPlanetId: null,
+    currentPlanetId: null,
+    planetId: null,
+    planetName: "",
+    map: [],
+    log: []
+  };
+  if (state.exploration) {
+    state.exploration.isExploring = false;
+    state.exploration.planetId = null;
+    state.exploration.selectedPlanetId = null;
+    state.exploration.temporaryMaterials = {};
+  }
+  state.runMaterials = {};
+  if (state.exploreInventory) state.exploreInventory.materials = {};
+  if (typeof window.normalizeAllUnitStatuses === "function") window.normalizeAllUnitStatuses();
+  if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
+  return window.savePlayerData();
 };

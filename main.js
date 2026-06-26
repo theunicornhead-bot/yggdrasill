@@ -130,6 +130,10 @@ document.addEventListener("click", (event) => {
   if (action === "scenario-skip") window.skipScenario();
   if (action === "scenario-start") window.startScenario(target.dataset.scenario, target.dataset.returnScene);
   if (action === "scenario-reset-seen") window.resetScenarioSeen(target.dataset.scenario);
+  if (action === "reset-player-save") {
+    window.resetPlayerSaveAndReload?.();
+    return;
+  }
   if (action === "bar-view") window.setBarView(target.dataset.view);
   if (action === "open-hangar-pilots") window.openHangarPilotList();
   if (action === "bridge-menu") window.setBridgeMenu(target.dataset.menu);
