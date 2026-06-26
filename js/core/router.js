@@ -72,11 +72,11 @@ window.getDailySurvivalBalance = function getDailySurvivalBalance() {
 
 window.renderSurvivalResourceStrip = function renderSurvivalResourceStrip(options = {}) {
   const balances = window.getDailySurvivalBalance();
+  const icons = { food: "🍚", medicine: "💊", fuel: "⛽", materials: "🧱" };
   const labels = { food: "食料", medicine: "医療", fuel: "燃料", materials: "資材" };
   return balances.map((row) => `
-    <button class="resource survival-resource-button" data-action="open-survival-resources" type="button">
-      <small>${labels[row.id] || row.label}</small>
-      <strong>${row.id === "materials" ? "🧱 " : ""}${formatNumber(row.stock)}</strong>
+    <button class="resource survival-resource-button" data-action="open-survival-resources" type="button" aria-label="${labels[row.id] || row.label}: ${formatNumber(row.stock)}">
+      <strong><span class="resource-icon" aria-hidden="true">${icons[row.id] || ""}</span>${formatNumber(row.stock)}</strong>
     </button>
   `).join("");
 };

@@ -79,13 +79,13 @@ document.addEventListener("click", (event) => {
     window.savePlayerData();
     return;
   }
-  if (event.target.classList?.contains("quest-party-setup-modal-backdrop")) {
-    window.closeQuestPartySetup();
+  if (event.target.classList?.contains("quest-party-swap-modal-backdrop")) {
+    window.closeQuestSortieSwap();
     window.savePlayerData();
     return;
   }
-  if (event.target.classList?.contains("quest-party-swap-modal-backdrop")) {
-    window.closeQuestSortieSwap();
+  if (event.target.classList?.contains("quest-party-setup-modal-backdrop")) {
+    window.closeQuestPartySetup();
     window.savePlayerData();
     return;
   }

@@ -706,7 +706,9 @@ function renderQuestPartySlot(mechId, index) {
 
 function renderQuestPartySwapModal() {
   const state = window.GameState;
-  const slot = Number(state.quest?.partySwapSlot);
+  const rawSlot = state.quest?.partySwapSlot;
+  if (rawSlot === null || rawSlot === undefined || rawSlot === "") return "";
+  const slot = Number(rawSlot);
   if (!Number.isInteger(slot) || slot < 0) return "";
   if (typeof window.ensureMechRosterState === "function") window.ensureMechRosterState();
   const mechs = state.mechs || [];
@@ -742,7 +744,7 @@ function renderQuestPartyCandidate(mech, selectedSet, slot) {
 window.closeQuestPartySetup = function closeQuestPartySetup() {
   if (window.GameState.quest) {
     window.GameState.quest.partySetupOpen = false;
-    window.GameState.quest.partySwapSlot = null;
+    delete window.GameState.quest.partySwapSlot;
   }
   window.renderCurrentScene();
 };
@@ -755,7 +757,7 @@ window.openQuestSortieSwap = function openQuestSortieSwap(slot) {
 };
 
 window.closeQuestSortieSwap = function closeQuestSortieSwap() {
-  if (window.GameState.quest) window.GameState.quest.partySwapSlot = null;
+  if (window.GameState.quest) delete window.GameState.quest.partySwapSlot;
   window.renderCurrentScene();
 };
 
@@ -767,7 +769,7 @@ window.assignQuestSortieSlot = function assignQuestSortieSlot(slot, mechId) {
   ids[index] = mechId;
   state.quest.sortieMechIds = ids;
   state.quest.partyWarning = state.quest.sortieMechIds.some(Boolean) ? "" : "このパーティには出撃可能な機体がありません。入れ替えてください。";
-  state.quest.partySwapSlot = null;
+  delete state.quest.partySwapSlot;
   window.renderCurrentScene();
 };
 
@@ -899,7 +901,7 @@ window.selectQuestPartySet = function selectQuestPartySet(index) {
   state.quest = state.quest || {};
   state.quest.sortieMechIds = Array.from({ length: limit }, (_, slot) => source[slot] || null);
   state.quest.partyWarning = "";
-  state.quest.partySwapSlot = null;
+  delete state.quest.partySwapSlot;
   window.renderCurrentScene();
 };
 
