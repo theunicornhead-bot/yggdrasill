@@ -41,9 +41,10 @@ window.rollTraitRankByPilotRank = function rollTraitRankByPilotRank(pilotRank) {
 window.generateTavernCandidates = function generateTavernCandidates() {
   const state = window.GameState;
   const rankWeights = window.RankConfig.rankWeights.filter((entry) => TAVERN_HIRE_RANKS.includes(entry.rank));
+  const availableClasses = (state.masters.classes || []).filter((classMaster) => (classMaster.class_id || classMaster.classId) !== "ace");
   const candidates = [];
   for (let i = 0; i < 3; i += 1) {
-    const classMaster = pickRandom(state.masters.classes);
+    const classMaster = pickRandom(availableClasses.length ? availableClasses : state.masters.classes);
     const nameMaster = pickRandom(state.masters.pilotNames);
     const rank = rollWeighted(rankWeights);
     const initialSkill = getInitialSkillForClass(classMaster.class_id);
@@ -86,6 +87,14 @@ window.setBarView = function setBarView(view) {
   window.renderCurrentScene();
 };
 
+window.openHangarPilotList = function openHangarPilotList() {
+  window.GameState.currentScene = "hangar";
+  window.GameState.hangarTab = "pilots";
+  window.GameState.pilotHangarTab = "list";
+  window.GameState.hangarView = "list";
+  window.renderCurrentScene();
+};
+
 window.openTavernCandidateDetail = function openTavernCandidateDetail(candidateId) {
   window.GameState.selectedTavernCandidateId = candidateId;
   window.GameState.barView = "candidate-detail";
@@ -117,12 +126,12 @@ window.hirePilot = function hirePilot(candidateId) {
   if (ship && Number(ship.food || 0) >= Number(candidate.hireCost || 0)) {
     ship.food = Math.max(0, Number(ship.food || 0) - Number(candidate.hireCost || 0));
   } else {
-    if (state.money < candidate.hireCost) {
+    if (typeof window.getMaterialCurrency !== "function" || window.getMaterialCurrency() < candidate.hireCost) {
       logMessage("bar", "解除に必要な食料または資金が足りません。", "danger");
       renderCurrentScene();
       return;
     }
-    state.money -= candidate.hireCost;
+    window.consumeMaterialCurrency(candidate.hireCost);
   }
   const hiredPilot = { ...candidate, id: `pilot_${String(state.pilots.length + 1).padStart(3, "0")}`, hired: true };
   if (typeof window.normalizePilotStatus === "function") window.normalizePilotStatus(hiredPilot);
@@ -171,12 +180,7 @@ window.renderBar = function renderBar() {
     ${renderHeader(
       "ブリッジ",
       "BRIDGE",
-      `
-        <div class="resource"><small>🔥</small><strong>${formatNumber(Number.isFinite(fuel) ? fuel : 0)}</strong></div>
-        <div class="resource"><small>🍞</small><strong>${formatNumber(Number.isFinite(food) ? food : 0)}</strong></div>
-        <div class="resource"><small>💊</small><strong>${formatNumber(Number.isFinite(medicine) ? medicine : 0)}</strong></div>
-        <div class="resource"><small>🧱</small><strong>${formatNumber(Number.isFinite(materialStock) ? materialStock : 0)}</strong></div>
-      `,
+      window.renderSurvivalResourceStrip(),
       {
         hideDefaultResources: true,
         titleMeta: `漂流 ${formatNumber(Number.isFinite(driftDay) ? driftDay : 1)}日目`,
@@ -219,7 +223,7 @@ function renderBridgeSubMenu(menu) {
     pilots: `
       <section class="bridge-menu-group panel panel-pad">
         <h2>パイロット管理</h2>
-        <button class="button bridge-menu-button" data-action="bar-view" data-view="pilots" type="button">パイロット一覧</button>
+        <button class="button bridge-menu-button" data-action="open-hangar-pilots" type="button">パイロット一覧</button>
         <button class="button bridge-menu-button" data-action="bar-view" data-view="hire" type="button">コールドスリープ解除</button>
         <button class="button bridge-menu-button" data-action="bar-view" data-view="rank-up" type="button">パイロットランク昇級</button>
       </section>
@@ -453,7 +457,7 @@ function renderTavernQuestCard(planet, index) {
       <div class="material-row"><span>目的</span><strong>${objective}</strong></div>
       <p class="muted">${template.description}</p>
       <div class="tag-row">
-        <span class="tag">${formatNumber(rewardMoney)} G</span>
+        <span class="tag">資材🧱 ${formatNumber(rewardMoney)}</span>
         <span class="tag">コア x${coreReward}</span>
         <span class="tag">レア素材 ${template.reward.rare}</span>
       </div>
@@ -499,7 +503,7 @@ function renderLifelineTreeTab(tree, ship, selectedTreeId) {
   return `
     <button class="button lifeline-tab ${active ? "active" : ""} ${unlocked ? "" : "locked"}" data-action="lifeline-tree-tab" data-tree="${tree.id}" role="tab" aria-selected="${active ? "true" : "false"}" type="button">
       <span>${tree.name}</span>
-      <small>${unlocked ? `Lv ${formatNumber(levelTotal)}` : `動力 Lv${tree.unlockPowerLevel || tree.unlockLevel || 0}`}</small>
+      <small>${unlocked ? `Lv ${formatNumber(levelTotal)}` : `🔒 動力 Lv${tree.unlockPowerLevel || tree.unlockLevel || 0}`}</small>
     </button>
   `;
 }
@@ -516,7 +520,7 @@ function renderFacilityTreeGroup(tree, ship) {
           <h3>${tree.name}</h3>
           <p class="muted">${tree.description}</p>
         </div>
-        <span class="tag">${unlocked ? `上限 Lv${cap}` : `動力 Lv${tree.unlockPowerLevel || tree.unlockLevel || 0}で解放`}</span>
+        <span class="tag">${unlocked ? `上限 Lv${cap}` : `🔒 動力 Lv${tree.unlockPowerLevel || tree.unlockLevel || 0}で解放`}</span>
       </div>
       <div class="compact-list">
         ${facilities.map(([facilityId, config]) => renderFacilityCard(facilityId, config, ship, unlocked, tree)).join("")}
@@ -534,7 +538,7 @@ function renderFacilityCard(facilityId, config, ship, unlocked = true, tree = nu
   const nextEffects = typeof window.renderLifelineEffectSummary === "function" ? window.renderLifelineEffectSummary(config.effects || {}, Math.min(cap, level + 1)) : renderFacilityEffectSummary(config.effects || {}, level + 1);
   const canRepair = unlocked && level < cap && materialStock >= cost;
   const disabledAttr = canRepair ? "" : " disabled";
-  const buttonLabel = !unlocked ? `動力 Lv${tree?.unlockPowerLevel || tree?.unlockLevel || 0}で解放` : level >= cap ? "上限到達" : "復旧する";
+  const buttonLabel = !unlocked ? `🔒 動力 Lv${tree?.unlockPowerLevel || tree?.unlockLevel || 0}で解放` : level >= cap ? "上限到達" : "復旧する";
   return `
     <article class="panel panel-pad lifeline-facility-card ${unlocked ? "" : "locked"}">
       <div class="section-head"><h3>${config.name}</h3><span>Lv ${level} / ${cap}</span></div>

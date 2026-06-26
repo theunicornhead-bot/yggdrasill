@@ -2134,7 +2134,7 @@ a,
 
 .quest-party-setup-modal {
   width: min(94vw, 760px);
-  max-height: calc(100dvh - var(--nav-h) - 64px);
+  max-height: min(92dvh, calc(100dvh - 24px));
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -2180,6 +2180,8 @@ a,
   padding-top: 10px;
   border-top: 1px solid rgba(232, 238, 229, 0.12);
   background: rgba(14, 18, 20, 0.98);
+  position: sticky;
+  bottom: 0;
 }
 
 .bottom-nav--hidden {

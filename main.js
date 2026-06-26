@@ -94,6 +94,11 @@ document.addEventListener("click", (event) => {
     window.savePlayerData();
     return;
   }
+  if (event.target.classList?.contains("survival-resources-modal-backdrop")) {
+    window.closeSurvivalResourcesModal();
+    window.savePlayerData();
+    return;
+  }
   if (event.target.classList?.contains("equipment-modal-backdrop")) {
     window.closeEquipmentSelector();
     window.savePlayerData();
@@ -126,6 +131,7 @@ document.addEventListener("click", (event) => {
   if (action === "scenario-start") window.startScenario(target.dataset.scenario, target.dataset.returnScene);
   if (action === "scenario-reset-seen") window.resetScenarioSeen(target.dataset.scenario);
   if (action === "bar-view") window.setBarView(target.dataset.view);
+  if (action === "open-hangar-pilots") window.openHangarPilotList();
   if (action === "bridge-menu") window.setBridgeMenu(target.dataset.menu);
   if (action === "lifeline-tree-tab") window.setLifelineTreeTab(target.dataset.tree);
   if (action === "open-tavern-candidate-detail") window.openTavernCandidateDetail(target.dataset.pilot);
@@ -136,6 +142,8 @@ document.addEventListener("click", (event) => {
   if (action === "sell-material") window.sellMaterial(target.dataset.material);
   if (action === "open-base-inventory") window.openBaseInventoryModal();
   if (action === "close-base-inventory") window.closeBaseInventoryModal();
+  if (action === "open-survival-resources") window.openSurvivalResourcesModal();
+  if (action === "close-survival-resources") window.closeSurvivalResourcesModal();
   if (action === "sell-mech") window.sellMech(target.dataset.mech);
   if (action === "delete-mech") window.deleteMech(target.dataset.mech);
   if (action === "rename-mech") window.renameMech(target.dataset.mech);

@@ -766,7 +766,7 @@ window.assignQuestSortieSlot = function assignQuestSortieSlot(slot, mechId) {
   if (!getMech(mechId) || index < 0 || index >= ids.length) return;
   ids[index] = mechId;
   state.quest.sortieMechIds = ids;
-  state.quest.partyWarning = "";
+  state.quest.partyWarning = state.quest.sortieMechIds.some(Boolean) ? "" : "このパーティには出撃可能な機体がありません。入れ替えてください。";
   state.quest.partySwapSlot = null;
   window.renderCurrentScene();
 };
@@ -778,7 +778,7 @@ window.removeQuestSortieSlot = function removeQuestSortieSlot(slot) {
   if (index < 0 || index >= ids.length) return;
   ids[index] = null;
   state.quest.sortieMechIds = ids;
-  state.quest.partyWarning = "";
+  state.quest.partyWarning = state.quest.sortieMechIds.some(Boolean) ? "" : "このパーティには出撃可能な機体がありません。入れ替えてください。";
   window.renderCurrentScene();
 };
 
@@ -882,7 +882,7 @@ function initializeQuestSortieParty() {
   state.quest = state.quest || {};
   state.quest.sortieMechIds = ids;
   state.quest.partySetupOpen = true;
-  state.quest.partyWarning = "";
+  state.quest.partyWarning = ids.some(Boolean) ? "" : "このパーティには出撃可能な機体がありません。入れ替えてください。";
   const planet = window.getPlanetById(state.quest.selectedPlanetId || state.selectedPlanetId);
   state.quest.startFloor = getValidQuestStartFloor(planet, state.quest.startFloor || 1);
   return ids;
@@ -1764,11 +1764,11 @@ window.applyTrapEffect = function applyTrapEffect(effect) {
     addQuestLog("燃料管に衝撃。燃料 -10。", "danger");
     window.checkFuelEmpty();
   } else if (effect === "money_plus") {
-    state.money += 100;
-    addQuestLog("旧式キャッシュを発見。100G獲得。", "good");
+    if (typeof window.addMaterialCurrency === "function") window.addMaterialCurrency(100);
+    addQuestLog("旧式キャッシュを発見。資材🧱100獲得。", "good");
   } else if (effect === "money_minus") {
-    state.money = Math.max(0, state.money - 100);
-    addQuestLog("電子罠で100Gを失った。", "danger");
+    if (typeof window.consumeMaterialCurrency === "function") window.consumeMaterialCurrency(100);
+    addQuestLog("電子罠で資材🧱100を失った。", "danger");
   } else if (effect === "material_gain") {
     if (Math.random() < 0.5) {
       const energy = 3 + Math.floor(Math.random() * 8);

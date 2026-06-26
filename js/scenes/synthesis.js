@@ -78,7 +78,7 @@ window.renderSynthesis = function renderSynthesis() {
   }
   const step = getSynthesisStep();
   window.App.root.innerHTML = `
-    ${renderHeader("生成", "FORGE")}
+    ${renderHeader("生成", "FORGE", "", { showBaseInventory: true })}
     ${renderSynthesisTabs()}
     ${typeof window.renderDebugMaterialGrant === "function" ? window.renderDebugMaterialGrant() : ""}
     ${state.synthesisTab === "mech-generate" ? `

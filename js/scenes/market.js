@@ -22,7 +22,7 @@ function marketOptions() {
 }
 
 window.getPlayerMoney = function getPlayerMoney() {
-  return Number(window.GameState.money || window.GameState.player?.money || 0);
+  return typeof window.getMaterialCurrency === "function" ? window.getMaterialCurrency() : 0;
 };
 
 window.canBuyMarketItem = function canBuyMarketItem(item) {
@@ -32,12 +32,12 @@ window.canBuyMarketItem = function canBuyMarketItem(item) {
 window.buyMarketItem = function buyMarketItem(itemId) {
   const item = marketItems().find((entry) => entry.itemId === itemId);
   if (!window.canBuyMarketItem(item)) {
-    logMessage("bar", "購入できません。所持金を確認してください。", "danger");
+    logMessage("bar", "購入できません。資材🧱を確認してください。", "danger");
     renderCurrentScene();
     return false;
   }
   const inventory = marketInventory();
-  window.GameState.money -= Number(item.price || 0);
+  if (!window.consumeMaterialCurrency(Number(item.price || 0))) return false;
   inventory.items[itemId] = (inventory.items[itemId] || 0) + 1;
   logMessage("bar", `${item.name}を購入しました。`, "good");
   renderCurrentScene();
@@ -56,7 +56,7 @@ window.buyOption = function buyOption(optionId) {
     return false;
   }
   const inventory = marketInventory();
-  window.GameState.money -= Number(option.price || 0);
+  if (!window.consumeMaterialCurrency(Number(option.price || 0))) return false;
   inventory.options[optionId] = (inventory.options[optionId] || 0) + 1;
   logMessage("bar", `${option.name}を購入しました。`, "good");
   renderCurrentScene();
@@ -79,7 +79,7 @@ window.renderMarket = function renderMarket() {
 function renderMarketItemTab() {
   return `
     <section class="panel panel-pad">
-      <div class="section-head"><h2>アイテム</h2><span>${formatNumber(window.getPlayerMoney())} G</span></div>
+      <div class="section-head"><h2>アイテム</h2><span>資材🧱 ${formatNumber(window.getPlayerMoney())}</span></div>
       <div class="compact-list">${marketItems().map(renderMarketItemRow).join("")}</div>
     </section>
   `;
@@ -92,7 +92,7 @@ function renderMarketItemRow(item) {
   return `
     <article class="material-row">
       <span style="flex:1">${item.name || item.itemId}<br><span class="muted">${item.description || item.effectType || "効果未設定"}</span></span>
-      <strong>${formatNumber(Number(item.price || 0))} G<br><span class="muted">x${owned}</span></strong>
+      <strong>🧱 ${formatNumber(Number(item.price || 0))}<br><span class="muted">x${owned}</span></strong>
       <button class="button" data-action="buy-market-item" data-item="${item.itemId}" ${canBuy ? "" : "disabled"} type="button">購入</button>
     </article>
   `;
@@ -102,7 +102,7 @@ function renderMarketOptionTab() {
   const options = marketOptions();
   return `
     <section class="panel panel-pad">
-      <div class="section-head"><h2>オプションパーツ</h2><span>${formatNumber(window.getPlayerMoney())} G</span></div>
+      <div class="section-head"><h2>オプションパーツ</h2><span>資材🧱 ${formatNumber(window.getPlayerMoney())}</span></div>
       <div class="compact-list">${options.length ? options.map(renderMarketOptionRow).join("") : `<div class="muted">option_master.csv が未読込です。</div>`}</div>
     </section>
   `;
@@ -119,7 +119,7 @@ function renderMarketOptionRow(option) {
   return `
     <article class="material-row">
       <span style="flex:1">${option.name || option.optionId}<br><span class="muted">RANK ${option.rank || "-"} / ${option.type || "option"} / ${statText}</span></span>
-      <strong>${formatNumber(Number(option.price || 0))} G<br><span class="muted">x${owned}</span></strong>
+      <strong>🧱 ${formatNumber(Number(option.price || 0))}<br><span class="muted">x${owned}</span></strong>
       <button class="button" data-action="buy-option" data-option="${option.optionId}" ${canBuy ? "" : "disabled"} type="button">購入</button>
     </article>
   `;

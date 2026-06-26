@@ -371,7 +371,7 @@ window.sellMech = function sellMech(mechId) {
     return;
   }
   const salePrice = getMechSalePrice(mech);
-  const confirmed = window.confirm ? window.confirm(`${mech.name}を${formatNumber(salePrice)}Gで売却しますか？`) : true;
+  const confirmed = window.confirm ? window.confirm(`${mech.name}を資材🧱${formatNumber(salePrice)}で売却しますか？`) : true;
   if (!confirmed) return;
 
   state.mechs = state.mechs.filter((item) => item.id !== mechId);
@@ -380,11 +380,11 @@ window.sellMech = function sellMech(mechId) {
   if (mech.imageId && typeof window.deleteMechImageBlob === "function") {
     window.deleteMechImageBlob(mech.imageId).catch(() => false);
   }
-  state.money += salePrice;
+  if (typeof window.addMaterialCurrency === "function") window.addMaterialCurrency(salePrice);
   if (state.selectedMechId === mechId) {
     state.selectedMechId = state.mechs[0]?.id || null;
   }
-  logMessage("bar", `${mech.name}を${formatNumber(salePrice)}Gで売却しました。`, "good");
+  logMessage("bar", `${mech.name}を資材🧱${formatNumber(salePrice)}で売却しました。`, "good");
   window.savePlayerData();
   renderCurrentScene();
 };

@@ -21,6 +21,66 @@ window.totalExploreMaterials = function totalExploreMaterials() {
   return Object.values(state.exploreInventory?.materials || state.runMaterials || {}).reduce((sum, count) => sum + Number(count || 0), 0);
 };
 
+window.getMaterialCurrency = function getMaterialCurrency() {
+  const state = window.GameState;
+  const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship || {};
+  if (!state.moneyMigratedToMaterials && Number(state.money || 0) > 0) {
+    ship.materials = Math.max(0, Math.floor(Number(ship.materials || 0)) + Math.floor(Number(state.money || 0)));
+    state.money = 0;
+    if (state.player) state.player.money = 0;
+    state.moneyMigratedToMaterials = true;
+  }
+  const baseTotal = typeof window.getLifelineMaterialStock === "function"
+    ? window.getLifelineMaterialStock()
+    : Object.values(state.materials || {}).reduce((sum, count) => sum + Math.max(0, Number(count || 0)), 0);
+  return Math.max(baseTotal, Math.floor(Number(ship.materials || 0)));
+};
+
+window.consumeMaterialCurrency = function consumeMaterialCurrency(amount) {
+  const required = Math.max(0, Math.floor(Number(amount || 0)));
+  if (required <= 0) return true;
+  if (typeof window.consumeLifelineMaterials === "function") return window.consumeLifelineMaterials(required);
+  return false;
+};
+
+window.addMaterialCurrency = function addMaterialCurrency(amount) {
+  const state = window.GameState;
+  const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship || {};
+  ship.materials = Math.max(0, Math.floor(Number(ship.materials || 0)) + Math.max(0, Math.floor(Number(amount || 0))));
+  return ship.materials;
+};
+
+window.getDailySurvivalBalance = function getDailySurvivalBalance() {
+  const state = window.GameState;
+  const ship = typeof window.ensureShipState === "function" ? window.ensureShipState() : state.ship || {};
+  const pilots = Array.isArray(state.pilots) ? state.pilots : [];
+  const facilities = ship.facilities || {};
+  const foodCost = Math.ceil(pilots.length * Math.max(0, 1 - Math.min(0.8, Number(ship.foodCostReduction || 0) + Number(ship.lifeSupportCostReduction || 0))));
+  const medicalBase = pilots.reduce((sum, pilot) => {
+    if (!pilot?.survival?.condition || pilot.survival.condition === "healthy" || !pilot.survival.inMedicalRoom) return sum;
+    return sum + ({ minor: 1, moderate: 3, severe: 5 }[pilot.survival.severity] || 1);
+  }, 0);
+  const medicineCost = Math.ceil(medicalBase * (1 - Math.min(0.8, Number(ship.medicineCostReduction || 0))));
+  const fuelCost = Math.ceil(Object.values(facilities).reduce((sum, level) => sum + Math.max(0, Number(level || 0)), 0) * 0.2 * (1 - Math.min(0.6, Number(ship.fuelCostReduction || 0))));
+  return [
+    { id: "food", label: "食料", stock: Number(ship.food || 0), supply: Number(ship.foodProduction || 0), consume: foodCost },
+    { id: "medicine", label: "医療品", stock: Number(ship.medicine || 0), supply: Number(ship.medicineProduction || 0), consume: medicineCost },
+    { id: "fuel", label: "燃料", stock: Number(ship.fuel || 0), supply: 0, consume: fuelCost },
+    { id: "materials", label: "資材", stock: window.getMaterialCurrency(), supply: 0, consume: 0 }
+  ];
+};
+
+window.renderSurvivalResourceStrip = function renderSurvivalResourceStrip(options = {}) {
+  const balances = window.getDailySurvivalBalance();
+  const labels = { food: "食料", medicine: "医療", fuel: "燃料", materials: "資材" };
+  return balances.map((row) => `
+    <button class="resource survival-resource-button" data-action="open-survival-resources" type="button">
+      <small>${labels[row.id] || row.label}</small>
+      <strong>${row.id === "materials" ? "🧱 " : ""}${formatNumber(row.stock)}</strong>
+    </button>
+  `).join("");
+};
+
 window.allMaterialCounts = function allMaterialCounts() {
   const state = window.GameState;
   if (typeof window.ensureMaterialInventoryState === "function") window.ensureMaterialInventoryState();
@@ -163,8 +223,8 @@ window.pilotPortraitStyle = function pilotPortraitStyle(pilot) {
 window.renderHeader = function renderHeader(titleJa, titleEn, extra = "", options = {}) {
   const state = window.GameState;
   const defaultResources = options.hideDefaultResources ? "" : `
-        <div class="resource"><small>所持金</small><strong>${formatNumber(state.money)} G</strong></div>
-        <button class="resource quest-material-button" data-action="open-base-inventory" type="button"><small>所持素材</small><strong>${totalMaterials()} / 9999</strong></button>
+        ${window.renderSurvivalResourceStrip()}
+        ${options.showBaseInventory ? `<button class="resource quest-material-button" data-action="open-base-inventory" type="button"><small>所持素材</small><strong>${totalMaterials()} / 9999</strong></button>` : ""}
   `;
   const resourceRowClass = options.resourceRowClass ? ` resource-row ${options.resourceRowClass}` : "resource-row";
   return `
@@ -180,7 +240,37 @@ window.renderHeader = function renderHeader(titleJa, titleEn, extra = "", option
       </div>
     </div>
     ${state.baseInventoryOpen ? renderBaseInventoryModal() : ""}
+    ${state.survivalResourcesOpen ? renderSurvivalResourcesModal() : ""}
   `;
+};
+
+function renderSurvivalResourcesModal() {
+  const rows = window.getDailySurvivalBalance();
+  return `
+    <div class="modal-backdrop survival-resources-modal-backdrop">
+      <section class="quest-materials-modal panel panel-pad" role="dialog" aria-modal="true" aria-label="サバイバル資源">
+        <div class="section-head">
+          <h2>サバイバル資源</h2>
+          <button class="button mini-map-close" data-action="close-survival-resources" type="button">閉じる</button>
+        </div>
+        <div class="quest-material-list">${rows.map((row) => {
+          const net = Number(row.supply || 0) - Number(row.consume || 0);
+          const tone = net < 0 ? "log-danger" : net > 0 ? "log-good" : "";
+          return `<div class="material-row"><span style="flex:1">${row.label}<br><span class="muted">現在 ${formatNumber(row.stock)}</span></span><strong>供給 +${formatNumber(row.supply)}<br>消費 -${formatNumber(row.consume)}</strong><span class="${tone}">${net >= 0 ? "+" : ""}${formatNumber(net)}/日</span></div>`;
+        }).join("")}</div>
+      </section>
+    </div>
+  `;
+}
+
+window.openSurvivalResourcesModal = function openSurvivalResourcesModal() {
+  window.GameState.survivalResourcesOpen = true;
+  window.renderCurrentScene();
+};
+
+window.closeSurvivalResourcesModal = function closeSurvivalResourcesModal() {
+  window.GameState.survivalResourcesOpen = false;
+  window.renderCurrentScene();
 };
 
 function renderBaseInventoryModal() {
@@ -259,7 +349,7 @@ window.materialRows = function materialRows() {
         <div class="material-icon"></div>
         <span style="flex:1">${material.name}<br><span class="muted">RANK ${material.rank} / ${(material.prompts || [material.category || "-"])[0]}</span></span>
         <strong>x${count}</strong>
-        <span>${material.value} G</span>
+        <span>🧱 ${material.value}</span>
         <button class="button" data-action="sell-material" data-material="${id}">売却</button>
       </div>
     `;
@@ -305,8 +395,8 @@ window.sellMaterial = function sellMaterial(materialId) {
   const material = getMaterial(materialId);
   if (!material) return;
   if (!window.consumeBaseMaterial(materialId, 1)) return;
-  state.money += material.value;
-  logMessage("bar", `${material.name}を${material.value}Gで売却した。`, "good");
+  if (typeof window.addMaterialCurrency === "function") window.addMaterialCurrency(material.value);
+  logMessage("bar", `${material.name}を資材🧱${material.value}で売却した。`, "good");
   renderCurrentScene();
 };
 

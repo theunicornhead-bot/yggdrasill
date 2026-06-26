@@ -308,6 +308,7 @@ window.createPlayerSavePayload = function createPlayerSavePayload() {
 
   return {
     saveVersion: window.PLAYER_SAVE_VERSION,
+    moneyMigratedToMaterials: Boolean(state.moneyMigratedToMaterials),
     player: clonePlain(state.player),
     pilots: clonePlain(state.pilots || []),
     mechs: clonePlain(state.mechs || []),
@@ -338,6 +339,7 @@ window.applyPlayerSavePayload = function applyPlayerSavePayload(payload) {
   if (!payload || Number(payload.saveVersion) !== window.PLAYER_SAVE_VERSION) return false;
   const state = window.GameState;
   state.saveVersion = window.PLAYER_SAVE_VERSION;
+  state.moneyMigratedToMaterials = Boolean(payload.moneyMigratedToMaterials);
   state.player = { ...state.player, ...(payload.player || {}) };
   state.pilots = Array.isArray(payload.pilots) ? payload.pilots : state.pilots;
   state.mechs = Array.isArray(payload.mechs) ? payload.mechs : state.mechs;
