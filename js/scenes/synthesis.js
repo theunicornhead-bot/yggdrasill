@@ -78,8 +78,9 @@ window.renderSynthesis = function renderSynthesis() {
   }
   const step = getSynthesisStep();
   window.App.root.innerHTML = `
-    ${renderHeader("生成", "FORGE", "", { showBaseInventory: true })}
+    ${renderHeader("生成", "FORGE", "", { hideDefaultResources: true })}
     ${renderSynthesisTabs()}
+    ${renderSynthesisAssetStrip()}
     ${typeof window.renderDebugMaterialGrant === "function" ? window.renderDebugMaterialGrant() : ""}
     ${state.synthesisTab === "mech-generate" ? `
     ${state.generationStatus.busy ? "" : `
@@ -97,6 +98,18 @@ window.renderSynthesis = function renderSynthesis() {
     ${state.synthesisTab === "weapon-generate" ? renderWeaponGenerateTab() : ""}
   `;
 };
+
+function renderSynthesisAssetStrip() {
+  return `
+    <section class="synthesis-asset-strip">
+      ${window.renderSurvivalResourceStrip()}
+      <button class="resource quest-material-button synthesis-material-stock" data-action="open-base-inventory" type="button">
+        <small>所持素材</small>
+        <strong>${totalMaterials()} / 9999</strong>
+      </button>
+    </section>
+  `;
+}
 
 function renderSynthesisTabs() {
   const tabs = [

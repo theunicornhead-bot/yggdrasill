@@ -306,12 +306,21 @@ window.closeBaseInventoryModal = function closeBaseInventoryModal() {
 window.renderBottomNav = function renderBottomNav() {
   const state = window.GameState;
   const nav = document.querySelector(".bottom-nav");
-  const isExploring = Boolean(state.quest?.currentPlanetId || state.quest?.planetId) && (state.currentScene === "quest" || state.currentScene === "battle");
-  const hasBlockingModal = Boolean(state.quest?.partySetupOpen);
-  if (nav) nav.classList.toggle("bottom-nav--hidden", isExploring || hasBlockingModal);
+  const isQuestScene = state.currentScene === "quest" || state.currentScene === "battle";
+  const isExploring = Boolean(state.quest?.currentPlanetId || state.quest?.planetId);
+  const hasBlockingQuestModal = Boolean(state.quest?.partySetupOpen || state.quest?.partySwapSlot !== undefined);
+  if (nav) nav.classList.toggle("bottom-nav--hidden", isQuestScene && (isExploring || hasBlockingQuestModal));
   document.querySelectorAll(".nav-btn").forEach((button) => {
     button.classList.toggle("active", button.dataset.screen === state.currentScene);
   });
+};
+
+window.isQuestNavigationLocked = function isQuestNavigationLocked(targetScene) {
+  const state = window.GameState;
+  const isExploring = Boolean(state.quest?.currentPlanetId || state.quest?.planetId);
+  if (!isExploring) return false;
+  if (targetScene === "quest" || targetScene === "battle") return false;
+  return state.currentScene === "quest" || state.currentScene === "battle";
 };
 
 window.logMessage = function logMessage(scene, message, tone = "") {
@@ -359,6 +368,11 @@ window.materialRows = function materialRows() {
 
 window.switchScene = function switchScene(sceneName) {
   const state = window.GameState;
+  if (window.isQuestNavigationLocked?.(sceneName)) {
+    logMessage("quest", "探索中は帰還するまで他の画面へ移動できません。", "warn");
+    renderCurrentScene();
+    return;
+  }
   if (state.pendingGeneratedMech && sceneName !== "synthesis") {
     state.currentScene = "synthesis";
     state.synthesisTab = "mech-generate";
@@ -379,16 +393,17 @@ window.switchScene = function switchScene(sceneName) {
 };
 
 window.renderCurrentScene = function renderCurrentScene() {
-  renderBottomNav();
   const state = window.GameState;
   if (state.scenario?.active && typeof window.renderScenario === "function") {
     window.renderScenario();
+    renderBottomNav();
     return;
   }
   if (state.currentScene !== "battle" && typeof window.stopAutoBattleTimer === "function") window.stopAutoBattleTimer();
   const renderer = window.App.scenes[state.currentScene];
   if (renderer) renderer();
   if (typeof window.hydrateMechImages === "function") window.hydrateMechImages(window.App.root);
+  renderBottomNav();
 };
 
 window.sellMaterial = function sellMaterial(materialId) {

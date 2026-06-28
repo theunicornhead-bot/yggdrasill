@@ -657,6 +657,7 @@ function renderQuestPartySetupModal() {
           <h2>探索パーティ編成</h2>
           <button class="button mini-map-close" data-action="close-quest-party-setup" type="button">閉じる</button>
         </div>
+        <div class="quest-party-setup-body">
         ${state.quest.partyWarning ? `<div class="log-line log-danger">${state.quest.partyWarning}</div>` : ""}
         ${typeof window.renderPartySetSelector === "function" ? window.renderPartySetSelector("quest") : ""}
         <div class="quest-party-setup-grid">
@@ -665,6 +666,7 @@ function renderQuestPartySetupModal() {
           <div class="quest-party-slot-list">
             ${sortieIds.map((mechId, index) => renderQuestPartySlot(mechId, index)).join("")}
           </div>
+        </div>
         </div>
         <div class="quest-party-setup-actions ${needsRest ? "" : "quest-party-setup-actions--single"}">
           ${needsRest ? `<button class="button" data-action="quest-rest-day" onclick="event.stopPropagation(); window.restQuestDay?.()" type="button">休息</button>` : ""}
@@ -847,6 +849,19 @@ function renderPlanetCard(planet) {
       <div class="material-row"><span>地形</span><strong>${terrains}</strong></div>
       <div class="material-row"><span>状態</span><strong>${unlocked ? "OPEN" : unlockText}</strong></div>
       <span class="tag">${unlocked ? "選択可能" : "LOCKED"}</span>
+    </button>
+  `;
+}
+
+function renderPlanetCard(planet) {
+  const unlocked = window.isPlanetUnlocked(planet);
+  const selected = (window.GameState.quest?.selectedPlanetId || window.GameState.selectedPlanetId) === planet.id;
+  const imageSrc = unlocked ? planet.openBackground : (planet.blockedBackground || planet.openBackground);
+  return `
+    <button class="planet-card panel ${selected ? "selected" : ""} ${unlocked ? "" : "locked"}" data-action="select-planet" data-planet="${planet.id}" ${unlocked ? "" : "disabled"} type="button">
+      ${imageSrc ? `<img class="planet-card-image" src="${imageSrc}" alt="">` : `<div class="planet-card-image planet-card-image--empty"></div>`}
+      <span class="planet-card-name">${planet.name}</span>
+      ${unlocked ? "" : `<span class="planet-card-lock" aria-hidden="true">🔒</span>`}
     </button>
   `;
 }
