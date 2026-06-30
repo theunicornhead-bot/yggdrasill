@@ -71,16 +71,16 @@ function escapeHtml(value) {
 window.renderSynthesis = function renderSynthesis() {
   const state = window.GameState;
   window.ensureMechGenerationState();
-  state.synthesisTab = ["mech-generate", "mech-enhance", "mech-rank-up", "weapon-generate"].includes(state.synthesisTab) ? state.synthesisTab : "mech-generate";
+  const synthesisMenuIds = synthesisMenuItems().map((item) => item.id);
+  state.synthesisTab = synthesisMenuIds.includes(state.synthesisTab) ? state.synthesisTab : "mech-generate";
   if (state.pendingGeneratedMech && !state.generationStatus.busy) {
     state.synthesisTab = "mech-generate";
     setSynthesisStep("result");
   }
   const step = getSynthesisStep();
   window.App.root.innerHTML = `
-    ${renderHeader("生成", "FORGE", "", { hideDefaultResources: true })}
+    ${renderHeader("生成", "FORGE")}
     ${renderSynthesisTabs()}
-    ${renderSynthesisAssetStrip()}
     ${typeof window.renderDebugMaterialGrant === "function" ? window.renderDebugMaterialGrant() : ""}
     ${state.synthesisTab === "mech-generate" ? `
     ${state.generationStatus.busy ? "" : `
@@ -96,29 +96,81 @@ window.renderSynthesis = function renderSynthesis() {
     ${state.synthesisTab === "mech-enhance" ? renderMachineEnhanceTab() : ""}
     ${state.synthesisTab === "mech-rank-up" ? renderMachineRankUpTab() : ""}
     ${state.synthesisTab === "weapon-generate" ? renderWeaponGenerateTab() : ""}
+    ${state.synthesisTab === "materials" ? renderSynthesisMaterialsTab() : ""}
   `;
 };
 
-function renderSynthesisAssetStrip() {
-  return `
-    <section class="synthesis-asset-strip">
-      ${window.renderSurvivalResourceStrip()}
-      <button class="resource quest-material-button synthesis-material-stock" data-action="open-base-inventory" type="button">
-        <small>所持素材</small>
-        <strong>${totalMaterials()} / 9999</strong>
-      </button>
-    </section>
-  `;
+function synthesisMenuItems() {
+  return [
+    { id: "mech-generate", label: "機体生成", icon: "mech" },
+    { id: "mech-enhance", label: "機体強化", icon: "wrench" },
+    { id: "mech-rank-up", label: "機体ランクアップ", icon: "rank" },
+    { id: "weapon-generate", label: "武器生成", icon: "weapon" },
+    { id: "materials", label: "所持素材", icon: "container" }
+  ];
+}
+
+function synthesisMenuIcon(icon) {
+  const icons = {
+    mech: `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M24 10h16l5 8-4 8H23l-4-8 5-8Z"/><path d="M18 28h28v18l-8 8H26l-8-8V28Z"/><path d="M12 30l-6 8v12M52 30l6 8v12M24 54l-4 8M40 54l4 8"/><path d="M28 18h8M27 36h10"/></svg>`,
+    wrench: `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M43 8a14 14 0 0 0-8 19L12 50l-2 8 8-2 23-23A14 14 0 0 0 56 16l-9 9-8-8 9-9a14 14 0 0 0-5 0Z"/></svg>`,
+    rank: `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="m32 6 6 12 13 2-9 9 2 13-12-6-12 6 2-13-9-9 13-2 6-12Z"/><path d="m16 44 16 10 16-10M16 32l16 10 16-10"/></svg>`,
+    weapon: `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M11 53 45 19l8-2-2 8-34 34-6-6Z"/><path d="m35 29 9 9M8 40l16 16"/><path d="M48 8v8M56 16h-8M52 10l-6 6"/></svg>`,
+    container: `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M10 22 32 10l22 12v28L32 62 10 50V22Z"/><path d="m10 22 22 12 22-12M32 34v28M21 16l22 12"/><path d="M18 42h8M42 46h6"/></svg>`
+  };
+  return icons[icon] || "";
+}
+
+function renderIconMenu({ items, activeId, className = "", action = "change-synthesis-tab" }) {
+  return `<section class="icon-menu ${className}" role="tablist">${items.map((item) => `
+    <button class="icon-menu-item ${activeId === item.id ? "active" : ""}" data-action="${action}" data-tab="${item.id}" type="button" role="tab" aria-selected="${activeId === item.id ? "true" : "false"}">
+      <span class="icon-menu-art">${synthesisMenuIcon(item.icon)}</span>
+      <span class="icon-menu-label">${item.label}</span>
+    </button>
+  `).join("")}</section>`;
 }
 
 function renderSynthesisTabs() {
-  const tabs = [
-    ["mech-generate", "機体生成"],
-    ["mech-enhance", "機体強化"],
-    ["mech-rank-up", "機体ランクアップ"],
-    ["weapon-generate", "武器生成"]
-  ];
-  return `<section class="sub-tabs synthesis-tabs">${tabs.map(([tab, label]) => `<button class="button ${window.GameState.synthesisTab === tab ? "active" : ""}" data-action="change-synthesis-tab" data-tab="${tab}" type="button">${label}</button>`).join("")}</section>`;
+  return renderIconMenu({
+    items: synthesisMenuItems(),
+    activeId: window.GameState.synthesisTab,
+    className: "synthesis-tabs"
+  });
+}
+
+function getBaseMaterialEntriesForDisplay() {
+  return Object.entries(window.baseMaterialCounts())
+    .filter(([, count]) => Number(count) > 0)
+    .map(([id, count]) => ({ id, count: Number(count || 0), material: displayMaterial(id) }))
+    .sort((a, b) => {
+      const rankDiff = String(b.material.rarity || b.material.rank || "").localeCompare(String(a.material.rarity || a.material.rank || ""), "ja");
+      if (rankDiff !== 0) return rankDiff;
+      return String(a.material.name || a.id).localeCompare(String(b.material.name || b.id), "ja");
+    });
+}
+
+function renderSynthesisMaterialsTab() {
+  const entries = getBaseMaterialEntriesForDisplay();
+  const total = entries.reduce((sum, entry) => sum + entry.count, 0);
+  return `
+    <section class="panel panel-pad synthesis-materials-panel">
+      <div class="section-head">
+        <h2>素材一覧</h2>
+        <span>${formatNumber(total)} / 9999</span>
+      </div>
+      <div class="material-tools" aria-hidden="true">
+        <span>FILTER READY</span>
+        <span>SEARCH READY</span>
+      </div>
+      <div class="quest-material-list synthesis-material-list">${entries.length ? entries.map(({ id, count, material }) => `
+        <div class="material-row" data-material-id="${escapeHtml(id)}" data-material-rank="${escapeHtml(material.rank || material.rarity || "-")}" data-material-category="${escapeHtml(material.category || material.materialRole || "-")}">
+          <div class="material-icon"></div>
+          <span style="flex:1">${escapeHtml(material.name)}<br><span class="muted">RANK ${escapeHtml(material.rank || material.rarity || "-")} / ${escapeHtml(material.category || material.materialRole || "-")}</span></span>
+          <strong>×${formatNumber(count)}</strong>
+        </div>
+      `).join("") : `<div class="muted">所持素材はありません。</div>`}</div>
+    </section>
+  `;
 }
 
 function renderMachineEnhanceTab() {
@@ -778,7 +830,7 @@ window.setSynthesisTab = function setSynthesisTab(tab) {
     window.renderCurrentScene();
     return;
   }
-  window.GameState.synthesisTab = ["mech-generate", "mech-enhance", "mech-rank-up", "weapon-generate"].includes(tab) ? tab : "mech-generate";
+  window.GameState.synthesisTab = synthesisMenuItems().some((item) => item.id === tab) ? tab : "mech-generate";
   window.renderCurrentScene();
 };
 
